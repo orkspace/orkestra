@@ -120,7 +120,7 @@ func validateCRDWatchEntries(crdName string, crd orktypes.CRDEntry) error {
 		if invalid := w.InvalidOnValues(); len(invalid) > 0 {
 			return fmt.Errorf("%s crd %q: watch[%d] %s/%s: unknown on: value(s) [%s] — valid values: %s",
 				failureMark(), crdName, i, w.APIVersion, w.Kind,
-				strings.Join(invalid, ", "), strings.Join(orktypes.ValidWatchEvents(), ", "))
+				strings.Join(invalid, ", "), strings.Join(orktypes.ValidObserveEvents(), ", "))
 		}
 
 		if err := validateWatchKeyFrom(crdName, i, w); err != nil {

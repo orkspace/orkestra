@@ -3,6 +3,7 @@ package katalog
 import (
 	"strings"
 
+	"github.com/orkspace/orkestra/domain"
 	"github.com/orkspace/orkestra/pkg/children"
 	orktypes "github.com/orkspace/orkestra/pkg/types"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -635,7 +636,7 @@ func (k *Katalog) GenerateGatewayClusterRBACRules() (map[string][]rbacv1.PolicyR
 //   - Custom resources can be fully specified without guessing.
 //   - Built‑ins remain simple (kind‑only).
 //   - RBAC generation remains deterministic and zero‑footprint safe.
-func (k *Katalog) ResolveGVR(r orktypes.ManagedResource) (schema.GroupVersionResource, bool) {
+func (k *Katalog) ResolveGVR(r domain.ManagedResource) (schema.GroupVersionResource, bool) {
 	// ───────────────────────────────────────────────
 	// 1. Full explicit GVR: group + version + plural
 	// ───────────────────────────────────────────────

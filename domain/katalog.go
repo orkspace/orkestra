@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -47,6 +48,9 @@ type Katalog interface {
 	// the informer does not maintain a separate sentinel configuration registry.
 	// Returns nil when the CRD is unknown or declares no sentinels.
 	GetPreReconcileSentinels(obj Object, gvkString string) []string
+
+	// ResolveGVR resolves a ManagedResource into a concrete GroupVersionResource.
+	ResolveGVR(r ManagedResource) (schema.GroupVersionResource, bool)
 
 	// CRD name lookups — resolve a GVK/GVR/kind/target string to the katalog CRD entry name.
 	GetNameByGVKString(gvkString string) string

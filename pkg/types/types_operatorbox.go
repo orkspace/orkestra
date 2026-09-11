@@ -6,9 +6,7 @@ import (
 	"strings"
 
 	"github.com/orkspace/orkestra/domain"
-	"github.com/orkspace/orkestra/pkg/kubeclient"
 	"github.com/orkspace/orkestra/pkg/runtime/sentinel"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 // ── FailPolicy ────────────────────────────────────────────────────────────────────
@@ -191,244 +189,6 @@ func (g *GateConditions) ExternalCalls() []ExternalCallSpec {
 		return nil
 	}
 	return g.External
-}
-
-// ── Watch event types ─────────────────────────────────────────────────────
-
-// WatchEvent is the string type for watch event types used in WatchEntry.On.
-type WatchEvent string
-
-const (
-	WatchEventCreate WatchEvent = "create"
-	WatchEventUpdate WatchEvent = "update"
-	WatchEventDelete WatchEvent = "delete"
-)
-
-// String() stringifies a watch event
-func (w WatchEvent) String() string {
-	return string(w)
-}
-
-// ValidWatchEvents returns all known watch event values in declaration order.
-func ValidWatchEvents() []string {
-	return []string{
-		string(WatchEventCreate),
-		string(WatchEventUpdate),
-		string(WatchEventDelete),
-	}
-}
-
-// IsValidWatchEvent reports whether s is a known watch event type.
-func IsValidWatchEvent(s string) bool {
-	switch WatchEvent(s) {
-	case WatchEventCreate, WatchEventUpdate, WatchEventDelete:
-		return true
-	}
-	return false
-}
-
-// IsAllValid reports if a slice of watch event strings are valid
-func IsAllValid(events []string) (bool, []string) {
-	var unknown []string
-	for _, event := range events {
-		if !IsValidWatchEvent(event) {
-			unknown = append(unknown, event)
-		}
-	}
-	if len(unknown) > 0 {
-		return false, unknown
-	}
-	return true, nil
-}
-
-// ── WatchEntry ────────────────────────────────────────────────────────────────
-
-// WatchEntry declares a secondary Kubernetes resource Orkestra should watch.
-// When the resource changes, Orkestra resolves the relevant primary CR key(s)
-// and enqueues them — no Go required.
-//
-// Key resolution: if the changed object has an ownerReference pointing to a
-// primary CR, that CR is enqueued. Otherwise all known CRs of the primary kind
-// are enqueued (shared-resource broadcast).
-//
-// YAML:
-//
-//	operatorBox:
-//	  watch:
-//	    - apiVersion: apps/v1
-//	      kind: Deployment
-//	    - apiVersion: v1
-//	      kind: ConfigMap
-//	      namespace: my-operator-system
-//	      name: shared-config
-//	    - apiVersion: v1
-//	      kind: Node
-//	      on: [update]
-type WatchEntry struct {
-	// APIVersion is the Kubernetes API version of the resource to watch.
-	// e.g. "apps/v1", "v1", "networking.k8s.io/v1"
-	APIVersion string `yaml:"apiVersion" json:"apiVersion" validate:"required"`
-
-	// Kind is the Kubernetes Kind of the resource to watch.
-	// e.g. "Deployment", "ConfigMap", "Node"
-	Kind string `yaml:"kind" json:"kind" validate:"required"`
-
-	// Namespace restricts the watch to a single namespace.
-	// When empty the watch is cluster-scoped (all namespaces).
-	Namespace string `yaml:"namespace,omitempty" json:"namespace,omitempty"`
-
-	// Name restricts the watch to a single named resource.
-	// When set only events for that specific object trigger the enqueue.
-	// Typically used for well-known shared resources (a specific ConfigMap or Secret).
-	Name string `yaml:"name,omitempty" json:"name,omitempty"`
-
-	// On declares which event types trigger the enqueue.
-	// Valid values: WatchEventCreate, WatchEventUpdate, WatchEventDelete.
-	// When empty all three event types are watched.
-	On []string `yaml:"on,omitempty" json:"on,omitempty"`
-
-	// EnqueueGate declares conditions evaluated before enqueueing when the watch
-	// fires. Sentinels (e.g. generationChanged) are computed against the watched
-	// resource's oldObj / newObj at UpdateFunc time and are valid here.
-	// When nil all events that pass the On filter are enqueued.
-	EnqueueGate *GateConditions `yaml:"enqueueGate,omitempty" json:"enqueueGate,omitempty"`
-
-	// KeyFrom overrides the default key resolution (ownerReference → broadcast).
-	// Declare when the standard mechanisms do not express the mapping you need.
-	// When nil the runtime checks ownerReferences first; if none match the primary
-	// CRD it broadcasts to all known primary CRs.
-	KeyFrom *WatchKeyFrom `yaml:"keyFrom,omitempty" json:"keyFrom,omitempty"`
-
-	// Index declares field-path indexers that Orkestra registers on this watch's
-	// informer. Each entry makes client.List(ctx, &list, client.MatchingFields{name: value})
-	// serve from the cache instead of making a live API call.
-	//
-	//  watch:
-	//    - apiVersion: v1
-	//      kind: ConfigMap
-	//      index:
-	//        - name: metadata.ownerRef
-	//          field: ".metadata.ownerReferences[0].name"
-	Index []WatchIndex `yaml:"index,omitempty" json:"index,omitempty"`
-
-	// Include is a path (relative to the katalog file) to a YAML file whose
-	// "watch:" list replaces this entry in-place. When set all other fields on
-	// this entry are ignored. Cleared after expansion.
-	Include string `yaml:"include,omitempty" json:"include,omitempty"`
-}
-
-// WatchIndex declares one field-path indexer on a watch: entry informer.
-// Name is used as the index key — it must match the key passed to client.MatchingFields.
-// Field is a dot-separated JSON path into the watched object (e.g. "spec.owner").
-type WatchIndex struct {
-	// Name is the index name. Must match the key in client.MatchingFields.
-	Name string `yaml:"name" json:"name"`
-	// Field is the JSON path to index on (e.g. ".spec.owner", "metadata.labels.app").
-	Field string `yaml:"field" json:"field"`
-}
-
-// WatchKeyFrom overrides the default ownerReference → broadcast key resolution
-// for a watch: entry. Exactly one of Label or Name must be set.
-//
-//	keyFrom:
-//	  label: "app.kubernetes.io/cr-owner"   # label on the watched object carries the key
-//
-//	keyFrom:
-//	  name: "my-singleton-cr"               # always enqueue this named primary CR
-//	  namespace: "my-namespace"             # optional; omit for cluster-scoped CRDs
-type WatchKeyFrom struct {
-	// Label names a label on the watched object whose value is the primary CR key.
-	// The value must be a valid Kubernetes key: "namespace/name" or bare "name".
-	// Mutually exclusive with Name.
-	Label string `yaml:"label,omitempty" json:"label,omitempty"`
-
-	// Name is a fixed primary CR name to enqueue regardless of which watched
-	// object changed. Use for singleton operators (one CR per cluster).
-	// Mutually exclusive with Label.
-	Name string `yaml:"name,omitempty" json:"name,omitempty"`
-
-	// Namespace qualifies Name. Omit for cluster-scoped primary CRDs.
-	// Ignored when Label is set.
-	Namespace string `yaml:"namespace,omitempty" json:"namespace,omitempty"`
-}
-
-// Key returns the enqueue key for the fixed-name variant.
-func (kf *WatchKeyFrom) Key() string {
-	if kf.Namespace != "" {
-		return kf.Namespace + "/" + kf.Name
-	}
-	return kf.Name
-}
-
-// WatchesOn reports whether the entry should fire for the given event type.
-func (w WatchEntry) WatchesOn(event string) bool {
-	if len(w.On) == 0 {
-		return true
-	}
-	for _, e := range w.On {
-		if e == event {
-			return true
-		}
-	}
-	return false
-}
-
-// InvalidOnValues returns any On values that are not valid WatchEvent constants.
-// Returns nil when all values are valid.
-func (w WatchEntry) InvalidOnValues() []string {
-	var invalid []string
-	for _, e := range w.On {
-		if !IsValidWatchEvent(e) {
-			invalid = append(invalid, e)
-		}
-	}
-	return invalid
-}
-
-// ToManagedResource converts the entry to a ManagedResource suitable for
-// ResolveGVR — used for RBAC generation.
-func (w WatchEntry) ToManagedResource() ManagedResource {
-	return ManagedResource{
-		APIVersion: w.APIVersion,
-		Kind:       w.Kind,
-	}
-}
-
-// ToCRDInfo converts a WatchEntry + resolved GVR to a kubeclient.CRDInfo
-// for NewDynamicListerWatcher. Namespace is set to the entry's declared namespace;
-// Namespaced is true when a namespace is declared (restricts the watch to that
-// namespace), false for a cluster-scoped watch (all namespaces).
-func (w WatchEntry) ToCRDInfo(gvr schema.GroupVersionResource) kubeclient.CRDInfo {
-	return kubeclient.CRDInfo{
-		Group:      gvr.Group,
-		Version:    gvr.Version,
-		Plural:     gvr.Resource,
-		Namespace:  w.Namespace,
-		Namespaced: w.Namespace != "",
-	}
-}
-
-// HasWatchSentinels returns true if this watch entry has enqueue gate sentinels
-func (e WatchEntry) HasWatchSentinels() bool {
-	return e.EnqueueGate != nil && len(e.EnqueueGate.DeclaredSentinels()) > 0
-}
-
-// GVKString returns the canonical group/version/kind string for this watch.
-func (w *WatchEntry) GVKString() string {
-	if w == nil {
-		return ""
-	}
-
-	gv, err := schema.ParseGroupVersion(w.APIVersion)
-	if err != nil {
-		return ""
-	}
-
-	return schema.GroupVersionKind{
-		Group:   gv.Group,
-		Version: gv.Version,
-		Kind:    w.Kind,
-	}.String()
 }
 
 // ── PreReconcileConfig ────────────────────────────────────────────────────────────
@@ -831,6 +591,12 @@ type OperatorBoxConfig struct {
 	// nil → no secondary watches; only the primary CRD informer is active.
 	Watch []WatchEntry `yaml:"watch,omitempty" json:"watch,omitempty"`
 
+	// Events declares Kubernetes Events Orkestra should observe.
+	// When a matching event occurs, Orkestra resolves the relevant primary
+	// CR key(s) and enqueues them. The reconciler runs normally — the event
+	// is treated as a trigger, not as the source of truth.
+	Events []EventEntry `yaml:"events,omitempty" json:"events,omitempty"`
+
 	// Autoscale declares runtime autoscale behavior for this operatorbox.
 	// When declared, the autoscaler evaluates conditions on a ticker and applies
 	// or restores worker/queue/resync overrides automatically.
@@ -931,7 +697,7 @@ type HookDeclaration struct {
 	Alias string `yaml:"alias,omitempty" json:"alias,omitempty" validate:"omitempty"`
 
 	// ManagedResources — Kubernetes resource types this hook manages (used for RBAC generation).
-	ManagedResources []ManagedResource `json:"managedResources,omitempty" yaml:"managedResources,omitempty"`
+	ManagedResources []domain.ManagedResource `json:"managedResources,omitempty" yaml:"managedResources,omitempty"`
 
 	// RunHooksFirst — when true, the hook runs before declarative templates.
 	// When false (default), declarative templates run first and the hook is
@@ -981,70 +747,10 @@ type ConstructorDeclaration struct {
 	Alias string `yaml:"alias,omitempty" json:"alias,omitempty" validate:"omitempty"`
 
 	// ManagedResources — Kubernetes resource types this constructor manages (used for RBAC generation).
-	ManagedResources []ManagedResource `json:"managedResources,omitempty" yaml:"managedResources,omitempty"`
+	ManagedResources []domain.ManagedResource `json:"managedResources,omitempty" yaml:"managedResources,omitempty"`
 
 	// Args — arbitrary key/value pairs passed to the constructor at startup.
 	// Read via kube.Args().String("key"), .Bool("key"), etc.
 	// or via kube.Args().BindArgs(&myStruct).
 	Args map[string]interface{} `yaml:"args,omitempty" json:"args,omitempty"`
-}
-
-// ManagedResource describes a Kubernetes resource type that a typed extension
-// (either a hook or a constructor) will manage.
-//
-// Orkestra uses this information for two purposes:
-//
-//  1. RBAC generation — each declared resource results in permissions to
-//     get/list/watch/create/update/patch/delete that resource type.
-//
-//  2. Implicit watch informer — Orkestra automatically starts a watch informer
-//     for each declared resource, identical to declaring a watch: entry with
-//     all events and owner-reference key resolution. This means:
-//
-//     - r.client.Get / r.client.List for that type are served from cache
-//     - when an owned resource changes, Orkestra enqueues the primary CR
-//
-//     If you need finer control (custom on:, enqueueGate:, keyFrom:, or index:),
-//     declare an explicit watch: entry for that type — it takes priority over
-//     the implicit informer from resources:.
-//
-// For built‑in Kubernetes resources, Kind alone is sufficient because Orkestra
-// resolves the full GroupVersionResource from its internal registry.
-//
-// For custom resources or non‑core API groups, APIVersion and/or explicit
-// group/version/plural may be provided.
-//
-// Example (in katalog.yaml):
-//
-//	hooks:
-//	  resources:
-//	    - kind: StatefulSet
-//	    - kind: Service
-//	    - kind: CronJob
-//	    - kind: Widget
-//	      group: widgets.example.com
-//	      version: v1alpha1
-//	      plural: widgets
-type ManagedResource struct {
-	// Kind is the Kubernetes Kind of the resource (e.g. "StatefulSet",
-	// "Service", "CronJob"). This is the primary identifier and is required.
-	Kind string `json:"kind,omitempty" yaml:"kind,omitempty"`
-
-	// APIVersion is optional and only needed when the Kind cannot be resolved
-	// from Orkestra's built‑in registry. Example: "apps/v1", "batch/v1",
-	// "widgets.example.com/v1alpha1".
-	APIVersion string `json:"apiVersion,omitempty" yaml:"apiVersion,omitempty"`
-
-	// Group is optional and used for custom resources or non‑core API groups
-	// when you want to fully specify the GroupVersionResource explicitly.
-	// Example: "widgets.example.com".
-	Group string `json:"group,omitempty" yaml:"group,omitempty"`
-
-	// Version is optional and used together with Group for custom resources.
-	// Example: "v1alpha1".
-	Version string `json:"version,omitempty" yaml:"version,omitempty"`
-
-	// Plural is optional and used when the plural name cannot be inferred
-	// from Orkestra's built‑in registry or CRD metadata. Example: "widgets".
-	Plural string `json:"plural,omitempty" yaml:"plural,omitempty"`
 }

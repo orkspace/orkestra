@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 
 	"errors"
+
 	"github.com/orkspace/orkestra/domain"
 
 	"github.com/orkspace/orkestra/pkg/event"
@@ -16,6 +17,7 @@ import (
 	"github.com/orkspace/orkestra/pkg/kubeclient"
 	"github.com/orkspace/orkestra/pkg/logger"
 	"github.com/orkspace/orkestra/pkg/runtime/informer"
+	"github.com/orkspace/orkestra/pkg/runtime/informer/observe"
 	"github.com/orkspace/orkestra/pkg/runtime/queue"
 )
 
@@ -25,6 +27,7 @@ var _ domain.Komponent = (*Kontroller)(nil)
 type Kontroller struct {
 	kube             *kubeclient.Kubeclient
 	informerFactory  *informer.Factory
+	observer         *observe.Observer
 	event            *event.Event
 	katalog          *ResourceKatalog
 	kat              *katalog.Katalog
@@ -54,6 +57,7 @@ type Kontroller struct {
 func NewKontroller(
 	kube *kubeclient.Kubeclient,
 	informerFactory *informer.Factory,
+	observer *observe.Observer,
 	katalog *ResourceKatalog,
 	kat *katalog.Katalog,
 	event *event.Event,
@@ -67,6 +71,7 @@ func NewKontroller(
 	k := &Kontroller{
 		kube:             kube,
 		informerFactory:  informerFactory,
+		observer:         observer,
 		katalog:          katalog,
 		kat:              kat,
 		event:            event,

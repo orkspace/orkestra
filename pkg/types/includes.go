@@ -219,6 +219,36 @@ func ExpandWatchEntries(entries []WatchEntry, baseDir string) ([]WatchEntry, err
 	return expanded, nil
 }
 
+// ExpandEventEntries resolves include entries in a []EventEntry list.
+// An entry with include: set is replaced in-place by the "event:" list from the
+// referenced file. Entries without include: are kept as-is.
+// The include path is resolved relative to baseDir.
+func ExpandEventEntries(entries []EventEntry, baseDir string) ([]EventEntry, error) {
+	var expanded []EventEntry
+	for _, entry := range entries {
+		if entry.Include == "" {
+			expanded = append(expanded, entry)
+			continue
+		}
+		path := entry.Include
+		if !filepath.IsAbs(path) {
+			path = filepath.Join(baseDir, path)
+		}
+		data, err := readLocal(path)
+		if err != nil {
+			return nil, fmt.Errorf("reading watch include %q: %w", entry.Include, err)
+		}
+		var f struct {
+			Events []EventEntry `yaml:"events"`
+		}
+		if err := strictUnmarshal(data, &f); err != nil {
+			return nil, fmt.Errorf("parsing watch include %q: %w", entry.Include, err)
+		}
+		expanded = append(expanded, f.Events...)
+	}
+	return expanded, nil
+}
+
 // ExpandReconcilerInclude resolves the reconciler.include field by reading the
 // referenced file, unmarshaling its "reconciler:" block, and merging it under
 // the inline config. Inline fields take precedence. Cleared after expansion.

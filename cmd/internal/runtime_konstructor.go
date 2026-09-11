@@ -114,6 +114,7 @@ import (
 	"github.com/orkspace/orkestra/pkg/merger"
 	ork "github.com/orkspace/orkestra/pkg/orkestra"
 	"github.com/orkspace/orkestra/pkg/runtime/informer"
+	"github.com/orkspace/orkestra/pkg/runtime/informer/observe"
 	"github.com/orkspace/orkestra/pkg/runtime/kordinator"
 	"github.com/orkspace/orkestra/pkg/runtime/queue"
 	"github.com/orkspace/orkestra/pkg/runtime/reconciler"
@@ -542,7 +543,16 @@ func konstructRuntime(kfg *konfig.Konfig, m *merger.Merger, ctx context.Context)
 	hs.Register("/katalog/enriched", kordinator.BuildEnrichedKatalogHandler(kat))
 	hs.Register("/katalog", kordinator.BuildKatalogHandler(kat, kfg, ktrlRegistry, crdHealthMap, orkHealth))
 
-	// ── 6. Dependency kordinator ──────────────────────────────────────────────
+	// ── 6a. Secondary resource observers ────────────────────────────
+	// Observe secondary resources declared in operatorBox.watch/events.
+	obs := observe.New(observe.Dependencies{
+		Kube:          kube,
+		Informer:      infFactory,
+		QueueRegistry: queueRegistry,
+		Katalog:       kat,
+	})
+
+	// ── 6b. Dependency kordinator ──────────────────────────────────────────────
 	// Starts CRD workers in topological order defined by the dependency graph.
 	// For each CRD, waits until all declared dependsOn CRDs meet their
 	// condition (started | healthy) before calling factory() and starting workers.
@@ -553,6 +563,7 @@ func konstructRuntime(kfg *konfig.Konfig, m *merger.Merger, ctx context.Context)
 	kord := kordinator.NewDependencyKordinator(
 		kube,
 		infFactory,
+		obs,
 		ktrlRegistry,
 		kat,
 		ev,
