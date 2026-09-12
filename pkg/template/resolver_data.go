@@ -183,6 +183,40 @@ func (r *Resolver) WithCross(data map[string]interface{}) *Resolver {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// WithEvents — Events result injection
+// ─────────────────────────────────────────────────────────────────────────────
+
+// WithEvents returns a new Resolver with Kubernetes Event observation data
+// injected under the "events" key.
+//
+// Each observed Event is keyed by the "name" of the Event declaration:
+//
+//	events:
+//	  databaseReady:
+//	    reason: DatabaseReady
+//	    type: Normal
+//	    reportingController: database.orkestra.io
+//
+// Results are accessible in subsequent expressions and when: conditions:
+//
+//	{{ .events.databaseReady.reason }}
+//	{{ .events.databaseReady.type }}
+//	{{ .events.databaseReady.reportingController }}
+//	{{ .events.databaseReady.regarding.name }}
+//
+// Event data is populated by the observe layer when an Event matches an
+// EventEntry declaration.
+func (r *Resolver) WithEvents(data map[string]interface{}) *Resolver {
+	if len(data) == 0 {
+		return r
+	}
+
+	newData := r.shallowCopy()
+	newData["events"] = data
+	return r.copyWith(newData)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // WithGit — Git hook result injection
 // ─────────────────────────────────────────────────────────────────────────────
 //

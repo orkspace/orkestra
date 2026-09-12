@@ -21,10 +21,12 @@ func TestValidateWatchEntries_Empty(t *testing.T) {
 
 func TestValidateWatchEntries_Valid(t *testing.T) {
 	k := katalogWithWatch("myapp", orktypes.OperatorBoxConfig{
-		Watch: []orktypes.WatchEntry{
-			{APIVersion: "apps/v1", Kind: "Deployment"},
-			{APIVersion: "v1", Kind: "ConfigMap", Namespace: "default", Name: "shared-config"},
-			{APIVersion: "v1", Kind: "Node", On: []string{"update"}},
+		Observe: &orktypes.Observe{
+			Watch: []orktypes.WatchEntry{
+				{APIVersion: "apps/v1", Kind: "Deployment"},
+				{APIVersion: "v1", Kind: "ConfigMap", Namespace: "default", Name: "shared-config"},
+				{APIVersion: "v1", Kind: "Node", On: []string{"update"}},
+			},
 		},
 	})
 	assert.NoError(t, k.validateWatchEntries())
@@ -32,8 +34,10 @@ func TestValidateWatchEntries_Valid(t *testing.T) {
 
 func TestValidateWatchEntries_MissingAPIVersion(t *testing.T) {
 	k := katalogWithWatch("myapp", orktypes.OperatorBoxConfig{
-		Watch: []orktypes.WatchEntry{
-			{Kind: "Deployment"},
+		Observe: &orktypes.Observe{
+			Watch: []orktypes.WatchEntry{
+				{Kind: "Deployment"},
+			},
 		},
 	})
 	err := k.validateWatchEntries()
@@ -43,8 +47,10 @@ func TestValidateWatchEntries_MissingAPIVersion(t *testing.T) {
 
 func TestValidateWatchEntries_MissingKind(t *testing.T) {
 	k := katalogWithWatch("myapp", orktypes.OperatorBoxConfig{
-		Watch: []orktypes.WatchEntry{
-			{APIVersion: "apps/v1"},
+		Observe: &orktypes.Observe{
+			Watch: []orktypes.WatchEntry{
+				{APIVersion: "apps/v1"},
+			},
 		},
 	})
 	err := k.validateWatchEntries()
@@ -54,8 +60,10 @@ func TestValidateWatchEntries_MissingKind(t *testing.T) {
 
 func TestValidateWatchEntries_InvalidOnValue(t *testing.T) {
 	k := katalogWithWatch("myapp", orktypes.OperatorBoxConfig{
-		Watch: []orktypes.WatchEntry{
-			{APIVersion: "apps/v1", Kind: "Deployment", On: []string{"modified"}},
+		Observe: &orktypes.Observe{
+			Watch: []orktypes.WatchEntry{
+				{APIVersion: "apps/v1", Kind: "Deployment", On: []string{"modified"}},
+			},
 		},
 	})
 	err := k.validateWatchEntries()
@@ -66,9 +74,11 @@ func TestValidateWatchEntries_InvalidOnValue(t *testing.T) {
 
 func TestValidateWatchEntries_DuplicateEntry(t *testing.T) {
 	k := katalogWithWatch("myapp", orktypes.OperatorBoxConfig{
-		Watch: []orktypes.WatchEntry{
-			{APIVersion: "apps/v1", Kind: "Deployment"},
-			{APIVersion: "apps/v1", Kind: "Deployment"},
+		Observe: &orktypes.Observe{
+			Watch: []orktypes.WatchEntry{
+				{APIVersion: "apps/v1", Kind: "Deployment"},
+				{APIVersion: "apps/v1", Kind: "Deployment"},
+			},
 		},
 	})
 	err := k.validateWatchEntries()
@@ -78,9 +88,11 @@ func TestValidateWatchEntries_DuplicateEntry(t *testing.T) {
 
 func TestValidateWatchEntries_DuplicateWithDifferentNamespace(t *testing.T) {
 	k := katalogWithWatch("myapp", orktypes.OperatorBoxConfig{
-		Watch: []orktypes.WatchEntry{
-			{APIVersion: "v1", Kind: "ConfigMap", Namespace: "ns-a"},
-			{APIVersion: "v1", Kind: "ConfigMap", Namespace: "ns-b"},
+		Observe: &orktypes.Observe{
+			Watch: []orktypes.WatchEntry{
+				{APIVersion: "v1", Kind: "ConfigMap", Namespace: "ns-a"},
+				{APIVersion: "v1", Kind: "ConfigMap", Namespace: "ns-b"},
+			},
 		},
 	})
 	assert.NoError(t, k.validateWatchEntries())
@@ -88,8 +100,10 @@ func TestValidateWatchEntries_DuplicateWithDifferentNamespace(t *testing.T) {
 
 func TestValidateWatchEntries_ValidAllOnValues(t *testing.T) {
 	k := katalogWithWatch("myapp", orktypes.OperatorBoxConfig{
-		Watch: []orktypes.WatchEntry{
-			{APIVersion: "v1", Kind: "Node", On: []string{"create", "update", "delete"}},
+		Observe: &orktypes.Observe{
+			Watch: []orktypes.WatchEntry{
+				{APIVersion: "v1", Kind: "Node", On: []string{"create", "update", "delete"}},
+			},
 		},
 	})
 	assert.NoError(t, k.validateWatchEntries())
@@ -205,8 +219,10 @@ func TestValidateGateTemplate_UndeclaredSentinelFails(t *testing.T) {
 
 func TestValidateKeyFrom_ValidLabel(t *testing.T) {
 	k := katalogWithWatch("myapp", orktypes.OperatorBoxConfig{
-		Watch: []orktypes.WatchEntry{
-			{APIVersion: "v1", Kind: "ConfigMap", KeyFrom: &orktypes.WatchKeyFrom{Label: "app.kubernetes.io/cr-owner"}},
+		Observe: &orktypes.Observe{
+			Watch: []orktypes.WatchEntry{
+				{APIVersion: "v1", Kind: "ConfigMap", KeyFrom: &orktypes.WatchKeyFrom{Label: "app.kubernetes.io/cr-owner"}},
+			},
 		},
 	})
 	require.NoError(t, k.validateWatchEntries())
@@ -214,8 +230,10 @@ func TestValidateKeyFrom_ValidLabel(t *testing.T) {
 
 func TestValidateKeyFrom_ValidName(t *testing.T) {
 	k := katalogWithWatch("myapp", orktypes.OperatorBoxConfig{
-		Watch: []orktypes.WatchEntry{
-			{APIVersion: "v1", Kind: "Node", KeyFrom: &orktypes.WatchKeyFrom{Name: "my-singleton"}},
+		Observe: &orktypes.Observe{
+			Watch: []orktypes.WatchEntry{
+				{APIVersion: "v1", Kind: "Node", KeyFrom: &orktypes.WatchKeyFrom{Name: "my-singleton"}},
+			},
 		},
 	})
 	require.NoError(t, k.validateWatchEntries())
@@ -223,8 +241,10 @@ func TestValidateKeyFrom_ValidName(t *testing.T) {
 
 func TestValidateKeyFrom_BothLabelAndName(t *testing.T) {
 	k := katalogWithWatch("myapp", orktypes.OperatorBoxConfig{
-		Watch: []orktypes.WatchEntry{
-			{APIVersion: "v1", Kind: "ConfigMap", KeyFrom: &orktypes.WatchKeyFrom{Label: "some-label", Name: "some-name"}},
+		Observe: &orktypes.Observe{
+			Watch: []orktypes.WatchEntry{
+				{APIVersion: "v1", Kind: "ConfigMap", KeyFrom: &orktypes.WatchKeyFrom{Label: "some-label", Name: "some-name"}},
+			},
 		},
 	})
 	err := k.validateWatchEntries()
@@ -234,8 +254,10 @@ func TestValidateKeyFrom_BothLabelAndName(t *testing.T) {
 
 func TestValidateKeyFrom_NeitherLabelNorName(t *testing.T) {
 	k := katalogWithWatch("myapp", orktypes.OperatorBoxConfig{
-		Watch: []orktypes.WatchEntry{
-			{APIVersion: "v1", Kind: "ConfigMap", KeyFrom: &orktypes.WatchKeyFrom{}},
+		Observe: &orktypes.Observe{
+			Watch: []orktypes.WatchEntry{
+				{APIVersion: "v1", Kind: "ConfigMap", KeyFrom: &orktypes.WatchKeyFrom{}},
+			},
 		},
 	})
 	err := k.validateWatchEntries()
@@ -245,8 +267,10 @@ func TestValidateKeyFrom_NeitherLabelNorName(t *testing.T) {
 
 func TestValidateKeyFrom_NamespaceWithLabelRejected(t *testing.T) {
 	k := katalogWithWatch("myapp", orktypes.OperatorBoxConfig{
-		Watch: []orktypes.WatchEntry{
-			{APIVersion: "v1", Kind: "ConfigMap", KeyFrom: &orktypes.WatchKeyFrom{Label: "some-label", Namespace: "default"}},
+		Observe: &orktypes.Observe{
+			Watch: []orktypes.WatchEntry{
+				{APIVersion: "v1", Kind: "ConfigMap", KeyFrom: &orktypes.WatchKeyFrom{Label: "some-label", Namespace: "default"}},
+			},
 		},
 	})
 	err := k.validateWatchEntries()

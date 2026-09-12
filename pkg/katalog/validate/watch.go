@@ -10,7 +10,7 @@ import (
 	orktypes "github.com/orkspace/orkestra/pkg/types"
 )
 
-// validateWatchEntries validates operatorBox.watch and preReconcile.sentinels
+// validateWatchEntries validates operatorBox.observe.watch and preReconcile.sentinels
 // across all enabled CRDs.
 //
 // Enforces:
@@ -117,13 +117,14 @@ func validateCRDWatchEntries(crdName string, crd orktypes.CRDEntry) error {
 			return fmt.Errorf("%s crd %q: watch[%d]: kind must not be empty", failureMark(), crdName, i)
 		}
 
-		if invalid := w.InvalidOnValues(); len(invalid) > 0 {
+		if invalid := crd.OperatorBox.Observe.InvalidOnValues(w.On); len(invalid) > 0 {
 			return fmt.Errorf("%s crd %q: watch[%d] %s/%s: unknown on: value(s) [%s] — valid values: %s",
 				failureMark(), crdName, i, w.APIVersion, w.Kind,
 				strings.Join(invalid, ", "), strings.Join(orktypes.ValidObserveEvents(), ", "))
 		}
 
-		if err := validateWatchKeyFrom(crdName, i, w); err != nil {
+		idx := fmt.Sprintf("watch[%d]", i)
+		if err := validateWatchKeyFrom(crdName, idx, w); err != nil {
 			return err
 		}
 
@@ -137,7 +138,7 @@ func validateCRDWatchEntries(crdName string, crd orktypes.CRDEntry) error {
 	return nil
 }
 
-func validateWatchKeyFrom(crdName string, idx int, w orktypes.WatchEntry) error {
+func validateWatchKeyFrom(crdName string, location string, w orktypes.WatchEntry) error {
 	kf := w.KeyFrom
 	if kf == nil {
 		return nil
@@ -145,16 +146,16 @@ func validateWatchKeyFrom(crdName string, idx int, w orktypes.WatchEntry) error 
 	hasLabel := kf.Label != ""
 	hasName := kf.Name != ""
 	if hasLabel && hasName {
-		return fmt.Errorf("%s crd %q: watch[%d] %s/%s: keyFrom must declare exactly one of label or name, not both",
-			failureMark(), crdName, idx, w.APIVersion, w.Kind)
+		return fmt.Errorf("%s crd %q: watch[%s] %s/%s: keyFrom must declare exactly one of label or name, not both",
+			failureMark(), crdName, location, w.APIVersion, w.Kind)
 	}
 	if !hasLabel && !hasName {
-		return fmt.Errorf("%s crd %q: watch[%d] %s/%s: keyFrom is declared but neither label nor name is set",
-			failureMark(), crdName, idx, w.APIVersion, w.Kind)
+		return fmt.Errorf("%s crd %q: watch[%s] %s/%s: keyFrom is declared but neither label nor name is set",
+			failureMark(), crdName, location, w.APIVersion, w.Kind)
 	}
 	if hasLabel && kf.Namespace != "" {
-		return fmt.Errorf("%s crd %q: watch[%d] %s/%s: keyFrom.namespace has no effect when label is set",
-			failureMark(), crdName, idx, w.APIVersion, w.Kind)
+		return fmt.Errorf("%s crd %q: watch[%s] %s/%s: keyFrom.namespace has no effect when label is set",
+			failureMark(), crdName, location, w.APIVersion, w.Kind)
 	}
 	return nil
 }

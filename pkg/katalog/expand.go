@@ -52,7 +52,7 @@ func (k *Katalog) expandIncludes() error {
 		if err := orktypes.PopulateExternalCallsFromInclude(&entry, k.katalogDir); err != nil {
 			return fmt.Errorf("CRD %q: %w", name, err)
 		}
-		if err := populateWatchEntriesFromInclude(&entry, k.katalogDir); err != nil {
+		if err := populateObserveInclude(&entry, k.katalogDir); err != nil {
 			return fmt.Errorf("CRD %q: %w", name, err)
 		}
 		if err := populateReconcilerFromInclude(&entry, k.katalogDir); err != nil {

@@ -46,8 +46,8 @@ func New(deps Dependencies) *Observer {
 // Observe starts all secondary observers declared by the CRD.
 //
 // This currently covers:
-//   - operatorBox.watch
-//   - operatorBox.events
+//   - operatorBox.observe.watch
+//   - operatorBox.observe.events
 //
 // Observers are started immediately against ctx.
 func (o *Observer) Observe(ctx context.Context, crd orktypes.CRDEntry) {

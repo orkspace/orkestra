@@ -42,7 +42,7 @@ The package currently supports two declaration types.
 
 ### Secondary resource watches
 
-`operatorBox.watch` declares Kubernetes resources whose changes should cause reconciliation.
+`operatorBox.observe.watch` declares Kubernetes resources whose changes should cause reconciliation.
 
 ```yaml
 operatorBox:
@@ -153,7 +153,7 @@ Defines the `Observer` and its runtime dependencies.
 
 ### `watch.go`
 
-Creates and manages dynamic informers for `operatorBox.watch` entries and implicit watches derived from managed resources.
+Creates and manages dynamic informers for `operatorBox.observe.watch` entries and implicit watches derived from managed resources.
 
 It handles Kubernetes watch events and passes affected primary keys to the shared informer enqueue machinery.
 

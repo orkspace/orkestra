@@ -47,24 +47,27 @@ func populateConversionPathsFromInclude(entry *orktypes.CRDEntry, katalogDir str
 	return nil
 }
 
-func populateWatchEntriesFromInclude(entry *orktypes.CRDEntry, katalogDir string) error {
-	var err error
-	entry.OperatorBox.Watch, err = orktypes.ExpandWatchEntries(entry.OperatorBox.Watch, katalogDir)
-	if err != nil {
-		return fmt.Errorf("operatorBox.watch: %w", err)
+func populateObserveInclude(entry *orktypes.CRDEntry, katalogDir string) error {
+	if entry.OperatorBox.Observe != nil {
+		if err := orktypes.ExpandObserveInclude(entry.OperatorBox.Observe, katalogDir); err != nil {
+			return fmt.Errorf("operatorBox.observe: %w", err)
+		}
 	}
+
 	if entry.Serve == nil {
 		return nil
 	}
+
 	for name, cfg := range entry.Serve.Target.Entries {
-		if cfg == nil || cfg.OperatorBox == nil {
+		if cfg == nil || cfg.OperatorBox == nil || cfg.OperatorBox.Observe == nil {
 			continue
 		}
-		cfg.OperatorBox.Watch, err = orktypes.ExpandWatchEntries(cfg.OperatorBox.Watch, katalogDir)
-		if err != nil {
-			return fmt.Errorf("serve.target[%q].operatorBox.watch: %w", name, err)
+
+		if err := orktypes.ExpandObserveInclude(cfg.OperatorBox.Observe, katalogDir); err != nil {
+			return fmt.Errorf("serve.target[%q].operatorBox.observe: %w", name, err)
 		}
 	}
+
 	return nil
 }
 

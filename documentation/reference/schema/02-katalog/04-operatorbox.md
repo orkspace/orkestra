@@ -50,6 +50,7 @@ operatorBox:
   when:
     ...               # → when-conditions.md
 
+  observe:            # → observe
   preReconcile:
     external:         # → preReconcile.external section below (shared calls)
       - ...
@@ -355,6 +356,18 @@ onDelete:
 Available resource types: `deployments`, `services`, `configmaps`, `secrets`, `jobs`, `cronjobs`, `statefulsets`, `ingresses`, `serviceaccounts`, `roles`, `rolebindings`, `pvcs`, `pdbs`, `hpas`, `namespaces`.
 
 Templates are Go templates evaluated against the CR object. Use `{{ .Name }}`, `{{ .Namespace }}`, `{{ .Spec.* }}`, `{{ .Status.* }}`.
+
+## `observe`
+
+Declares the resources and Kubernetes Events Orkestra observes for changes that may trigger reconciliation.
+
+* **`watch`** — declares secondary Kubernetes resources to observe and the primary resources they can trigger.
+* **`events`** — declares Kubernetes Events to observe and the primary resources they can trigger.
+
+See the dedicated references for the full declaration syntax and field details:
+
+* [`watch`](27-watch.md)
+* [`events`](28-events.md)
 
 ## `preReconcile`
 

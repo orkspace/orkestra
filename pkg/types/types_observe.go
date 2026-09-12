@@ -7,6 +7,34 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
+// Observe declares the Kubernetes resources and events Orkestra should
+// observe as reconciliation triggers.
+//
+// Observations are subordinate to the primary CRD informer: an observation
+// resolves one or more primary CR keys and enqueues them. The observer never
+// invokes reconciliation directly.
+type Observe struct {
+	// Watch declares secondary Kubernetes resources Orkestra should observe.
+	// When a watched resource changes, Orkestra resolves the relevant primary
+	// CR key(s) and enqueues them. The reconciler runs normally — the watched
+	// resource's current state is available via .children.* as usual.
+	Watch []WatchEntry `yaml:"watch,omitempty" json:"watch,omitempty"`
+
+	// Events declares Kubernetes Events Orkestra should observe.
+	// When a matching event occurs, Orkestra resolves the relevant primary
+	// CR key(s) and enqueues them. The reconciler runs normally — the event
+	// is treated as a trigger, not as the source of truth.
+	Events map[string]*EventEntry `yaml:"events,omitempty" json:"events,omitempty"`
+
+	// Include imports watch and event declarations from a local Katalog file.
+	// The included file may contain "watch:" and/or "events:" declarations.
+	// Inline declarations are merged with the included declarations, with
+	// inline event declarations overriding included events with the same name.
+	// The include path is resolved relative to baseDir and cleared after
+	// expansion.
+	Include string `yaml:"include,omitempty" json:"include,omitempty"`
+}
+
 // ── Observe event types ─────────────────────────────────────────────────────
 
 // ObserveEvent is the string type for observe event types used in Observe.On.
@@ -200,11 +228,11 @@ func (kf *WatchKeyFrom) Key() string {
 	return kf.Name
 }
 
-// InvalidOnValues returns any On values that are not valid WatchEvent constants.
+// InvalidOnValues returns any On values that are not valid ObserveEvent constants.
 // Returns nil when all values are valid.
-func (w WatchEntry) InvalidOnValues() []string {
+func (o *Observe) InvalidOnValues(on []string) []string {
 	var invalid []string
-	for _, e := range w.On {
+	for _, e := range on {
 		if !IsValidObserveEvent(e) {
 			invalid = append(invalid, e)
 		}

@@ -8,7 +8,7 @@ import (
 	orktypes "github.com/orkspace/orkestra/pkg/types"
 )
 
-// validateEventEntries validates operatorBox.events across all enabled CRDs.
+// validateEventEntries validates operatorBox.observe.events across all enabled CRDs.
 //
 // Event entries reuse WatchEntry routing semantics for primary-key resolution
 // and enqueue admission. Event-specific fields are validated separately.
@@ -17,7 +17,7 @@ import (
 //  1. Each Event entry must declare at least one matching or routing field.
 //  2. regarding and related use ManagedResource matching semantics.
 //  3. keyFrom follows the same validation rules as watch entries.
-//  4. Duplicate Event entries are rejected.
+//  4. on: values are valid observe event types.
 func (e *executor) validateEventEntries() error {
 	for crdName, crd := range e.k.Enabled() {
 		if err := validateCRDEventEntries(crdName, crd); err != nil {
@@ -33,71 +33,37 @@ func validateCRDEventEntries(crdName string, crd orktypes.CRDEntry) error {
 		return nil
 	}
 
-	type key struct {
-		reason              string
-		action              string
-		eventType           string
-		reportingController string
-		reportingInstance   string
-		regarding           string
-		related             string
-		namespace           string
-		name                string
-	}
-
-	seen := make(map[key]bool, len(entries))
-
-	for i, event := range entries {
-		if err := validateEventEntry(crdName, i, event); err != nil {
+	for name, event := range entries {
+		if err := validateEventEntry(crdName, name, event); err != nil {
 			return err
-		}
-
-		if event.Name == "" {
-			return fmt.Errorf("%s crd %q: events[%d]: event name is required", failureMark(), crdName, i)
 		}
 
 		watch := event.ToWatchEntry(crd)
 
-		if invalid := watch.InvalidOnValues(); len(invalid) > 0 {
-			return fmt.Errorf("%s crd %q: event[%d] %s/%s: unknown on: value(s) [%s] — valid values: %s",
-				failureMark(), crdName, i, watch.APIVersion, watch.Kind,
+		obs := crd.OperatorBox.Observe
+
+		if invalid := obs.InvalidOnValues(event.On); len(invalid) > 0 {
+			return fmt.Errorf("%s crd %q: events[%q] %s/%s: unknown on: value(s) [%s] — valid values: %s",
+				failureMark(), crdName, name, watch.APIVersion, watch.Kind,
 				strings.Join(invalid, ", "), strings.Join(orktypes.ValidObserveEvents(), ", "))
 		}
 
-		if err := validateWatchKeyFrom(crdName, i, watch); err != nil {
+		if err := validateWatchKeyFrom(crdName, name, watch); err != nil {
 			return err
 		}
-
-		if err := validateWatchKeyFrom(crdName, i, watch); err != nil {
-			return err
-		}
-
-		k := key{
-			reason:              event.Reason,
-			action:              event.Action,
-			eventType:           event.Type,
-			reportingController: event.ReportingController,
-			reportingInstance:   event.ReportingInstance,
-			regarding:           managedResourceKey(event.Regarding),
-			related:             managedResourceKey(event.Related),
-			namespace:           event.Namespace,
-			name:                event.Name,
-		}
-
-		if seen[k] {
-			return fmt.Errorf("%s crd %q: duplicate event entry at events[%d] — event entries must be unique",
-				failureMark(), crdName, i)
-		}
-		seen[k] = true
 	}
 
 	return nil
 }
 
-func validateEventEntry(crdName string, idx int, event orktypes.EventEntry) error {
+func validateEventEntry(crdName, name string, event orktypes.EventEntry) error {
+	if err := validResolverName(name); err != nil {
+		return fmt.Errorf("%s crd %q: events[%q]: %w",
+			failureMark(), crdName, name, err)
+	}
 	if !hasEventMatcher(event) {
-		return fmt.Errorf("%s crd %q: events[%d]: event entry must declare at least one matching or routing field",
-			failureMark(), crdName, idx)
+		return fmt.Errorf("%s crd %q: events[%q]: event entry must declare at least one matching or routing field",
+			failureMark(), crdName, name)
 	}
 
 	return nil
@@ -112,7 +78,6 @@ func hasEventMatcher(event orktypes.EventEntry) bool {
 		event.Regarding != nil ||
 		event.Related != nil ||
 		event.Namespace != "" ||
-		event.Name != "" ||
 		event.KeyFrom != nil
 }
 
@@ -121,13 +86,12 @@ func managedResourceKey(r *domain.ManagedResource) string {
 		return ""
 	}
 
-	return fmt.Sprintf("%s|%s|%s|%s|%s|%s|%s",
+	return fmt.Sprintf("%s|%s|%s|%s|%s|%s",
 		r.APIVersion,
 		r.Kind,
 		r.Group,
 		r.Version,
 		r.Plural,
-		r.Name,
 		r.Namespace,
 	)
 }

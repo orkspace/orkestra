@@ -9,36 +9,67 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func katalogWithEvents(crdName string, box orktypes.OperatorBoxConfig) *executor {
+// katalogWithObserve builds an executor with a single CRD containing the
+// supplied observe configuration.
+func katalogWithObserve(crdName string, observe *orktypes.Observe) *executor {
 	return newKatalogExec(map[string]orktypes.CRDEntry{
-		crdName: {OperatorBox: box},
-	})
+		crdName: {OperatorBox: orktypes.OperatorBoxConfig{
+			Observe: observe,
+		},
+		}})
+}
+
+func TestValidateEventEntries_ObserveNil(t *testing.T) {
+	k := katalogWithObserve("myapp", nil)
+	assert.NoError(t, k.validateEventEntries())
 }
 
 func TestValidateEventEntries_Empty(t *testing.T) {
-	k := katalogWithEvents("myapp", orktypes.OperatorBoxConfig{})
+	k := katalogWithObserve("myapp", &orktypes.Observe{})
 	assert.NoError(t, k.validateEventEntries())
 }
 
 func TestValidateEventEntries_Valid(t *testing.T) {
-	k := katalogWithEvents("myapp", orktypes.OperatorBoxConfig{
-		Events: []orktypes.EventEntry{
-			{Reason: "DatabaseReady"},
-			{Action: "Sync", Type: "Normal"},
-			{ReportingController: "example.com/operator", ReportingInstance: "operator-1"},
-			{Regarding: &domain.ManagedResource{Kind: "Database", Name: "my-db"}},
-			{Related: &domain.ManagedResource{Kind: "ConfigMap", Name: "config"}},
-			{Namespace: "default", Name: "my-event"},
-			{KeyFrom: &orktypes.WatchKeyFrom{Name: "myapp"}},
+	k := katalogWithObserve("myapp", &orktypes.Observe{
+		Events: map[string]*orktypes.EventEntry{
+			"dbReady": {
+				Reason: "DatabaseReady",
+			},
+			"sync": {
+				Action: "Sync",
+				Type:   "Normal",
+			},
+			"operator": {
+				ReportingController: "example.com/operator",
+				ReportingInstance:   "operator-1",
+			},
+			"regarding": {
+				Regarding: &domain.ManagedResource{
+					Kind: "Database",
+					Name: "my-db",
+				},
+			},
+			"related": {
+				Related: &domain.ManagedResource{
+					Kind: "ConfigMap",
+					Name: "config",
+				},
+			},
+			"namespace": {
+				Namespace: "default",
+			},
+			"keyFrom": {
+				KeyFrom: &orktypes.WatchKeyFrom{Name: "myapp"},
+			},
 		},
 	})
 	assert.NoError(t, k.validateEventEntries())
 }
 
 func TestValidateEventEntries_NoMatcher(t *testing.T) {
-	k := katalogWithEvents("myapp", orktypes.OperatorBoxConfig{
-		Events: []orktypes.EventEntry{
-			{},
+	k := katalogWithObserve("myapp", &orktypes.Observe{
+		Events: map[string]*orktypes.EventEntry{
+			"empty": {},
 		},
 	})
 	err := k.validateEventEntries()
@@ -46,34 +77,22 @@ func TestValidateEventEntries_NoMatcher(t *testing.T) {
 	assert.Contains(t, err.Error(), "event entry must declare at least one matching or routing field")
 }
 
-func TestValidateEventEntries_DuplicateEntry(t *testing.T) {
-	k := katalogWithEvents("myapp", orktypes.OperatorBoxConfig{
-		Events: []orktypes.EventEntry{
-			{Reason: "DatabaseReady", Type: "Normal"},
-			{Reason: "DatabaseReady", Type: "Normal"},
-		},
-	})
-	err := k.validateEventEntries()
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "duplicate event entry")
-}
-
 func TestValidateEventEntries_DifferentMatchers(t *testing.T) {
-	k := katalogWithEvents("myapp", orktypes.OperatorBoxConfig{
-		Events: []orktypes.EventEntry{
-			{Reason: "DatabaseReady"},
-			{Reason: "DatabaseFailed"},
-			{Action: "Sync"},
-			{Type: "Warning"},
+	k := katalogWithObserve("myapp", &orktypes.Observe{
+		Events: map[string]*orktypes.EventEntry{
+			"ready":  {Reason: "DatabaseReady"},
+			"failed": {Reason: "DatabaseFailed"},
+			"sync":   {Action: "Sync"},
+			"warn":   {Type: "Warning"},
 		},
 	})
 	assert.NoError(t, k.validateEventEntries())
 }
 
 func TestValidateEventEntries_Regarding(t *testing.T) {
-	k := katalogWithEvents("myapp", orktypes.OperatorBoxConfig{
-		Events: []orktypes.EventEntry{
-			{
+	k := katalogWithObserve("myapp", &orktypes.Observe{
+		Events: map[string]*orktypes.EventEntry{
+			"database": {
 				Regarding: &domain.ManagedResource{
 					APIVersion: "databases.example.com/v1",
 					Kind:       "Database",
@@ -87,9 +106,9 @@ func TestValidateEventEntries_Regarding(t *testing.T) {
 }
 
 func TestValidateEventEntries_Related(t *testing.T) {
-	k := katalogWithEvents("myapp", orktypes.OperatorBoxConfig{
-		Events: []orktypes.EventEntry{
-			{
+	k := katalogWithObserve("myapp", &orktypes.Observe{
+		Events: map[string]*orktypes.EventEntry{
+			"config": {
 				Related: &domain.ManagedResource{
 					APIVersion: "v1",
 					Kind:       "ConfigMap",
@@ -102,9 +121,9 @@ func TestValidateEventEntries_Related(t *testing.T) {
 }
 
 func TestValidateEventEntries_KeyFromValidLabel(t *testing.T) {
-	k := katalogWithEvents("myapp", orktypes.OperatorBoxConfig{
-		Events: []orktypes.EventEntry{
-			{
+	k := katalogWithObserve("myapp", &orktypes.Observe{
+		Events: map[string]*orktypes.EventEntry{
+			"dbReady": {
 				Reason:  "DatabaseReady",
 				KeyFrom: &orktypes.WatchKeyFrom{Label: "app.kubernetes.io/cr-owner"},
 			},
@@ -114,9 +133,9 @@ func TestValidateEventEntries_KeyFromValidLabel(t *testing.T) {
 }
 
 func TestValidateEventEntries_KeyFromValidName(t *testing.T) {
-	k := katalogWithEvents("myapp", orktypes.OperatorBoxConfig{
-		Events: []orktypes.EventEntry{
-			{
+	k := katalogWithObserve("myapp", &orktypes.Observe{
+		Events: map[string]*orktypes.EventEntry{
+			"dbReady": {
 				Reason:  "DatabaseReady",
 				KeyFrom: &orktypes.WatchKeyFrom{Name: "myapp"},
 			},
@@ -126,9 +145,9 @@ func TestValidateEventEntries_KeyFromValidName(t *testing.T) {
 }
 
 func TestValidateEventEntries_KeyFromBothLabelAndName(t *testing.T) {
-	k := katalogWithEvents("myapp", orktypes.OperatorBoxConfig{
-		Events: []orktypes.EventEntry{
-			{
+	k := katalogWithObserve("myapp", &orktypes.Observe{
+		Events: map[string]*orktypes.EventEntry{
+			"dbReady": {
 				Reason: "DatabaseReady",
 				KeyFrom: &orktypes.WatchKeyFrom{
 					Label: "some-label",
@@ -143,9 +162,9 @@ func TestValidateEventEntries_KeyFromBothLabelAndName(t *testing.T) {
 }
 
 func TestValidateEventEntries_KeyFromNeitherLabelNorName(t *testing.T) {
-	k := katalogWithEvents("myapp", orktypes.OperatorBoxConfig{
-		Events: []orktypes.EventEntry{
-			{
+	k := katalogWithObserve("myapp", &orktypes.Observe{
+		Events: map[string]*orktypes.EventEntry{
+			"dbReady": {
 				Reason:  "DatabaseReady",
 				KeyFrom: &orktypes.WatchKeyFrom{},
 			},
@@ -157,9 +176,9 @@ func TestValidateEventEntries_KeyFromNeitherLabelNorName(t *testing.T) {
 }
 
 func TestValidateEventEntries_KeyFromNamespaceWithLabelRejected(t *testing.T) {
-	k := katalogWithEvents("myapp", orktypes.OperatorBoxConfig{
-		Events: []orktypes.EventEntry{
-			{
+	k := katalogWithObserve("myapp", &orktypes.Observe{
+		Events: map[string]*orktypes.EventEntry{
+			"dbReady": {
 				Reason: "DatabaseReady",
 				KeyFrom: &orktypes.WatchKeyFrom{
 					Label:     "some-label",
@@ -173,14 +192,107 @@ func TestValidateEventEntries_KeyFromNamespaceWithLabelRejected(t *testing.T) {
 	assert.Contains(t, err.Error(), "namespace has no effect")
 }
 
-func TestValidateEventEntries_NameAndNamespace(t *testing.T) {
-	k := katalogWithEvents("myapp", orktypes.OperatorBoxConfig{
-		Events: []orktypes.EventEntry{
-			{
-				Name:      "my-event",
-				Namespace: "default",
+func TestValidateEventEntries_OnValid(t *testing.T) {
+	k := katalogWithObserve("myapp", &orktypes.Observe{
+		Events: map[string]*orktypes.EventEntry{
+			"dbReady": {
+				Reason: "DatabaseReady",
+				On:     []string{"create", "update", "delete"},
 			},
 		},
 	})
 	assert.NoError(t, k.validateEventEntries())
+}
+
+func TestValidateEventEntries_OnInvalid(t *testing.T) {
+	k := katalogWithObserve("myapp", &orktypes.Observe{
+		Events: map[string]*orktypes.EventEntry{
+			"dbReady": {
+				Reason: "DatabaseReady",
+				On:     []string{"create", "modify"},
+			},
+		},
+	})
+	err := k.validateEventEntries()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown on: value(s) [modify]")
+}
+
+func TestValidateEventEntries_OnAllValid(t *testing.T) {
+	k := katalogWithObserve("myapp", &orktypes.Observe{
+		Events: map[string]*orktypes.EventEntry{
+			"dbReady": {
+				Reason: "DatabaseReady",
+				On:     orktypes.ValidObserveEvents(),
+			},
+		},
+	})
+	assert.NoError(t, k.validateEventEntries())
+}
+
+func TestValidateEventEntries_EventNameCamelCase(t *testing.T) {
+	tests := []struct {
+		name      string
+		eventName string
+		valid     bool
+	}{
+		{
+			name:      "lower camel case",
+			eventName: "dbReady",
+			valid:     true,
+		},
+		{
+			name:      "multiple words",
+			eventName: "databaseReady",
+			valid:     true,
+		},
+		{
+			name:      "acronym",
+			eventName: "dbAPIReady",
+			valid:     true,
+		},
+		{
+			name:      "hyphenated",
+			eventName: "db-ready",
+			valid:     false,
+		},
+		{
+			name:      "snake case",
+			eventName: "db_ready",
+			valid:     true,
+		},
+		{
+			name:      "with space",
+			eventName: "Db Ready",
+			valid:     false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			observe := &orktypes.Observe{
+				Events: map[string]*orktypes.EventEntry{
+					tt.eventName: {
+						Reason: "DatabaseReady",
+					},
+				},
+			}
+
+			err := validateCRDEventEntries(
+				"app",
+				orktypes.CRDEntry{
+					OperatorBox: orktypes.OperatorBoxConfig{
+						Observe: observe,
+					},
+				},
+			)
+
+			if tt.valid && err != nil {
+				t.Fatalf("expected valid event name, got error: %v", err)
+			}
+			if !tt.valid && err == nil {
+				t.Fatal("expected invalid event name")
+			}
+		})
+	}
 }

@@ -584,18 +584,13 @@ type OperatorBoxConfig struct {
 	// Read before any resource groups — results available as .cross.<as>.status.*
 	Cross []CrossCRDDeclaration `yaml:"cross,omitempty" json:"cross,omitempty"`
 
-	// Watch declares secondary Kubernetes resources Orkestra should watch.
-	// When a watched resource changes, Orkestra resolves the relevant primary
-	// CR key(s) and enqueues them. The reconciler runs normally — the watched
-	// resource's current state is available via .children.* as usual.
-	// nil → no secondary watches; only the primary CRD informer is active.
-	Watch []WatchEntry `yaml:"watch,omitempty" json:"watch,omitempty"`
-
-	// Events declares Kubernetes Events Orkestra should observe.
-	// When a matching event occurs, Orkestra resolves the relevant primary
-	// CR key(s) and enqueues them. The reconciler runs normally — the event
-	// is treated as a trigger, not as the source of truth.
-	Events []EventEntry `yaml:"events,omitempty" json:"events,omitempty"`
+	// Observe declares external Kubernetes resources Orkestra should observe.
+	// When an observed resource changes, Orkestra resolves the relevant primary
+	// CR key(s) and enqueues them. The reconciler runs normally — observations
+	// are treated as triggers, not as sources of truth.
+	//
+	// nil → no secondary observations; only the primary CRD informer is active.
+	Observe *Observe `yaml:"observe,omitempty" json:"observe,omitempty"`
 
 	// Autoscale declares runtime autoscale behavior for this operatorbox.
 	// When declared, the autoscaler evaluates conditions on a ticker and applies
@@ -659,18 +654,28 @@ func (box *OperatorBoxConfig) Empty() bool {
 
 // GetWatchEntry returns the watch entry matching the secondary GVK.
 func (c *OperatorBoxConfig) GetWatchEntry(secondaryGVK string) *WatchEntry {
-	if c == nil || c.Watch == nil {
+	if c == nil || c.Observe == nil || c.Observe.Watch == nil {
 		return nil
 	}
 
-	for i := range c.Watch {
-		gvk := c.Watch[i].GVKString()
+	w := c.Observe.Watch
+	for i := range w {
+		gvk := w[i].GVKString()
 		if gvk == secondaryGVK {
-			return &c.Watch[i]
+			return &w[i]
 		}
 	}
 
 	return nil
+}
+
+// GetEventEntry returns the event entry matching the declaration name.
+func (c *OperatorBoxConfig) GetEventEntry(eventName string) *EventEntry {
+	if c == nil || c.Observe == nil || c.Observe.Events == nil {
+		return nil
+	}
+
+	return c.Observe.Events[eventName]
 }
 
 // HookDeclaration declares where a Go hook function lives.

@@ -23,7 +23,7 @@ var _ domain.Katalog = (*Katalog)(nil)
 //
 // preReconcile.external runs first (shared enrichment), then reconcileGate.external,
 // then conditions are evaluated against the accumulated resolver.
-func (k *Katalog) EvaluatePreReconcile(ctx context.Context, gvk string, obj *unstructured.Unstructured, cs kubernetes.Interface, sentinels map[string]string) (allowed bool, reason string) {
+func (k *Katalog) EvaluatePreReconcile(ctx context.Context, gvk string, obj *unstructured.Unstructured, cs kubernetes.Interface, opts domain.EvaluateOptions) (allowed bool, reason string) {
 	box := k.effectiveBox(obj, gvk)
 	if box.Empty() {
 		return true, ""
@@ -34,7 +34,7 @@ func (k *Katalog) EvaluatePreReconcile(ctx context.Context, gvk string, obj *uns
 		return true, ""
 	}
 
-	resolver := k.effectiveResolver(ctx, obj, pr, sentinels)
+	resolver := k.effectiveResolver(ctx, obj, pr, opts)
 	if resolver.Empty() {
 		return true, ""
 	}
@@ -57,7 +57,7 @@ func (k *Katalog) EvaluatePreReconcile(ctx context.Context, gvk string, obj *uns
 
 	// Evaluate reconcileGate.sentinels (shorthand) - first match wins
 	if g.HasSentinels() {
-		return g.SentinelsAllowed(sentinels), ""
+		return g.SentinelsAllowed(opts.Sentinels), ""
 	}
 
 	if !orktypes.EvaluateConditions(resolver.Data(), pr.WhenConditions(), pr.OrConditions(), resolver.TemplateEvaluator()) {
@@ -72,7 +72,7 @@ func (k *Katalog) EvaluatePreReconcile(ctx context.Context, gvk string, obj *uns
 //
 // preReconcile.external runs first (shared enrichment), then enqueueGate.external,
 // then conditions are evaluated against the accumulated resolver.
-func (k *Katalog) EvaluateEnqueueFilter(ctx context.Context, gvk string, obj domain.Object, cs kubernetes.Interface, sentinels map[string]string) bool {
+func (k *Katalog) EvaluateEnqueueFilter(ctx context.Context, gvk string, obj domain.Object, cs kubernetes.Interface, opts domain.EvaluateOptions) bool {
 	box := k.effectiveBox(obj, gvk)
 	if box.Empty() {
 		return true
@@ -83,7 +83,7 @@ func (k *Katalog) EvaluateEnqueueFilter(ctx context.Context, gvk string, obj dom
 		return true
 	}
 
-	resolver := k.effectiveResolver(ctx, obj, pr, sentinels)
+	resolver := k.effectiveResolver(ctx, obj, pr, opts)
 	if resolver.Empty() {
 		return true
 	}
@@ -95,38 +95,57 @@ func (k *Katalog) EvaluateEnqueueFilter(ctx context.Context, gvk string, obj dom
 		}
 	}
 
-	return k.evaluateGate(ctx, gvk, pr.EnqueueGate, resolver, cs, sentinels)
+	return k.evaluateGate(ctx, gvk, pr.EnqueueGate, resolver, cs, opts.Sentinels)
 }
 
 // EvaluateWatchEnqueueFilter evaluates a watch entry's enqueueGate.
-func (k *Katalog) EvaluateWatchEnqueueFilter(ctx context.Context, primaryGVK, secondaryGVK string, obj domain.Object, cs kubernetes.Interface, sentinels map[string]string) bool {
+func (k *Katalog) EvaluateWatchEnqueueFilter(ctx context.Context, primaryGVK, secondaryGVK string, obj domain.Object, cs kubernetes.Interface, opts domain.EvaluateOptions) bool {
 	box := k.effectiveBox(obj, primaryGVK)
 	if box == nil {
 		return true
 	}
 
-	resolver := k.effectiveResolver(ctx, obj, nil, sentinels)
+	resolver := k.effectiveResolver(ctx, obj, nil, opts)
 	if resolver.Empty() {
 		return true
 	}
 
-	// lookup gate for the watch entry
 	entry := k.LookupByGVKString(primaryGVK).Entry()
 	if entry == nil {
 		return true
 	}
 
 	watchEntry := box.GetWatchEntry(secondaryGVK)
-	if watchEntry == nil {
+	if watchEntry == nil || watchEntry.EnqueueGate == nil {
 		return true
 	}
 
-	g := watchEntry.EnqueueGate
-	if g == nil {
+	return k.evaluateGate(ctx, secondaryGVK, watchEntry.EnqueueGate, resolver, cs, opts.Sentinels)
+}
+
+// EvaluateEventEnqueueFilter evaluates an event entry's enqueueGate.
+func (k *Katalog) EvaluateEventEnqueueFilter(ctx context.Context, primaryGVK, eventName string, obj domain.Object, cs kubernetes.Interface, opts domain.EvaluateOptions) bool {
+	box := k.effectiveBox(obj, primaryGVK)
+	if box == nil {
 		return true
 	}
 
-	return k.evaluateGate(ctx, secondaryGVK, g, resolver, cs, sentinels)
+	resolver := k.effectiveResolver(ctx, obj, nil, opts)
+	if resolver.Empty() {
+		return true
+	}
+
+	entry := k.LookupByGVKString(primaryGVK).Entry()
+	if entry == nil {
+		return true
+	}
+
+	eventEntry := box.GetEventEntry(eventName)
+	if eventEntry == nil || eventEntry.EnqueueGate == nil {
+		return true
+	}
+
+	return k.evaluateGate(ctx, eventName, eventEntry.EnqueueGate, resolver, cs, opts.Sentinels)
 }
 
 // EvaluateQueueBehaviourConditions completes the queue behaviour evaluation started by the
@@ -135,7 +154,7 @@ func (k *Katalog) EvaluateWatchEnqueueFilter(ctx context.Context, primaryGVK, se
 // Accepts domain.Object so it works for both dynamic and typed CRDs.
 //
 // Here because it influences 'pre-reconcile' decisions.
-func (k *Katalog) EvaluateQueueBehaviourConditions(ctx context.Context, gvk string, obj domain.Object, sentinels map[string]string) bool {
+func (k *Katalog) EvaluateQueueBehaviourConditions(ctx context.Context, gvk string, obj domain.Object, opts domain.EvaluateOptions) bool {
 	box := k.effectiveBox(obj, gvk)
 	if box.Empty() {
 		return true
@@ -147,7 +166,7 @@ func (k *Katalog) EvaluateQueueBehaviourConditions(ctx context.Context, gvk stri
 		return true
 	}
 
-	resolver := k.effectiveResolver(ctx, obj, box.PreReconcile, sentinels)
+	resolver := k.effectiveResolver(ctx, obj, box.PreReconcile, opts)
 	if resolver == nil {
 		return true
 	}
@@ -163,7 +182,7 @@ func (k *Katalog) EvaluateQueueBehaviourConditions(ctx context.Context, gvk stri
 }
 
 // effectiveResolver computes the common resolver used by all evaluators
-func (k *Katalog) effectiveResolver(ctx context.Context, obj domain.Object, pr *orktypes.PreReconcileConfig, sentinels map[string]string) *orktmpl.Resolver {
+func (k *Katalog) effectiveResolver(ctx context.Context, obj domain.Object, pr *orktypes.PreReconcileConfig, opts domain.EvaluateOptions) *orktmpl.Resolver {
 	resolver, err := orktmpl.NewResolver(ctx, obj)
 	if err != nil {
 		return nil
@@ -186,8 +205,12 @@ func (k *Katalog) effectiveResolver(ctx context.Context, obj domain.Object, pr *
 	if health := common.ResolveResourceHealthFromObject(resolver.Data()); health != nil {
 		resolver = resolver.WithHealth(health)
 	}
-	if len(sentinels) > 0 {
-		resolver = resolver.WithSentinels(pr.DeclaredSentinels(), sentinels)
+	// .events context
+	if len(opts.Events) > 0 {
+		resolver = resolver.WithEvents(opts.Events)
+	}
+	if len(opts.Sentinels) > 0 {
+		resolver = resolver.WithSentinels(pr.DeclaredSentinels(), opts.Sentinels)
 	}
 	return resolver
 }

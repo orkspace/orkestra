@@ -135,16 +135,18 @@ func (o *Observer) startWatchInformer(ctx context.Context, opts watchOptions) {
 	// Build indexers: always include namespace; add any user-declared index: entries.
 	indexers := cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}
 	for _, wi := range opts.entry.Index {
-		parts := splitWatchField(wi.Field) // pre-split; capture by value
+		parts := splitWatchField(wi.Field)
 		indexers[wi.Name] = func(obj interface{}) ([]string, error) {
 			u, ok := obj.(*unstructured.Unstructured)
 			if !ok {
 				return nil, nil
 			}
+
 			val, found, err := unstructured.NestedString(u.Object, parts...)
 			if err != nil || !found || val == "" {
 				return nil, err
 			}
+
 			return []string{val}, nil
 		}
 	}
@@ -161,30 +163,27 @@ func (o *Observer) startWatchInformer(ctx context.Context, opts watchOptions) {
 	localInf := inf
 	_, _ = inf.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			if !localInf.HasSynced() ||
-				!opts.entry.ObserveOn(orktypes.ObserveEventCreate.String()) {
+			if !localInf.HasSynced() {
 				return
 			}
 
-			o.handleWatchEvent(ctx, opts, nil, obj)
+			o.handleWatchEvent(ctx, opts, nil, obj, orktypes.ObserveEventCreate)
 		},
 
 		UpdateFunc: func(oldObj, newObj interface{}) {
-			if !localInf.HasSynced() ||
-				!opts.entry.ObserveOn(orktypes.ObserveEventUpdate.String()) {
+			if !localInf.HasSynced() {
 				return
 			}
 
-			o.handleWatchEvent(ctx, opts, oldObj, newObj)
+			o.handleWatchEvent(ctx, opts, oldObj, newObj, orktypes.ObserveEventUpdate)
 		},
 
 		DeleteFunc: func(obj interface{}) {
-			if !localInf.HasSynced() ||
-				!opts.entry.ObserveOn(orktypes.ObserveEventDelete.String()) {
+			if !localInf.HasSynced() {
 				return
 			}
 
-			o.handleWatchEvent(ctx, opts, nil, domain.UnwrapCacheTombstone(obj))
+			o.handleWatchEvent(ctx, opts, nil, domain.UnwrapCacheTombstone(obj), orktypes.ObserveEventDelete)
 		},
 	})
 
@@ -200,6 +199,7 @@ func (o *Observer) startWatchInformer(ctx context.Context, opts watchOptions) {
 	// The observer owns the informer lifecycle; Kordinator only asks the
 	// observer to establish secondary observation for the CRD.
 	go inf.Run(ctx.Done())
+
 	logger.Info().
 		Str("primary", opts.crd.APITypes.Kind).
 		Str("watched", opts.entry.Kind).
@@ -207,7 +207,11 @@ func (o *Observer) startWatchInformer(ctx context.Context, opts watchOptions) {
 		Msg("observe: watch informer started")
 }
 
-func (o *Observer) handleWatchEvent(ctx context.Context, opts watchOptions, oldObj, newObj interface{}) {
+func (o *Observer) handleWatchEvent(ctx context.Context, opts watchOptions, oldObj, newObj interface{}, on orktypes.ObserveEvent) {
+	if !opts.entry.ObserveOn(on.String()) {
+		return
+	}
+
 	var sentinels map[string]string
 
 	if opts.entry.HasWatchSentinels() {

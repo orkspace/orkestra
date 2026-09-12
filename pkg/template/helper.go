@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"unicode"
 
 	"github.com/orkspace/orkestra/domain"
 	orktypes "github.com/orkspace/orkestra/pkg/types"
@@ -160,4 +161,36 @@ func resolveRawValue(data map[string]interface{}, expr string) interface{} {
 		}
 	}
 	return current
+}
+
+// ValidResolverName reports whether name is a valid identifier that the
+// resolver can interpret. A valid name:
+//   - is non-empty
+//   - starts with a letter or underscore
+//   - contains only letters, digits, and underscores
+//
+// This matches Go's identifier rules, which is what the template engine
+// uses to resolve `{{ .events.<name> }}` expressions.
+func ValidResolverName(name string) error {
+	if name == "" {
+		return fmt.Errorf("event name must not be empty")
+	}
+
+	for i, r := range name {
+		switch {
+		case unicode.IsLetter(r):
+			// ok
+		case r == '_':
+			// ok
+		case unicode.IsDigit(r) && i > 0:
+			// ok
+		default:
+			return fmt.Errorf(
+				"event name %q contains invalid character %q at position %d; must be a valid identifier (letters, digits, underscores; cannot start with a digit)",
+				name, r, i,
+			)
+		}
+	}
+
+	return nil
 }

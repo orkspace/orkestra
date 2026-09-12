@@ -31,8 +31,7 @@ var eventGVK = schema.GroupVersionKind{
 // eventOptions contains the stable runtime context for EventEntry matching
 // and enqueueing for one primary CRD.
 type eventOptions struct {
-	entry   orktypes.EventEntry
-	entries []orktypes.EventEntry
+	entries map[string]orktypes.EventEntry
 	crd     orktypes.CRDEntry
 	queue   *queue.Workqueue
 }
@@ -61,15 +60,11 @@ func (o *Observer) observeEvents(ctx context.Context, crd orktypes.CRDEntry) {
 }
 
 func (o *Observer) startEventInformer(ctx context.Context, opts eventOptions) {
-	// Events are namespaced resources. An empty namespace here intentionally
-	// observes Events across all namespaces; individual EventEntry matching
-	// can further constrain the regarding object's namespace.
 	info := kubeclient.CRDInfo{
-		Group:   "events.k8s.io",
-		Version: "v1",
-		Kind:    "Event",
-		Plural:  "events",
-		// Namespaced: true,
+		Group:   eventGVR.Group,
+		Version: eventGVR.Version,
+		Kind:    eventGVK.Kind,
+		Plural:  eventGVR.Resource,
 	}
 
 	lw := o.deps.Kube.NewDynamicListerWatcher(info, kubeclient.ListOptions{})
@@ -87,30 +82,24 @@ func (o *Observer) startEventInformer(ctx context.Context, opts eventOptions) {
 
 	_, _ = inf.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			if !localInf.HasSynced() ||
-				!opts.entry.ObserveOn(orktypes.ObserveEventUpdate.String()) {
+			if !localInf.HasSynced() {
 				return
 			}
-
-			o.handleEvent(ctx, opts, obj)
+			o.handleEvent(ctx, opts, obj, orktypes.ObserveEventCreate)
 		},
 
 		UpdateFunc: func(_, obj interface{}) {
-			if !localInf.HasSynced() ||
-				!opts.entry.ObserveOn(orktypes.ObserveEventUpdate.String()) {
+			if !localInf.HasSynced() {
 				return
 			}
-
-			o.handleEvent(ctx, opts, obj)
+			o.handleEvent(ctx, opts, obj, orktypes.ObserveEventUpdate)
 		},
 
 		DeleteFunc: func(obj interface{}) {
-			if !localInf.HasSynced() ||
-				!opts.entry.ObserveOn(orktypes.ObserveEventUpdate.String()) {
+			if !localInf.HasSynced() {
 				return
 			}
-
-			o.handleEvent(ctx, opts, obj)
+			o.handleEvent(ctx, opts, obj, orktypes.ObserveEventDelete)
 		},
 	})
 
@@ -125,22 +114,22 @@ func (o *Observer) startEventInformer(ctx context.Context, opts eventOptions) {
 		Msg("observe: event informer started")
 }
 
-func (o *Observer) handleEvent(ctx context.Context, opts eventOptions, obj interface{}) {
+func (o *Observer) handleEvent(ctx context.Context, opts eventOptions, obj interface{}, on orktypes.ObserveEvent) {
 	event, ok := domain.ToUnstructured(obj)
 	if !ok {
 		return
 	}
 
-	for _, entry := range opts.entries {
-		if !entry.Matches(event) {
+	for name, entry := range opts.entries {
+		if !entry.ObserveOn(on.String()) || !entry.Matches(event) {
 			continue
 		}
 
-		o.handleMatchingEvent(ctx, opts, entry, event)
+		o.handleMatchingEvent(ctx, opts, name, entry, event)
 	}
 }
 
-func (o *Observer) handleMatchingEvent(ctx context.Context, opts eventOptions, entry orktypes.EventEntry, event *unstructured.Unstructured) {
+func (o *Observer) handleMatchingEvent(ctx context.Context, opts eventOptions, name string, entry orktypes.EventEntry, event *unstructured.Unstructured) {
 	// Reuse WatchEntry routing semantics to resolve the primary CR key(s).
 	// The Event itself remains the observed secondary object.
 	watch := entry.ToWatchEntry(opts.crd)
@@ -167,8 +156,28 @@ func (o *Observer) handleMatchingEvent(ctx context.Context, opts eventOptions, e
 			informer.EnqueueOptions{
 				WatchSecondaryGVK: eventGVK.String(),
 				Source:            informer.EnqueueSourceEvent,
-				SourceName:        entry.Name,
+				SourceName:        name,
+				Observation: &informer.ObservationContext{
+					Events: map[string]interface{}{
+						name: eventContext(event),
+					},
+				},
 			},
 		)
+	}
+}
+
+// eventContext builds the resolver context for a Kubernetes Event.
+func eventContext(event *unstructured.Unstructured) map[string]interface{} {
+	return map[string]interface{}{
+		"name":                event.GetName(),
+		"namespace":           event.GetNamespace(),
+		"reason":              event.Object["reason"],
+		"action":              event.Object["action"],
+		"type":                event.Object["type"],
+		"reportingController": event.Object["reportingController"],
+		"reportingInstance":   event.Object["reportingInstance"],
+		"regarding":           event.Object["regarding"],
+		"related":             event.Object["related"],
 	}
 }
