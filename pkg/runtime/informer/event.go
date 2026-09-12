@@ -62,7 +62,10 @@ func (f *Factory) handleUpdate(
 	sentinels := f.ComputeSentinels(gvkStr, oldObj, newObj)
 	wq, _ := f.queueRegistry.For(gvkStr)
 
-	if !f.allowEnqueue(ctx, gvkStr, newObj, wq, sentinels) {
+	if !f.allowEnqueue(ctx, gvkStr, newObj, wq, sentinels, EnqueueOptions{
+		Source:     EnqueueSourcePrimary,
+		SourceName: gvkStr,
+	}) {
 		return
 	}
 

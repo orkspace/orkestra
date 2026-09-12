@@ -3,7 +3,7 @@ kind: E2E
 metadata:
   name: watch-probe-e2e
   description: >
-    Living fixture for operatorBox.watch. A WatchProbe CR watches a shared
+    Living fixture for operatorBox.observe.watch. A WatchProbe CR watches a shared
     ConfigMap (shared-config) it does not own. Patching the ConfigMap triggers
     a re-enqueue of the WatchProbe — verifying the secondary informer routes
     events back to the primary CR without an ownerReference.

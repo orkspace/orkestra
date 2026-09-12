@@ -4,8 +4,18 @@ import (
 	"context"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
 )
+
+// EvaluateOptions provides resolver data used during evaluator execution.
+type EvaluateOptions struct {
+	// Events contains observed Kubernetes Event data keyed by EventEntry name.
+	Events map[string]interface{}
+
+	// Sentinels contains computed sentinel values for the observed object.
+	Sentinels map[string]string
+}
 
 // Katalog is the subset of pkg/katalog.Katalog used by packages that cannot
 // import pkg/katalog directly (pkg/runtime/informer, pkg/runtime/queue) without
@@ -16,19 +26,22 @@ type Katalog interface {
 	// the workqueue detected a depth/threshold condition but deferred the when/or evaluation
 	// because it requires the full preReconcile resolver context.
 	// Returns true to enqueue, false to drop.
-	EvaluateQueueBehaviourConditions(ctx context.Context, gvkString string, obj Object, sentinels map[string]string) bool
+	EvaluateQueueBehaviourConditions(ctx context.Context, gvkString string, obj Object, opts EvaluateOptions) bool
 
 	// EvaluateEnqueueFilter evaluates preReconcile.enqueueGate conditions for the named CRD.
 	// Returns true when the object should be enqueued, false when it should be dropped.
-	EvaluateEnqueueFilter(ctx context.Context, gvkString string, obj Object, cs kubernetes.Interface, sentinels map[string]string) bool
+	EvaluateEnqueueFilter(ctx context.Context, gvkString string, obj Object, cs kubernetes.Interface, opts EvaluateOptions) bool
 
 	// EvaluateWatchEnqueueFilter evaluates a watch entry's enqueueGate.
-	EvaluateWatchEnqueueFilter(ctx context.Context, primaryGVK, secondaryGVK string, obj Object, cs kubernetes.Interface, sentinels map[string]string) bool
+	EvaluateWatchEnqueueFilter(ctx context.Context, primaryGVK, secondaryGVK string, obj Object, cs kubernetes.Interface, opts EvaluateOptions) bool
+
+	// EvaluateEventEnqueueFilter evaluates an event entry's enqueueGate.
+	EvaluateEventEnqueueFilter(ctx context.Context, primaryGVK, eventName string, obj Object, cs kubernetes.Interface, opts EvaluateOptions) bool
 
 	// EvaluatePreReconcile evaluates preReconcile.reconcileGate conditions for the named CRD.
 	// Returns (true, "") when conditions pass and the reconciler should run.
 	// Returns (false, reason) when gated — reconciler must not be called.
-	EvaluatePreReconcile(ctx context.Context, gvk string, obj *unstructured.Unstructured, cs kubernetes.Interface, sentinels map[string]string) (allowed bool, reason string)
+	EvaluatePreReconcile(ctx context.Context, gvk string, obj *unstructured.Unstructured, cs kubernetes.Interface, opts EvaluateOptions) (allowed bool, reason string)
 
 	// IsEventAware reports whether the named CRD has opted into event-aware
 	// reconcileGate evaluation.
@@ -47,6 +60,9 @@ type Katalog interface {
 	// the informer does not maintain a separate sentinel configuration registry.
 	// Returns nil when the CRD is unknown or declares no sentinels.
 	GetPreReconcileSentinels(obj Object, gvkString string) []string
+
+	// ResolveGVR resolves a ManagedResource into a concrete GroupVersionResource.
+	ResolveGVR(r ManagedResource) (schema.GroupVersionResource, bool)
 
 	// CRD name lookups — resolve a GVK/GVR/kind/target string to the katalog CRD entry name.
 	GetNameByGVKString(gvkString string) string

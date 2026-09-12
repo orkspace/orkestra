@@ -193,6 +193,7 @@ import (
 	"github.com/orkspace/orkestra/pkg/logger"
 	ork_autoscaler "github.com/orkspace/orkestra/pkg/runtime/autoscaler"
 	"github.com/orkspace/orkestra/pkg/runtime/informer"
+	"github.com/orkspace/orkestra/pkg/runtime/informer/observe"
 	"github.com/orkspace/orkestra/pkg/runtime/queue"
 )
 
@@ -228,6 +229,7 @@ type DependencyKordinator struct {
 func NewDependencyKordinator(
 	kube *kubeclient.Kubeclient,
 	factory *informer.Factory,
+	observer *observe.Observer,
 	katalog *ResourceKatalog,
 	kat *katalog.Katalog,
 	events *event.Event,
@@ -243,7 +245,7 @@ func NewDependencyKordinator(
 
 	kord := &DependencyKordinator{
 		Kontroller: NewKontroller(
-			kube, factory, katalog, kat,
+			kube, factory, observer, katalog, kat,
 			events, hs, crdHealthMap, orkHealth,
 			queueRegistry, defaultWorkqueue, defaultWorkers,
 		),
@@ -608,8 +610,8 @@ func (k *DependencyKordinator) startCRDWorkers(ctx context.Context, gvk string, 
 		}(workerID)
 	}
 
-	// Start secondary watch informers for each operatorBox.watch entry.
-	k.startWatchInformers(crdCtx, entry.CRD)
+	// Start secondary observers declared by the operator box.
+	k.observer.Observe(crdCtx, entry.CRD)
 }
 
 // stopCRDWorkers cancels the CRD context and waits for all workers to drain.

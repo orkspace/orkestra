@@ -39,7 +39,7 @@ type Result struct {
 	// Each entry is a resource the operator owns and should appear in constructor.managedResources:.
 	Owns []DetectedType
 	// Watches lists types detected in Watches() calls inside SetupWithManager.
-	// Each entry should appear in operatorBox.watch:.
+	// Each entry should appear in operatorBox.observe.watch:.
 	Watches []DetectedType
 	// Primary holds the type information extracted from the For() call in SetupWithManager.
 	Primary PrimaryType

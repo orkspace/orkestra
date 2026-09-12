@@ -10,7 +10,7 @@ Before removal, `ork migrate` scans `SetupWithManager` and extracts:
 
 - **`For(&pkg.Kind{})`** → `apiTypes.kind`, `object`, `objectList`, `version`, `location`, `alias` in `katalog.yaml`
 - **`Owns(&pkg.Kind{})`** → `constructor.managedResources:` entries (kind + apiVersion for standard k8s types)
-- **`Watches(&pkg.Kind{}, …)`** → `operatorBox.watch:` entries
+- **`Watches(&pkg.Kind{}, …)`** → `operatorBox.observe.watch:` entries
 
 Only `group` and `plural` cannot be determined from Go source — they remain as TODOs.
 

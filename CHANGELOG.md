@@ -186,6 +186,40 @@ operatorBox:
 
 `open` (default) passes through when the external call fails. `closed` denies.
 
+### `observe.events` — Kubernetes Events as reconciliation triggers [EXPERIMENTAL]
+
+`observe.events` extends the `observe:` block with a second observation mechanism alongside `observe.watch`. Kubernetes `Event` objects can now trigger primary CR reconciliation, with the event's own properties available as resolver context at the `enqueueGate`.
+
+```yaml
+operatorBox:
+  observe:
+    events:
+      dbReady:
+        reason: DatabaseReady
+        type: Normal
+        regarding:
+          kind: Database
+          name: my-database
+        enqueueGate:
+          when:
+            - field: "{{ .events.dbReady.reportingController }}"
+              equals: "database.myorg.io/controller"
+```
+
+The event entry matches on `reason`, `action`, `type`, `reportingController`, `reportingInstance`, `regarding`, and `related`.
+Matched events resolve the primary CR key via `regarding` (default) or broadcast to all managed CRs when `regarding` is absent.
+
+The `enqueueGate` has access to the full event context as `.events.<name>.*` — `reason`, `action`, `type`, `reportingController`,
+`reportingInstance`, `regarding`, `related`. The gate can reason about what the event says, not just that it happened. The same `when:`/`or:` condition machinery applies — no new syntax.
+
+`observe.watch` and `observe.events` are siblings under `pkg/runtime/informer/observe`. Both share the same enqueue path, the
+same gate evaluation, and the same resolver construction. The only difference is what they observe and what context they inject.
+
+This is marked experimental. `ork validate` emits a warning when event entries are declared. The `regarding` / `keyFrom` relationship and
+edge case handling are being settled in follow-up PRs before the experimental flag is removed.
+
+Use when a secondary controller already emits Events and you want to react without polling, without watching the secondary CRD, and without writing a bridge controller.
+
 ---
 
 ## v0.7.15 — Artifact signing, gateway webhooks, multi-cluster, simulate --envtest, pre-reconcile gates

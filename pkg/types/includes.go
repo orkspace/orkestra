@@ -189,34 +189,48 @@ func ExpandProfileInclude(r *ProfileRegistry, baseDir string) error {
 	return nil
 }
 
-// ExpandWatchEntries resolves include entries in a []WatchEntry list.
-// An entry with include: set is replaced in-place by the "watch:" list from the
-// referenced file. Entries without include: are kept as-is.
-// The include path is resolved relative to baseDir.
-func ExpandWatchEntries(entries []WatchEntry, baseDir string) ([]WatchEntry, error) {
-	var expanded []WatchEntry
-	for _, entry := range entries {
-		if entry.Include == "" {
-			expanded = append(expanded, entry)
-			continue
-		}
-		path := entry.Include
-		if !filepath.IsAbs(path) {
-			path = filepath.Join(baseDir, path)
-		}
-		data, err := readLocal(path)
-		if err != nil {
-			return nil, fmt.Errorf("reading watch include %q: %w", entry.Include, err)
-		}
-		var f struct {
-			Watch []WatchEntry `yaml:"watch"`
-		}
-		if err := strictUnmarshal(data, &f); err != nil {
-			return nil, fmt.Errorf("parsing watch include %q: %w", entry.Include, err)
-		}
-		expanded = append(expanded, f.Watch...)
+// ExpandObserveInclude resolves the observe.include field by reading the
+// referenced file, unmarshaling its "watch:" and "events:" blocks, and merging
+// them with the inline declarations. Inline event entries override included
+// entries with the same name. The include path is resolved relative to baseDir.
+// Cleared after expansion.
+func ExpandObserveInclude(observe *Observe, baseDir string) error {
+	if observe == nil || observe.Include == "" {
+		return nil
 	}
-	return expanded, nil
+
+	path := observe.Include
+	if !filepath.IsAbs(path) {
+		path = filepath.Join(baseDir, path)
+	}
+
+	data, err := readLocal(path)
+	if err != nil {
+		return fmt.Errorf("reading observe include %q: %w", observe.Include, err)
+	}
+
+	var f struct {
+		Watch  []WatchEntry          `yaml:"watch"`
+		Events map[string]EventEntry `yaml:"events"`
+	}
+	if err := strictUnmarshal(data, &f); err != nil {
+		return fmt.Errorf("parsing observe include %q: %w", observe.Include, err)
+	}
+
+	observe.Watch = append(f.Watch, observe.Watch...)
+
+	merged := make(map[string]*EventEntry, len(f.Events)+len(observe.Events))
+	for name, entry := range f.Events {
+		merged[name] = &entry
+	}
+	for name, entry := range observe.Events {
+		merged[name] = entry
+	}
+	observe.Events = merged
+
+	observe.Include = ""
+
+	return nil
 }
 
 // ExpandReconcilerInclude resolves the reconciler.include field by reading the

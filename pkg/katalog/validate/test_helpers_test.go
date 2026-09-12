@@ -15,6 +15,15 @@ func newKatalogExec(crds map[string]orktypes.CRDEntry) *executor {
 	return newExec(katalog.NewKatalogForTest(crds))
 }
 
+// crd returns a test CRDEntry by name.
+func (e *executor) crd(name string) *orktypes.CRDEntry {
+	crd, ok := e.k.Enabled()[name]
+	if !ok {
+		return nil
+	}
+	return &crd
+}
+
 // serveEntry builds a minimal serve-enabled CRDEntry for tests.
 func serveEntry(kind, targetName string) orktypes.CRDEntry {
 	tv := orktypes.ServeTargetValue{}

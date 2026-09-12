@@ -297,5 +297,10 @@ func (e *executor) run() error {
 		return err
 	}
 
+	// 54. Events
+	if err := e.validateEventEntries(); err != nil {
+		return err
+	}
+
 	return nil
 }

@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/orkspace/orkestra/domain"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -266,7 +267,7 @@ func (c *CRDEntry) WithAnyManagedResources() bool {
 
 // HookManagedResources returns the list of managed resources declared under
 // the hooks block. Returns nil if hooks are not declared or no resources exist.
-func (c *CRDEntry) HookManagedResources() []ManagedResource {
+func (c *CRDEntry) HookManagedResources() []domain.ManagedResource {
 	if !c.WithHooksDecl() {
 		return nil
 	}
@@ -276,7 +277,7 @@ func (c *CRDEntry) HookManagedResources() []ManagedResource {
 // ConstructorManagedResources returns the list of managed resources declared
 // under the constructor block. Returns nil if constructor is not declared or
 // no resources exist.
-func (c *CRDEntry) ConstructorManagedResources() []ManagedResource {
+func (c *CRDEntry) ConstructorManagedResources() []domain.ManagedResource {
 	if !c.WithConstructorDecl() {
 		return nil
 	}
@@ -286,10 +287,10 @@ func (c *CRDEntry) ConstructorManagedResources() []ManagedResource {
 // AllManagedResources returns the combined list of managed resources from hooks,
 // constructor, and per-target operatorBox declarations. Duplicates across targets
 // are fine — startWatchInformers deduplicates by GVR via the covered set.
-func (c *CRDEntry) AllManagedResources() []ManagedResource {
+func (c *CRDEntry) AllManagedResources() []domain.ManagedResource {
 	hooks := c.HookManagedResources()
 	ctor := c.ConstructorManagedResources()
-	out := make([]ManagedResource, 0, len(hooks)+len(ctor))
+	out := make([]domain.ManagedResource, 0, len(hooks)+len(ctor))
 	out = append(out, hooks...)
 	out = append(out, ctor...)
 	if c.Serve != nil {
@@ -302,12 +303,12 @@ func (c *CRDEntry) AllManagedResources() []ManagedResource {
 
 // targetManagedResources extracts hook + constructor resources from a per-target
 // operatorBox pointer. Returns nil when the box is nil or has no resources.
-func targetManagedResources(box *OperatorBoxConfig) []ManagedResource {
+func targetManagedResources(box *OperatorBoxConfig) []domain.ManagedResource {
 	if box.Empty() || box.Reconciler.Empty() {
 		return nil
 	}
 	rec := box.Reconciler
-	var out []ManagedResource
+	var out []domain.ManagedResource
 	if rec.HasHooksDecl() {
 		out = append(out, rec.Hooks.ManagedResources...)
 	}
@@ -317,20 +318,25 @@ func targetManagedResources(box *OperatorBoxConfig) []ManagedResource {
 	return out
 }
 
-// WithWatchEntries reports whether this CRD or any per-target operatorBox declares
-// secondary watch entries.
+// WithWatchEntries reports whether this CRD or any per-target
+// operatorBox.observe.watch declaration contains secondary watch entries.
 func (c *CRDEntry) WithWatchEntries() bool {
-	if len(c.OperatorBox.Watch) > 0 {
+	if c.OperatorBox.Observe != nil && len(c.OperatorBox.Observe.Watch) > 0 {
 		return true
 	}
+
 	if c.Serve == nil {
 		return false
 	}
+
 	for _, entry := range c.Serve.Target.Entries {
-		if entry.OperatorBox != nil && len(entry.OperatorBox.Watch) > 0 {
+		if entry.OperatorBox != nil &&
+			entry.OperatorBox.Observe != nil &&
+			len(entry.OperatorBox.Observe.Watch) > 0 {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -345,21 +351,89 @@ func (c *CRDEntry) WithQueueBehaviours() bool {
 }
 
 // WatchEntries returns the combined secondary watch entries from the base
-// operatorBox.watch and all per-target operatorBox.watch declarations.
-// Duplicates across targets are deduplicated by startWatchInformers via covered set.
+// operatorBox.observe.watch and all per-target operatorBox.observe.watch
+// declarations.
+//
+// Duplicates across targets are deduplicated by startWatchInformers via the
+// covered set.
 func (c *CRDEntry) WatchEntries() []WatchEntry {
-	base := c.OperatorBox.Watch
-	if c.Serve == nil {
-		return base
+	var out []WatchEntry
+
+	if c.OperatorBox.Observe != nil {
+		out = append(out, c.OperatorBox.Observe.Watch...)
 	}
-	out := make([]WatchEntry, 0, len(base))
-	out = append(out, base...)
+
+	if c.Serve == nil {
+		return out
+	}
+
 	for _, entry := range c.Serve.Target.Entries {
-		if entry.OperatorBox != nil {
-			out = append(out, entry.OperatorBox.Watch...)
+		if entry.OperatorBox != nil && entry.OperatorBox.Observe != nil {
+			out = append(out, entry.OperatorBox.Observe.Watch...)
 		}
 	}
+
 	return out
+}
+
+// EventEntries returns the combined secondary event entries from the base
+// operatorBox.observe.events and all per-target operatorBox.observe.events
+// declarations.
+//
+// Entries are keyed by their event declaration name. Per-target declarations
+// with the same name override the base declaration.
+func (c *CRDEntry) EventEntries() map[string]EventEntry {
+	out := make(map[string]EventEntry)
+
+	if c.OperatorBox.Observe != nil {
+		for name, entry := range c.OperatorBox.Observe.Events {
+			if entry == nil {
+				continue
+			}
+			out[name] = *entry
+		}
+	}
+
+	if c.Serve == nil {
+		return out
+	}
+
+	for _, entry := range c.Serve.Target.Entries {
+		if entry.OperatorBox == nil || entry.OperatorBox.Observe == nil {
+			continue
+		}
+
+		for name, event := range entry.OperatorBox.Observe.Events {
+			if event == nil {
+				continue
+			}
+			out[name] = *event
+		}
+	}
+
+	return out
+}
+
+// WithEventEntries reports whether this CRD or any per-target
+// operatorBox.observe.events declaration contains event entries.
+func (c *CRDEntry) WithEventEntries() bool {
+	if c.OperatorBox.Observe != nil && len(c.OperatorBox.Observe.Events) > 0 {
+		return true
+	}
+
+	if c.Serve == nil {
+		return false
+	}
+
+	for _, entry := range c.Serve.Target.Entries {
+		if entry.OperatorBox != nil &&
+			entry.OperatorBox.Observe != nil &&
+			len(entry.OperatorBox.Observe.Events) > 0 {
+			return true
+		}
+	}
+
+	return false
 }
 
 // HasTemplates reports whether this CRD declares any declarative hook templates.

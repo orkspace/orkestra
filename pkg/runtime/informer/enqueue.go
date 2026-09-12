@@ -21,11 +21,50 @@ type ComputeSentinelsOptions struct {
 	DeclaredSentinels []string
 }
 
+type EnqueueSource string
+
+const (
+	EnqueueSourcePrimary EnqueueSource = "primary"
+	EnqueueSourceWatch   EnqueueSource = "watch"
+	EnqueueSourceEvent   EnqueueSource = "event"
+)
+
+func (e EnqueueSource) String() string {
+	return string(e)
+}
+
 // EnqueueOptions provides context for event-specific enqueue evaluation.
 type EnqueueOptions struct {
 	// WatchSecondaryGVK identifies the secondary resource when the event
 	// originates from a watch.
 	WatchSecondaryGVK string
+
+	// Source identifies what caused the enqueue.
+	Source EnqueueSource
+
+	// SourceName identifies the declaration that caused the enqueue when
+	// available, such as an EventEntry or WatchEntry name.
+	SourceName string
+
+	// Observation carries observation data to make available to the resolver
+	// when the queued item is evaluated.
+	Observation *ObservationContext
+}
+
+// ObservationContext contains data observed alongside the resource that
+// caused the enqueue.
+type ObservationContext struct {
+	// Events contains matched Kubernetes Event data keyed by EventEntry name.
+	Events map[string]interface{}
+}
+
+// eventsFromObservation returns the observed Event data carried by the
+// observation context, or nil when no observation context is present.
+func eventsFromObservation(observation *ObservationContext) map[string]interface{} {
+	if observation == nil {
+		return nil
+	}
+	return observation.Events
 }
 
 // ComputeSentinels derives event-time sentinel values from an informer update.
@@ -89,7 +128,7 @@ func (f *Factory) allowEnqueue(
 	obj interface{},
 	wq *queue.Workqueue,
 	sentinels map[string]string,
-	opts ...EnqueueOptions,
+	opts EnqueueOptions,
 ) bool {
 	if wq == nil {
 		return false
@@ -116,30 +155,51 @@ func (f *Factory) allowEnqueue(
 
 	// Queue behaviour conditions.
 	if wq.NeedsBehaviourEval() {
-		if !f.katalog.EvaluateQueueBehaviourConditions(
-			ctx, gvkStr, domObj, sentinels,
-		) {
+		if !f.katalog.EvaluateQueueBehaviourConditions(ctx, gvkStr, domObj, domain.EvaluateOptions{Sentinels: sentinels}) {
 			return false
 		}
 	}
 
 	// Enqueue-gate conditions.
-	// Secondary informers evaluate their watch entry's enqueueGate.
-	if len(opts) > 0 && opts[0].WatchSecondaryGVK != "" {
+	// Secondary informers evaluate their declared observation entry's enqueueGate.
+	switch opts.Source {
+	case EnqueueSourceWatch:
+		if opts.WatchSecondaryGVK == "" {
+			return true
+		}
+
 		return f.katalog.EvaluateWatchEnqueueFilter(
 			ctx,
 			gvkStr,
-			opts[0].WatchSecondaryGVK,
+			opts.WatchSecondaryGVK,
 			domObj,
 			f.cs,
-			sentinels,
+			domain.EvaluateOptions{
+				Events:    eventsFromObservation(opts.Observation),
+				Sentinels: sentinels,
+			},
+		)
+
+	case EnqueueSourceEvent:
+		if opts.SourceName == "" {
+			return true
+		}
+
+		return f.katalog.EvaluateEventEnqueueFilter(
+			ctx,
+			gvkStr,
+			opts.SourceName,
+			domObj,
+			f.cs,
+			domain.EvaluateOptions{
+				Events:    eventsFromObservation(opts.Observation),
+				Sentinels: sentinels,
+			},
 		)
 	}
 
 	// Primary informers evaluate preReconcile.enqueueGate.
-	if !f.katalog.EvaluateEnqueueFilter(
-		ctx, gvkStr, domObj, f.cs, sentinels,
-	) {
+	if !f.katalog.EvaluateEnqueueFilter(ctx, gvkStr, domObj, f.cs, domain.EvaluateOptions{Sentinels: sentinels}) {
 		logger.Debug().
 			Str("gvk", gvkStr).
 			Str("name", domObj.GetName()).
@@ -168,13 +228,9 @@ func (f *Factory) enqueue(
 		key = domObj.GetName()
 	}
 
-	f.enqueueKey(
-		gvkStr,
-		key,
-		obj,
-		f.queueFor(gvkStr),
-		sentinels,
-	)
+	f.enqueueKey(gvkStr, key, obj, f.queueFor(gvkStr), sentinels, false, EnqueueOptions{
+		Source: EnqueueSourcePrimary,
+	})
 }
 
 // enqueueKey routes an admitted event using the supplied queue key.
@@ -188,7 +244,8 @@ func (f *Factory) enqueueKey(
 	obj interface{},
 	wq *queue.Workqueue,
 	sentinels map[string]string,
-	secondary ...bool,
+	secondary bool,
+	opts EnqueueOptions,
 ) {
 	if wq == nil {
 		return
@@ -204,7 +261,7 @@ func (f *Factory) enqueueKey(
 		eventAware = f.katalog.IsEventAware(domObj, gvkStr)
 	}
 
-	if len(secondary) > 0 && secondary[0] {
+	if secondary {
 		switch {
 		case eventAware:
 			wq.EnqueueWithKeyEventSentinels(key, gvkStr, sentinels)
@@ -224,11 +281,6 @@ func (f *Factory) enqueueKey(
 		}
 	}
 
-	source := "primary"
-	if len(secondary) > 0 && secondary[0] {
-		source = "secondary"
-	}
-
 	identity := "coalesced"
 	if eventAware {
 		identity = "event-aware"
@@ -238,7 +290,8 @@ func (f *Factory) enqueueKey(
 		Str("gvk", gvkStr).
 		Str("key", key).
 		Str("queue", wq.Name()).
-		Str("source", source).
+		Str("source", opts.Source.String()).
+		Str("sourceName", opts.SourceName).
 		Str("identity", identity).
 		Bool("sentinels", sentinels != nil).
 		Msg("informer: event enqueued")
@@ -252,12 +305,12 @@ func (f *Factory) AllowAndEnqueueKey(
 	obj interface{},
 	wq *queue.Workqueue,
 	sentinels map[string]string,
-	opts ...EnqueueOptions,
+	opts EnqueueOptions,
 ) bool {
-	if !f.allowEnqueue(ctx, gvkStr, obj, wq, sentinels, opts...) {
+	if !f.allowEnqueue(ctx, gvkStr, obj, wq, sentinels, opts) {
 		return false
 	}
 
-	f.enqueueKey(gvkStr, key, obj, wq, sentinels, true)
+	f.enqueueKey(gvkStr, key, obj, wq, sentinels, true, opts)
 	return true
 }

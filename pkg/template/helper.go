@@ -161,3 +161,52 @@ func resolveRawValue(data map[string]interface{}, expr string) interface{} {
 	}
 	return current
 }
+
+
+// ValidResolverName reports whether name is a valid normalized resolver name.
+//
+// Resolver names use a simple camelCase-style convention:
+//   - must be non-empty
+//   - must start with an ASCII letter
+//   - may contain ASCII letters, digits, and underscores
+//   - must not contain spaces, punctuation, Unicode characters, or other
+//     special characters
+func ValidResolverName(name string) error {
+	if name == "" {
+		return fmt.Errorf("event name must not be empty")
+	}
+
+	for i, r := range name {
+		if i == 0 {
+			if !isASCIILetter(r) {
+				return fmt.Errorf(
+					"event name %q must start with a letter",
+					name,
+				)
+			}
+			continue
+		}
+
+		if isASCIILetter(r) || isASCIIDigit(r) || r == '_' {
+			continue
+		}
+
+		return fmt.Errorf(
+			"event name %q contains invalid character %q at position %d; only letters, digits, and underscores are allowed",
+			name,
+			r,
+			i,
+		)
+	}
+
+	return nil
+}
+
+func isASCIILetter(r rune) bool {
+	return (r >= 'a' && r <= 'z') ||
+		(r >= 'A' && r <= 'Z')
+}
+
+func isASCIIDigit(r rune) bool {
+	return r >= '0' && r <= '9'
+}

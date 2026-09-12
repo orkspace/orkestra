@@ -60,17 +60,17 @@ target-specific configuration.
                               │
              ┌────────────────┼────────────────┐
              │                │                │
-           watch[]        enqueueGate     reconcileGate
+           observe[]      enqueueGate     reconcileGate
                                                 │
                                            eventAware
 ```
 
 This is important because runtime features do not need separate
-target-resolution implementations. If a target changes the watch
-configuration, the effective watch is used. If a target changes the
-enqueue gate, the effective enqueue gate is used. If a target enables
-`eventAware`, the resulting queue identity follows that effective
-configuration.
+target-resolution implementations. If a target changes the observe
+configuration, the effective observation is used. If a target changes
+the enqueue gate, the effective enqueue gate is used. If a target
+enables `eventAware`, the resulting queue identity follows that
+effective configuration.
 
 The effective-box resolution is therefore a semantic boundary between
 configuration and runtime behaviour.
@@ -108,6 +108,7 @@ resolver context
       ├── metrics
       ├── health
       ├── intent
+      ├── events
       └── other context
 ```
 
@@ -122,31 +123,51 @@ wherever conditions are declared.
 
 Once Kubernetes contains the resource, informers observe changes.
 
-There are two relevant event sources:
+There are three relevant observation sources:
 
 1. **Primary informers** — watching the CRD's own resources.
-2. **Secondary watch informers** — watching resources that may affect
-   those primary resources.
+2. **`observe.watch`** — watching arbitrary secondary resources that
+   may affect those primary resources.
+3. **`observe.events`** — watching Kubernetes `Event` objects that
+   signal relevant occurrences.
 
-Both eventually converge on the same enqueue path.
+All three converge on the same enqueue path.
 
 ```text
-                         Kubernetes events
-                                │
-                  ┌─────────────┴─────────────┐
-                  │                           │
-           primary event              secondary event
-                  │                           │
-             primary key                 resolve owner /
-             already known              affected primary key
-                  │                           │
-                  └─────────────┬─────────────┘
-                                ▼
-                     common enqueue boundary
+                         Kubernetes
+                              │
+          ┌───────────────────┼───────────────────┐
+          │                   │                   │
+   primary informer      observe.watch       observe.events
+          │                   │                   │
+   object → key         resolve owner /     resolve primary CR
+                        affected key        via keyFrom
+          │                   │                   │
+          └───────────────────┴───────────────────┘
+                                     │
+                                     ▼
+                          common enqueue boundary
 ```
 
-A secondary watch therefore does not implement its own queue semantics.
-Its responsibility is to:
+### `observe.watch`
+
+`watch` observes arbitrary Kubernetes resources. Use it when a
+secondary resource's state can affect the desired state of the primary
+CR.
+
+```yaml
+operatorBox:
+  observe:
+    watch:
+      - apiVersion: v1
+        kind: ConfigMap
+        name: feature-flags
+        namespace: config
+        on: [update]
+```
+
+A watch entry does not implement its own queue semantics. Its
+responsibility is to:
 
 ```text
 observe
@@ -160,11 +181,56 @@ resolve affected primary key(s)
 hand key + sentinels to the common enqueue path
 ```
 
-A `watch entry` does not need to know how the queue represents
-event identity, how items are deduplicated, how retries work, or what
-eventually reconciles the item. It provides the affected primary
-identity and event context and hands control back to the informer
-factory.
+### `observe.events`
+
+`events` observes Kubernetes `Event` objects. Use it when an Event
+emitted by Kubernetes or another controller represents a signal that
+should cause reconciliation.
+
+```yaml
+operatorBox:
+  observe:
+    events:
+      dbReady:
+        reason: DatabaseReady
+        type: Normal
+        regarding:
+          kind: Database
+          name: "{{ .spec.databaseRef }}"
+        enqueueGate:
+          when:
+            - field: "{{ .events.dbReady.reportingController }}"
+              equals: "database.myorg.io/controller"
+```
+
+Events are not merely triggers — their content becomes resolver context
+for the enqueue gate. `reason`, `action`, `type`, `reportingController`,
+`reportingInstance`, `regarding`, and `related` are all available as
+`{{ .events.<name>.* }}` in gate conditions. The gate can reason about
+what the event says, not just that it happened.
+
+An event entry resolves a primary CR key and hands it to the same
+common enqueue path as a watch. It does not implement separate queue
+semantics.
+
+### `observe.watch` and `observe.events` are siblings
+
+Both observation mechanisms share the same package, the same
+`enqueueGate` evaluation path, and the same semantics. The only
+difference is what they observe and what context they inject into the
+resolver:
+
+| | `observe.watch` | `observe.events` |
+|---|---|---|
+| Observes | Arbitrary Kubernetes resources | Kubernetes `Event` objects |
+| Resolver context | Sentinel-computed fields from old/new object delta | Event properties: reason, action, type, reportingController, regarding, related |
+| Routing | Owner reference, label selector, broadcast | `keyFrom` |
+| Gate | `enqueueGate` with full resolver | `enqueueGate` with full resolver including `.events.<name>.*` |
+
+The observation does not call the reconciler directly. Once a source
+resolves a primary CR key, it enters the same queue and reconciliation
+path used by primary CR changes. Observation is triggering; the
+reconciler reads current cluster state, not event state.
 
 ---
 
@@ -183,6 +249,7 @@ Informer event
       │
       ├── identity
       ├── sentinels
+      ├── event context (observe.events only)
       │
       ▼
 Queue behaviour
@@ -193,6 +260,7 @@ Enqueue gate
       │
       ├── when / or conditions
       ├── sentinel conditions
+      ├── event context conditions (observe.events)
       └── external evaluation
       │
       ▼
@@ -243,8 +311,8 @@ interprets the effective configuration. The queue implements the
 identity model. Each layer knows only what its responsibility requires.
 
 ```text
-watch informer
-      │  affected primary identity + sentinels
+watch / event informer
+      │  affected primary identity + sentinels / event context
       ▼
 informer factory
       │  interprets effectiveBox → eventAware?
@@ -278,10 +346,10 @@ Kordinator
 ```
 
 The Kordinator sees one queue item at a time. It does not know whether
-that item originated from a primary informer or a secondary watch. It
-does not know whether the reconciler it dispatches to is declarative,
-hybrid, or a Go `Reconcile()` function. It receives a work item and
-coordinates its path to reconciliation.
+that item originated from a primary informer, a secondary watch, or a
+Kubernetes Event. It does not know whether the reconciler it dispatches
+to is declarative, hybrid, or a Go `Reconcile()` function. It receives
+a work item and coordinates its path to reconciliation.
 
 ---
 
@@ -293,7 +361,7 @@ automatically occurs. There is a second admission boundary at
 
 The two gates serve different stages and answer different questions:
 
-> **enqueueGate:** Should this event become work?
+> **enqueueGate:** Should this observed occurrence become work?
 
 > **reconcileGate:** Should this queued work be reconciled now?
 
@@ -319,17 +387,17 @@ preReconcile admission
         MuxReconciler
 ```
 
-The full journey from event to reconciliation:
+The full journey from observation to reconciliation:
 
 ```text
-Kubernetes event
+Kubernetes occurrence
       │
       ▼
 event admission
       │
       ├── queue behaviour        (capacity — no object context)
-      ├── enqueueGate            (conditions — full object context)
-      └── sentinels              (event facts)
+      ├── enqueueGate            (conditions — full resolver context)
+      └── sentinels / events     (occurrence-specific facts)
       │
       ▼
 Workqueue
@@ -380,7 +448,7 @@ Across all paths, reconciliation can take three forms:
              ┌────────────────┼────────────────┐
              │                │                │
         declarative     hybrid (hooks)       Constructor
-      (100% YAML)    (90% YAML + 10% hooks)  (100% ─ Reconcile())
+      (100% YAML)    (90% YAML + 10% hooks)  (100% — Reconcile())
 ```
 
 The Kordinator coordinates the work but does not need to know the
@@ -470,15 +538,15 @@ running.
                                      │
                                      ▼
                                 Kubernetes
-                                  events
                                      │
-                    ┌────────────────┴────────────────┐
-                    │                                 │
-             primary informer                  watch informer
-                    │                                 │
-             object → key                 sentinels + affected key
-                    │                                 │
-                    └────────────────┬────────────────┘
+                    ┌────────────────┼────────────────┐
+                    │                │                │
+             primary informer   observe.watch    observe.events
+                    │                │                │
+             object → key    sentinels +        event context +
+                             affected key       affected key
+                    │                │                │
+                    └────────────────┴────────────────┘
                                      │
                                      ▼
                             common enqueue path
@@ -486,7 +554,8 @@ running.
                           ┌──────────┴──────────┐
                           │                     │
                     queue behaviour        enqueueGate
-                    (Tier 1: capacity)   (conditions + sentinels)
+                    (Tier 1: capacity)   (conditions + sentinels
+                          │               + event context)
                           │                     │
                           └──────────┬──────────┘
                                      │
@@ -517,7 +586,7 @@ running.
                                      │
                     ┌────────────────┼────────────────┐
                     │                │                │
-                declarative         hybrid (hooks)  Constructor — Reconcile()
+               declarative     hybrid (hooks)    Constructor — Reconcile()
                     │                │                │
                     └────────────────┼────────────────┘
                                      │
@@ -545,31 +614,36 @@ convergence design:
 
 **Convergence** — all CR producers feed the same runtime path once the
 resource exists in Kubernetes. A CR from the gateway, from ArgoCD, or
-from kubectl is the same thing to the runtime.
+from kubectl is the same thing to the runtime. All observation sources
+— primary informers, watch, Kubernetes Events — converge at the same
+enqueue boundary.
 
 **Separation** — each layer knows only what its responsibility requires.
-A watch informer does not understand queues. A queue does not understand
-reconcilers. A reconcile gate does not need to know event IDs. A
-reconciler does not know whether work came from a primary informer or
-a secondary watch.
+A watch informer does not understand queues. An event informer does not
+understand sentinels. A queue does not understand reconcilers. A
+reconcile gate does not need to know event IDs. A reconciler does not
+know whether work came from a primary informer, a watch, or an Event.
 
 **Self-awareness** — reconciliation produces health and metrics that
 feed back into gate evaluation. The operator can gate its own future
 cycles based on its own current state. No external system required.
 
-**Uniform conditions** — `when`, `or`, sentinels, and external calls
-evaluate identically at the enqueue gate, the reconcile gate, resource
-conditions, status fields, autoscaler conditions, and validation rules.
-One mental model applies everywhere.
+**Uniform conditions** — `when`, `or`, sentinels, event context, and
+external calls evaluate identically at the enqueue gate, the reconcile
+gate, resource conditions, status fields, autoscaler conditions, and
+validation rules. One mental model applies everywhere.
 
 **Target transparency** — `effectiveBox` abstracts target selection from
-runtime features. Watch configuration, enqueue gate, reconcile gate,
+runtime features. Observe configuration, enqueue gate, reconcile gate,
 and event awareness all resolve through the effective box without
 needing separate target-aware implementations in each feature.
 
+---
 
 ## Where to go next
 
-- [Event Aware Reconciliation](../reconciler-model/08-event-aware-reonciliation.md)
+- [Observe — Watch](../operatorbox/10-observe/01-watch.md) — observe arbitrary Kubernetes resources
+- [Observe — Events](../operatorbox/10-observe/02-events.md) — observe Kubernetes Event objects
+- [Event Aware Reconciliation](../reconciler-model/08-event-aware-reconciliation.md)
 - [The Queue That Grew Up](/blog/the-queue-that-grew-up)
 

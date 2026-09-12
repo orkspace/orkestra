@@ -3,6 +3,7 @@ package kordinator
 import (
 	"context"
 
+	"github.com/orkspace/orkestra/domain"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
@@ -38,6 +39,6 @@ func (k *Kontroller) evaluatePreReconcileCheck(
 	if k.kat == nil || obj == nil {
 		return false, ""
 	}
-	allowed, reason := k.kat.EvaluatePreReconcile(ctx, crdName, obj, k.kube.Clientset(), sentinels)
+	allowed, reason := k.kat.EvaluatePreReconcile(ctx, crdName, obj, k.kube.Clientset(), domain.EvaluateOptions{Sentinels: sentinels})
 	return !allowed, reason
 }
