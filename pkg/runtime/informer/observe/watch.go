@@ -1,10 +1,10 @@
 // pkg/runtime/informer/observe/watch.go
 //
-// Secondary watch informers for operatorBox.watch entries and managed resources.
+// Secondary watch informers for operatorBox.observe.watch entries and managed resources.
 //
 // Two sources produce watch informers:
 //
-//  1. operatorBox.watch — explicit entries declared by the operator author. Full
+//  1. operatorBox.observe.watch — explicit entries declared by the operator author. Full
 //     control: on:, enqueueGate:, keyFrom:, index:.
 //
 //  2. constructor.resources / hooks.resources — owned resource types. Treated as

@@ -544,7 +544,7 @@ func konstructRuntime(kfg *konfig.Konfig, m *merger.Merger, ctx context.Context)
 	hs.Register("/katalog", kordinator.BuildKatalogHandler(kat, kfg, ktrlRegistry, crdHealthMap, orkHealth))
 
 	// ── 6a. Secondary resource observers ────────────────────────────
-	// Observe secondary resources declared in operatorBox.watch/events.
+	// Observe secondary resources declared in operatorBox.observe.watch/events.
 	obs := observe.New(observe.Dependencies{
 		Kube:          kube,
 		Informer:      infFactory,
