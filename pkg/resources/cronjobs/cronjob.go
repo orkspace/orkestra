@@ -13,7 +13,7 @@ import (
 	"github.com/orkspace/orkestra/pkg/kubeclient"
 	"github.com/orkspace/orkestra/pkg/labels"
 	"github.com/orkspace/orkestra/pkg/logger"
-	"github.com/orkspace/orkestra/pkg/resources/common"
+	"github.com/orkspace/orkestra/pkg/resources/shared"
 	orktypes "github.com/orkspace/orkestra/pkg/types"
 	"github.com/orkspace/orkestra/pkg/utils"
 	batchv1 "k8s.io/api/batch/v1"
@@ -101,8 +101,8 @@ func Create(ctx context.Context, kube kubeclient.Interface, owner domain.Object,
 		return fmt.Errorf("cronjob.Create: %w", err)
 	}
 
-	namespace := common.ResolveNamespace(owner, spec.Namespace)
-	if err := common.SleepIfNeeded(spec.Sleep); err != nil {
+	namespace := shared.ResolveNamespace(owner, spec.Namespace)
+	if err := shared.SleepIfNeeded(spec.Sleep); err != nil {
 		return err
 	}
 
@@ -141,8 +141,8 @@ func Apply(ctx context.Context, kube kubeclient.Interface, owner domain.Object, 
 		return fmt.Errorf("cronjob.Apply: %w", err)
 	}
 
-	namespace := common.ResolveNamespace(owner, spec.Namespace)
-	if err := common.SleepIfNeeded(spec.Sleep); err != nil {
+	namespace := shared.ResolveNamespace(owner, spec.Namespace)
+	if err := shared.SleepIfNeeded(spec.Sleep); err != nil {
 		return err
 	}
 
@@ -156,7 +156,7 @@ func Apply(ctx context.Context, kube kubeclient.Interface, owner domain.Object, 
 
 	if _, err = kube.Clientset().BatchV1().CronJobs(namespace).Patch(
 		ctx, spec.Name, k8stypes.ApplyPatchType, body,
-		metav1.PatchOptions{FieldManager: konfig.FieldManagerRuntime, Force: common.ResolveForceConflict(kube, spec.ForceConflict)},
+		metav1.PatchOptions{FieldManager: konfig.FieldManagerRuntime, Force: shared.ResolveForceConflict(kube, spec.ForceConflict)},
 	); err != nil {
 		return fmt.Errorf("cronjob.Apply: %w", err)
 	}
@@ -177,8 +177,8 @@ func Update(ctx context.Context, kube kubeclient.Interface, owner domain.Object,
 
 // Delete deletes the CronJob if it exists.
 func Delete(ctx context.Context, kube kubeclient.Interface, owner domain.Object, spec ResolvedCronJobSpec) error {
-	namespace := common.ResolveNamespace(owner, spec.Namespace)
-	if err := common.SleepIfNeeded(spec.Sleep); err != nil {
+	namespace := shared.ResolveNamespace(owner, spec.Namespace)
+	if err := shared.SleepIfNeeded(spec.Sleep); err != nil {
 		return err
 	}
 
@@ -234,9 +234,9 @@ func Resolve(src orktypes.CronJobTemplateSource, ownerName string, reg orktypes.
 		Command:         src.Command,
 		Args:            src.Args,
 		Labels:          make(map[string]string),
-		Resources:       common.ResolveResources(src.Resources, reg),
-		SecurityContext: common.ResolveContainerSecurityContext(src.SecurityContext, reg),
-		PodSecurity:     common.ResolvePodSecurityContext(src.PodSecurity, reg),
+		Resources:       shared.ResolveResources(src.Resources, reg),
+		SecurityContext: shared.ResolveContainerSecurityContext(src.SecurityContext, reg),
+		PodSecurity:     shared.ResolvePodSecurityContext(src.PodSecurity, reg),
 		Sleep:           src.Sleep,
 		ForceConflict:   src.ForceConflict,
 	}
@@ -247,7 +247,7 @@ func Resolve(src orktypes.CronJobTemplateSource, ownerName string, reg orktypes.
 
 	// ── Suspend ───────────────────────────────────────────────────────────
 	if src.Suspend != "" {
-		spec.Suspend = common.ParseBool(src.Suspend)
+		spec.Suspend = shared.ParseBool(src.Suspend)
 	}
 
 	// ── ConcurrencyPolicy ─────────────────────────────────────────────────
@@ -306,7 +306,7 @@ func buildCronJob(owner domain.Object, spec ResolvedCronJobSpec, namespace strin
 			Name:            spec.Name,
 			Namespace:       namespace,
 			Labels:          spec.Labels,
-			OwnerReferences: common.ResolveOwnerReferences(owner),
+			OwnerReferences: shared.ResolveOwnerReferences(owner),
 		},
 		Spec: batchv1.CronJobSpec{
 			Schedule:                   spec.Schedule,
@@ -325,7 +325,7 @@ func buildCronJob(owner domain.Object, spec ResolvedCronJobSpec, namespace strin
 							Labels: spec.Labels,
 						},
 						Spec: corev1.PodSpec{
-							ImagePullSecrets: common.ToPullSecrets(spec.ImagePullSecrets),
+							ImagePullSecrets: shared.ToPullSecrets(spec.ImagePullSecrets),
 							RestartPolicy:    corev1.RestartPolicyOnFailure,
 							Containers: []corev1.Container{
 								buildContainer(spec),
@@ -338,7 +338,7 @@ func buildCronJob(owner domain.Object, spec ResolvedCronJobSpec, namespace strin
 	}
 
 	// Security
-	common.ApplySecurityContext(
+	shared.ApplySecurityContext(
 		&cj.Spec.JobTemplate.Spec.Template.Spec.Containers[0],
 		&cj.Spec.JobTemplate.Spec.Template.Spec,
 		spec.SecurityContext,
@@ -356,7 +356,7 @@ func buildContainer(spec ResolvedCronJobSpec) corev1.Container {
 		Args:    spec.Args,
 	}
 	if spec.Resources != nil {
-		c.Resources = common.BuildResourceRequirements(spec.Resources)
+		c.Resources = shared.BuildResourceRequirements(spec.Resources)
 	}
 	return c
 }

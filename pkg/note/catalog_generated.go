@@ -57,7 +57,7 @@ var BuiltinNotes = []NoteInfo{
 	{
 		Name:        "mapKeys",
 		Domain:      "collections",
-		Description: "Return all keys of a map as `[]string`. Returns an empty slice for non-maps.",
+		Description: "Return all keys of a map as sorted `[]string`. Returns an empty slice for non-maps.",
 		Example:     "# value: \"{{ join (mapKeys .metadata.labels) \\\", \\\" }}\"\n# {app: frontend, tier: web} → \"app, tier\" (order not guaranteed)",
 		Keywords:    []string{"map", "collection", "keys", "slice", "iterate", "list"},
 	},

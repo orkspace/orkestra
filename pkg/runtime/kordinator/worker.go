@@ -9,6 +9,7 @@ import (
 	"github.com/orkspace/orkestra/domain"
 	"github.com/orkspace/orkestra/pkg/logger"
 	"github.com/orkspace/orkestra/pkg/metrics"
+	"github.com/orkspace/orkestra/pkg/runtime/kordinator/vitals"
 	"github.com/orkspace/orkestra/pkg/runtime/queue"
 	apitypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/cache"
@@ -191,7 +192,7 @@ func (k *Kontroller) processItemForGVK(ctx context.Context, gvk string, item que
 // the controller process stays alive and the failure is reported deterministically.
 func (k *Kontroller) safeReconcile(
 	rec domain.Reconciler,
-	health *CRDHealth,
+	health *vitals.CRDHealth,
 	ctx context.Context,
 	key string,
 	gvk string,

@@ -89,7 +89,7 @@ func (k *DependencyKordinator) retryMissingCRDs(ctx context.Context) {
 
 					// 	Katalog
 					k.allOnline.Store(false)
-					k.orkHealth.allOnline.Store(false)
+					k.orkHealth.SetAllNotOnline()
 					k.orkHealth.SetKatalogDegraded()
 
 					// Degrade dependents that require healthy condition
@@ -151,7 +151,7 @@ func (k *DependencyKordinator) retryMissingCRDs(ctx context.Context) {
 							h.SetMissingAtRuntime()
 							h.SetDegraded()
 						}
-						k.orkHealth.allOnline.Store(false)
+						k.orkHealth.SetAllNotOnline()
 						k.orkHealth.SetKatalogDegraded()
 						logger.Debug().Msgf("retry loop: %s still not available", gvkStr)
 					}
@@ -161,7 +161,7 @@ func (k *DependencyKordinator) retryMissingCRDs(ctx context.Context) {
 				if len(stillMissing) > 0 {
 					logger.Info().Msgf("retry loop: %d CRD(s) still missing", len(stillMissing))
 					k.allOnline.Store(false)
-					k.orkHealth.allOnline.Store(false)
+					k.orkHealth.SetAllNotOnline()
 					k.orkHealth.SetKatalogDegraded()
 				}
 			}
@@ -207,7 +207,7 @@ func (k *DependencyKordinator) retryMissingCRDs(ctx context.Context) {
 			// ───────────────────────────────────────────────
 			if len(k.informerFactory.Missing()) == 0 && k.allCRDsStarted() {
 				k.allOnline.Store(true)
-				k.orkHealth.allOnline.Store(true)
+				k.orkHealth.SetAllOnline()
 				k.orkHealth.SetKatalogReady()
 				logger.Debug().Msg("retry loop: all CRDs active")
 			}
@@ -368,10 +368,12 @@ func (k *DependencyKordinator) deactivateCRD(gvk string) {
 	select {
 	case <-done:
 		k.crdHealthMap[gvk].ResetWorkerCounts()
-		k.crdHealthMap[gvk].workerStates.Range(func(key, value interface{}) bool {
-			k.crdHealthMap[gvk].workerStates.Store(key, WorkerStateStopped)
-			return true
-		})
+		k.crdHealthMap[gvk].MarkWorkersStopped()
+		// k.crdHealthMap[gvk].workerStates.Range(func(key, value interface{}) bool {
+		// 	k.crdHealthMap[gvk].workerStates.Store(key, crdhealth.WorkerStateStopped)
+		// 	return true
+		// })
+
 		k.deactivated[gvk] = true
 		logger.Info().Str("gvk", gvk).Msg("workers drained cleanly")
 	case <-time.After(drainTimeout):

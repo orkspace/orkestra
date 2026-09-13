@@ -1,5 +1,5 @@
-// pkg/kordinator/crd_health.go
-package kordinator
+// pkg/runtime/kordinator/vitals/crd_health.go
+package vitals
 
 import (
 	"net/http"
@@ -7,7 +7,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/orkspace/orkestra/pkg/konfig"
 	ork_autoscaler "github.com/orkspace/orkestra/pkg/runtime/autoscaler"
 	"github.com/orkspace/orkestra/pkg/runtime/queue"
 )
@@ -79,7 +78,7 @@ type CRDHealth struct {
 	healthySignaled  atomic.Bool
 
 	// Track katalog health through the orkHealth tracker
-	orkHealth *OrkestraHealth
+	orkHealth *RuntimeHealth
 
 	// workerInfoFn returns the live WorkerInfo for this operatorbox.
 	// Set by startCRDWorkers after the reconciler is constructed.
@@ -181,36 +180,6 @@ type DependencyStatus struct {
 	AcceptableCondition string `json:"acceptableCondition"` // "started", "healthy", "ready"
 	Satisfied           bool   `json:"satisfied"`
 	LastCheck           string `json:"lastCheck,omitempty"`
-}
-
-type OrkestraHealth struct {
-	name        string
-	orkReady    atomic.Bool
-	katReady    atomic.Bool
-	allOnline   atomic.Bool // For this katalog
-	isKonductor atomic.Bool // true only on the pod that won the leader election
-	mu          sync.RWMutex
-}
-
-// NewOrkestraHEalth initializes a CRDHealth tracker for Orkestra
-func NewOrkestraHealth() *OrkestraHealth {
-	h := &OrkestraHealth{name: konfig.Ork}
-	h.orkReady.Store(true)
-	h.katReady.Store(false)
-	return h
-}
-
-// NewCRDHealth initializes a CRDHealth tracker for a given CRD name.
-// The reconciler starts in an "unhealthy" state until the first successful reconcile.
-func NewCRDHealth(name string) *CRDHealth {
-	h := &CRDHealth{name: name}
-	h.healthy.Store(false)
-	h.pending.Store(true)
-	h.degraded.Store(false)
-
-	// Add katalog tracker
-	h.orkHealth = NewOrkestraHealth()
-	return h
 }
 
 // RecordSuccess marks a successful reconcile event.
@@ -381,46 +350,9 @@ func (h *CRDHealth) MarkHealthySignaled() {
 	h.healthySignaled.Store(true)
 }
 
-// SetIsKonductor marks whether this pod holds the leader election lease.
-// Set to true at the start of Kordinate(), false when leadership is lost.
-func (h *OrkestraHealth) SetIsKonductor(v bool) {
-	h.isKonductor.Store(v)
-}
-
-// IsKonductor reports whether this pod is the current konductor (leader).
-// The control center uses this to decide whether to trust this pod's CRD data.
-func (h *OrkestraHealth) IsKonductor() bool {
-	return h.isKonductor.Load()
-}
-
-// SetOrkReady marks orkestra engine as ready
-func (h *OrkestraHealth) SetOrkReady() {
-	h.orkReady.Store(true)
-}
-
-// SetOrkDegraded marks orkestra engine as degraded
-func (h *OrkestraHealth) SetOrkDegraded() {
-	h.orkReady.Store(false)
-}
-
-// IsOrkReady is used to track ready state of orkestra
-func (h *OrkestraHealth) IsOrkReady() bool {
-	return h.orkReady.Load()
-}
-
-// SetKatalogReady marks a katalog as ready
-func (h *OrkestraHealth) SetKatalogReady() {
-	h.katReady.Store(true)
-}
-
-// SetKatalogDegraded marks a katalog as degraded
-func (h *OrkestraHealth) SetKatalogDegraded() {
-	h.katReady.Store(false)
-}
-
-// IsKatalogReady is used to track ready state of a katalog
-func (h *OrkestraHealth) IsKatalogReady() bool {
-	return h.katReady.Load()
+// SetGVK records the GroupVersionKind this health record belongs to.
+func (h *CRDHealth) SetGVK(gvk string) {
+	h.gvk = gvk
 }
 
 // SetNotStarted marks the reconciler as not started.
@@ -502,6 +434,11 @@ func (h *CRDHealth) SetCRDExists(exists bool) {
 	h.crdCheckMu.Lock()
 	defer h.crdCheckMu.Unlock()
 	h.lastCRDCheck = time.Now()
+}
+
+// SetQueueReg assigns the queue registry used to track this CRD's reconcile queue.
+func (h *CRDHealth) SetQueueReg(reg *queue.QueueRegistry) {
+	h.queueReg = reg
 }
 
 // CRDExists returns whether the CRD exists in the cluster.

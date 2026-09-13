@@ -9,7 +9,7 @@ import (
 	"github.com/orkspace/orkestra/pkg/kubeclient"
 	"github.com/orkspace/orkestra/pkg/labels"
 	"github.com/orkspace/orkestra/pkg/logger"
-	"github.com/orkspace/orkestra/pkg/resources/common"
+	"github.com/orkspace/orkestra/pkg/resources/shared"
 	orktypes "github.com/orkspace/orkestra/pkg/types"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -50,8 +50,8 @@ func Create(ctx context.Context, kube kubeclient.Interface, owner domain.Object,
 		return fmt.Errorf("serviceaccount.Create: invalid spec: %w", err)
 	}
 
-	namespace := common.ResolveNamespace(owner, spec.Namespace)
-	if err := common.SleepIfNeeded(spec.Sleep); err != nil {
+	namespace := shared.ResolveNamespace(owner, spec.Namespace)
+	if err := shared.SleepIfNeeded(spec.Sleep); err != nil {
 		return err
 	}
 
@@ -87,8 +87,8 @@ func Create(ctx context.Context, kube kubeclient.Interface, owner domain.Object,
 // For most cases owner references handle cleanup automatically —
 // only use this when explicit cleanup control is needed.
 func Delete(ctx context.Context, kube kubeclient.Interface, owner domain.Object, spec ResolvedServiceAccountSpec) error {
-	namespace := common.ResolveNamespace(owner, spec.Namespace)
-	if err := common.SleepIfNeeded(spec.Sleep); err != nil {
+	namespace := shared.ResolveNamespace(owner, spec.Namespace)
+	if err := shared.SleepIfNeeded(spec.Sleep); err != nil {
 		return err
 	}
 
@@ -164,7 +164,7 @@ func buildServiceAccount(owner domain.Object, spec ResolvedServiceAccountSpec, n
 			Name:            spec.Name,
 			Namespace:       namespace,
 			Labels:          spec.Labels,
-			OwnerReferences: common.ResolveOwnerReferences(owner),
+			OwnerReferences: shared.ResolveOwnerReferences(owner),
 		},
 	}
 }

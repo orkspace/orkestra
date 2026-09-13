@@ -194,6 +194,7 @@ import (
 	ork_autoscaler "github.com/orkspace/orkestra/pkg/runtime/autoscaler"
 	"github.com/orkspace/orkestra/pkg/runtime/informer"
 	"github.com/orkspace/orkestra/pkg/runtime/informer/observe"
+	"github.com/orkspace/orkestra/pkg/runtime/kordinator/vitals"
 	"github.com/orkspace/orkestra/pkg/runtime/queue"
 )
 
@@ -211,7 +212,7 @@ type DependencyKordinator struct {
 	// Orkestra and katalog health
 	anyOnline atomic.Bool
 	allOnline atomic.Bool
-	orkHealth *OrkestraHealth
+	orkHealth *vitals.RuntimeHealth
 
 	// startedCh[gvk] is closed when a CRD has fully started its workers.
 	startedCh map[string]chan struct{}
@@ -236,8 +237,8 @@ func NewDependencyKordinator(
 	hs domain.Health,
 	queueRegistry *queue.QueueRegistry,
 	defaultWorkqueue *queue.Workqueue,
-	crdHealthMap map[string]*CRDHealth,
-	orkHealth *OrkestraHealth,
+	crdHealthMap map[string]*vitals.CRDHealth,
+	orkHealth *vitals.RuntimeHealth,
 	defaultWorkers int,
 	depGraph *katalog.DependencyGraph,
 	drainTimeout time.Duration,
@@ -355,7 +356,9 @@ func (k *DependencyKordinator) Kordinate(ctx context.Context) {
 		k.startCRDWorkers(ctx, gvk, workers)
 
 		// Update health
-		k.crdHealthMap[gvk].queueReg = k.queueReg
+		if h, ok := k.crdHealthMap[gvk]; ok {
+			h.SetQueueReg(k.queueReg)
+		}
 
 		// Signal dependents: STARTED ONLY
 		close(k.startedCh[gvk])
@@ -379,11 +382,11 @@ func (k *DependencyKordinator) Kordinate(ctx context.Context) {
 	// Compute final katalog health
 	if onlineCRDs == totalCRDs {
 		k.allOnline.Store(true)
-		k.orkHealth.allOnline.Store(true)
+		k.orkHealth.SetAllOnline()
 		k.orkHealth.SetKatalogReady()
 	} else {
 		k.allOnline.Store(false)
-		k.orkHealth.allOnline.Store(false)
+		k.orkHealth.SetAllNotOnline()
 		k.orkHealth.SetKatalogDegraded()
 	}
 
@@ -535,7 +538,8 @@ func (k *DependencyKordinator) startCRDWorkers(ctx context.Context, gvk string, 
 		workerID := fmt.Sprintf("%s-autoscale-worker-%d", gvk, n)
 		workerID = strings.ReplaceAll(workerID, ",", "")
 		workerID = strings.ReplaceAll(workerID, " ", "-")
-		k.crdHealthMap[gvk].workerStates.Store(workerID, WorkerStateIdle)
+		k.crdHealthMap[gvk].MarkStartupWorkerIdle(workerID)
+		// k.crdHealthMap[gvk].workerStates.Store(workerID, WorkerStateIdle)
 		go func(id string) {
 			defer wg.Done()
 			k.runWorkerForGVK(crdCtx, gvk, id)
@@ -593,7 +597,8 @@ func (k *DependencyKordinator) startCRDWorkers(ctx context.Context, gvk string, 
 	// Start only the declared baseline goroutines. The autoscaler scales up by
 	// calling spawnWorker (injected above) rather than pre-allocating max goroutines.
 	k.crdHealthMap[gvk].SetTotalWorkers(int32(workers))
-	k.crdHealthMap[gvk].gvk = gvk
+	// k.crdHealthMap[gvk].gvk = gvk
+	k.crdHealthMap[gvk].SetGVK(gvk)
 	k.started[gvk] = true
 	k.total[gvk]++
 	k.mu.Unlock()
@@ -603,7 +608,8 @@ func (k *DependencyKordinator) startCRDWorkers(ctx context.Context, gvk string, 
 		workerID := fmt.Sprintf("%s-worker-%d", gvk, i)
 		workerID = strings.ReplaceAll(workerID, ",", "")
 		workerID = strings.ReplaceAll(workerID, " ", "-")
-		k.crdHealthMap[gvk].workerStates.Store(workerID, WorkerStateIdle)
+		k.crdHealthMap[gvk].MarkStartupWorkerIdle(workerID)
+		// k.crdHealthMap[gvk].workerStates.Store(workerID, WorkerStateIdle)
 		go func(id string) {
 			defer wg.Done()
 			k.runWorkerForGVK(crdCtx, gvk, id)
@@ -641,10 +647,11 @@ func (k *DependencyKordinator) stopCRDWorkers(ctx context.Context, gvk string) {
 	// Step 3: Reset worker counts after shutdown
 	if health, ok := k.crdHealthMap[gvk]; ok {
 		health.ResetWorkerCounts()
-		health.workerStates.Range(func(key, value interface{}) bool {
-			health.workerStates.Store(key, WorkerStateStopped)
-			return true
-		})
+		health.MarkWorkersStopped()
+		// health.workerStates.Range(func(key, value interface{}) bool {
+		// 	health.workerStates.Store(key, WorkerStateStopped)
+		// 	return true
+		// })
 	}
 
 	// Step 4: wait for workers to drain — with a timeout.

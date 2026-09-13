@@ -1,5 +1,5 @@
-// pkg/resources/common/rolling_update.go
-package common
+// pkg/resources/shared/rolling_update.go
+package shared
 
 import (
 	"strconv"

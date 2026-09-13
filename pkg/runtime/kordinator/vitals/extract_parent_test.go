@@ -1,5 +1,5 @@
-// pkg/kordinator/extract_parent_test.go
-package kordinator
+// pkg/runtime/kordinator/vitals/extract_parent_test.go
+package vitals
 
 import (
 	"testing"

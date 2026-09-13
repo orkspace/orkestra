@@ -1,5 +1,5 @@
-// pkg/kordinator/crd_health_handlers.go
-package kordinator
+// pkg/runtime/kordinator/vitals/crd_health_handlers.go
+package vitals
 
 import (
 	"fmt"
@@ -10,6 +10,7 @@ import (
 	"github.com/orkspace/orkestra/pkg/katalog"
 	"github.com/orkspace/orkestra/pkg/konfig"
 	ork_autoscaler "github.com/orkspace/orkestra/pkg/runtime/autoscaler"
+	"github.com/orkspace/orkestra/pkg/runtime/kordinator/contract"
 	orktypes "github.com/orkspace/orkestra/pkg/types"
 	"github.com/orkspace/orkestra/pkg/utils"
 	"github.com/orkspace/orkestra/pkg/version"
@@ -67,7 +68,7 @@ func BuildCRDHealthHandler(
 	kfg *konfig.Konfig,
 	inf cache.SharedIndexInformer,
 	h *CRDHealth,
-	o *OrkestraHealth,
+	o *RuntimeHealth,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		state, status := h.StateAndStatus()
@@ -217,7 +218,7 @@ func BuildCRDInfoHandler(
 	kfg *konfig.Konfig,
 	inf cache.SharedIndexInformer,
 	h *CRDHealth,
-	o *OrkestraHealth,
+	o *RuntimeHealth,
 	provStats *health.ProviderStats,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -474,9 +475,9 @@ type StatusCounts struct {
 func BuildKatalogHandler(
 	kat *katalog.Katalog,
 	kfg *konfig.Konfig,
-	reg *ResourceKatalog,
+	reg contract.RuntimeResourceKatalog,
 	healthMap map[string]*CRDHealth,
-	o *OrkestraHealth,
+	o *RuntimeHealth,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		crds := make([]CRDSummaryResponse, 0)

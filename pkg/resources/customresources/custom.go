@@ -11,7 +11,7 @@ import (
 	"github.com/orkspace/orkestra/pkg/kubeclient"
 	orklabels "github.com/orkspace/orkestra/pkg/labels"
 	"github.com/orkspace/orkestra/pkg/logger"
-	"github.com/orkspace/orkestra/pkg/resources/common"
+	"github.com/orkspace/orkestra/pkg/resources/shared"
 	orktmpl "github.com/orkspace/orkestra/pkg/template"
 	orktypes "github.com/orkspace/orkestra/pkg/types"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -85,8 +85,8 @@ func Create(ctx context.Context, kube kubeclient.Interface, owner domain.Object,
 
 	name := spec.Metadata.Name
 	// Resolve namespace (owner may provide defaulting)
-	namespace := common.ResolveNamespace(owner, spec.Metadata.Namespace)
-	if err := common.SleepIfNeeded(spec.Sleep); err != nil {
+	namespace := shared.ResolveNamespace(owner, spec.Metadata.Namespace)
+	if err := shared.SleepIfNeeded(spec.Sleep); err != nil {
 		return err
 	}
 
@@ -156,8 +156,8 @@ func Update(ctx context.Context, kube kubeclient.Interface, owner domain.Object,
 	}
 	name := spec.Metadata.Name
 
-	namespace := common.ResolveNamespace(owner, spec.Metadata.Namespace)
-	if err := common.SleepIfNeeded(spec.Sleep); err != nil {
+	namespace := shared.ResolveNamespace(owner, spec.Metadata.Namespace)
+	if err := shared.SleepIfNeeded(spec.Sleep); err != nil {
 		return err
 	}
 
@@ -373,7 +373,7 @@ func buildUnstructured(spec ResolvedCustomResourceSpec, owner domain.Object, gvk
 	ownerIsNamespaced := owner.GetNamespace() != ""
 	sameNamespace := !ownerIsNamespaced || namespace == "" || namespace == owner.GetNamespace()
 	if !ownerGVK.Empty() && sameNamespace {
-		u.SetOwnerReferences(common.ResolveOwnerReferences(owner))
+		u.SetOwnerReferences(shared.ResolveOwnerReferences(owner))
 	}
 
 	// Other top-level fields (non-core) from the spec declaration.

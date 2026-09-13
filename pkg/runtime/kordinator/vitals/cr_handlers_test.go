@@ -1,4 +1,4 @@
-package kordinator
+package vitals
 
 import (
 	"encoding/json"
@@ -48,7 +48,7 @@ func website(name, namespace, domain string) map[string]interface{} {
 func TestBuildCRListHandler_NoFieldParam(t *testing.T) {
 	inf := newTestInformer(t, website("site-a", "default", "a.example.com"))
 	crd := orktypes.CRDEntry{Name: "website", APITypes: orktypes.APITypes{Kind: "Website"}}
-	handler := BuildCRListHandler(crd, inf, &OrkestraHealth{})
+	handler := BuildCRListHandler(crd, inf, &RuntimeHealth{})
 
 	req := httptest.NewRequest(http.MethodGet, "/katalog/website/cr", nil)
 	rec := httptest.NewRecorder()
@@ -72,7 +72,7 @@ func TestBuildCRListHandler_FieldParamResolvesSpecValue(t *testing.T) {
 		website("site-b", "default", "b.example.com"),
 	)
 	crd := orktypes.CRDEntry{Name: "website", APITypes: orktypes.APITypes{Kind: "Website"}}
-	handler := BuildCRListHandler(crd, inf, &OrkestraHealth{})
+	handler := BuildCRListHandler(crd, inf, &RuntimeHealth{})
 
 	req := httptest.NewRequest(http.MethodGet, "/katalog/website/cr?field=spec.domain", nil)
 	rec := httptest.NewRecorder()
@@ -97,7 +97,7 @@ func TestBuildCRListHandler_FieldParamResolvesSpecValue(t *testing.T) {
 func TestBuildCRListHandler_FieldParamMissingOnCR(t *testing.T) {
 	inf := newTestInformer(t, website("site-a", "default", "a.example.com"))
 	crd := orktypes.CRDEntry{Name: "website", APITypes: orktypes.APITypes{Kind: "Website"}}
-	handler := BuildCRListHandler(crd, inf, &OrkestraHealth{})
+	handler := BuildCRListHandler(crd, inf, &RuntimeHealth{})
 
 	req := httptest.NewRequest(http.MethodGet, "/katalog/website/cr?field=spec.doesNotExist", nil)
 	rec := httptest.NewRecorder()

@@ -11,7 +11,7 @@ import (
 	"github.com/orkspace/orkestra/pkg/kubeclient"
 	"github.com/orkspace/orkestra/pkg/labels"
 	"github.com/orkspace/orkestra/pkg/logger"
-	"github.com/orkspace/orkestra/pkg/resources/common"
+	"github.com/orkspace/orkestra/pkg/resources/shared"
 	orktypes "github.com/orkspace/orkestra/pkg/types"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -39,7 +39,7 @@ func Create(ctx context.Context, kube kubeclient.Interface, owner domain.Object,
 	if err := validateSpec(spec); err != nil {
 		return fmt.Errorf("clusterrole.Create: invalid spec: %w", err)
 	}
-	if err := common.SleepIfNeeded(spec.Sleep); err != nil {
+	if err := shared.SleepIfNeeded(spec.Sleep); err != nil {
 		return err
 	}
 
@@ -72,7 +72,7 @@ func Create(ctx context.Context, kube kubeclient.Interface, owner domain.Object,
 // Apply creates or updates a ClusterRole using Server-Side Apply.
 // Sends only the fields Orkestra owns; k8s-injected defaults are invisible.
 func Apply(ctx context.Context, kube kubeclient.Interface, owner domain.Object, spec ResolvedClusterRoleSpec) error {
-	if err := common.SleepIfNeeded(spec.Sleep); err != nil {
+	if err := shared.SleepIfNeeded(spec.Sleep); err != nil {
 		return err
 	}
 
@@ -86,7 +86,7 @@ func Apply(ctx context.Context, kube kubeclient.Interface, owner domain.Object, 
 
 	if _, err = kube.Clientset().RbacV1().ClusterRoles().Patch(
 		ctx, spec.Name, k8stypes.ApplyPatchType, body,
-		metav1.PatchOptions{FieldManager: konfig.FieldManagerRuntime, Force: common.ResolveForceConflict(kube, spec.ForceConflict)},
+		metav1.PatchOptions{FieldManager: konfig.FieldManagerRuntime, Force: shared.ResolveForceConflict(kube, spec.ForceConflict)},
 	); err != nil {
 		return fmt.Errorf("clusterrole.Apply: %w", err)
 	}
@@ -106,7 +106,7 @@ func Update(ctx context.Context, kube kubeclient.Interface, owner domain.Object,
 
 // Delete deletes the ClusterRole if it exists.
 func Delete(ctx context.Context, kube kubeclient.Interface, owner domain.Object, spec ResolvedClusterRoleSpec) error {
-	if err := common.SleepIfNeeded(spec.Sleep); err != nil {
+	if err := shared.SleepIfNeeded(spec.Sleep); err != nil {
 		return err
 	}
 
@@ -185,7 +185,7 @@ func buildClusterRole(owner domain.Object, spec ResolvedClusterRoleSpec) *rbacv1
 		Rules: spec.Rules,
 	}
 	if owner.GetNamespace() == "" {
-		cr.OwnerReferences = common.ResolveOwnerReferences(owner)
+		cr.OwnerReferences = shared.ResolveOwnerReferences(owner)
 	}
 	return cr
 }

@@ -90,7 +90,7 @@ If both checks pass, the resource is deleted via the dynamic client.
 
 ## `sleep:` Support
 
-Every `ResolvedCustomResourceSpec` carries an optional `Sleep` field. When non-empty, `Create` and `Update` both call `common.SleepIfNeeded(spec.Sleep)` before any API call. This injects an artificial latency into the reconcile loop for that specific resource.
+Every `ResolvedCustomResourceSpec` carries an optional `Sleep` field. When non-empty, `Create` and `Update` both call `shared.SleepIfNeeded(spec.Sleep)` before any API call. This injects an artificial latency into the reconcile loop for that specific resource.
 
 Accepted duration units follow Orkestra's extended format: `s`, `m`, `h`, `d`, `w`, `mo`, `y`.
 

@@ -1,7 +1,7 @@
-// pkg/kordinator/cr_children.go
+// pkg/runtime/kordinator/vitals/cr_children.go
 //
 // Child resource fetching and readiness for the CR detail endpoint.
-package kordinator
+package vitals
 
 import (
 	"context"

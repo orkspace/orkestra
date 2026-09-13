@@ -162,7 +162,6 @@ func resolveRawValue(data map[string]interface{}, expr string) interface{} {
 	return current
 }
 
-
 // ValidResolverName reports whether name is a valid normalized resolver name.
 //
 // Resolver names use a simple camelCase-style convention:

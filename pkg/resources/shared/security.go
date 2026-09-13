@@ -1,5 +1,5 @@
-// pkg/resources/common/security.go
-package common
+// pkg/resources/shared/security.go
+package shared
 
 import (
 	corev1 "k8s.io/api/core/v1"

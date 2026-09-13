@@ -13,7 +13,7 @@ import (
 	"github.com/orkspace/orkestra/pkg/labels"
 	"github.com/orkspace/orkestra/pkg/logger"
 	"github.com/orkspace/orkestra/pkg/profiles"
-	"github.com/orkspace/orkestra/pkg/resources/common"
+	"github.com/orkspace/orkestra/pkg/resources/shared"
 	orktypes "github.com/orkspace/orkestra/pkg/types"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -29,8 +29,8 @@ func Create(ctx context.Context, kube kubeclient.Interface, owner domain.Object,
 		return fmt.Errorf("replicaset.Create: invalid spec: %w", err)
 	}
 
-	namespace := common.ResolveNamespace(owner, spec.Namespace)
-	if err := common.SleepIfNeeded(spec.Sleep); err != nil {
+	namespace := shared.ResolveNamespace(owner, spec.Namespace)
+	if err := shared.SleepIfNeeded(spec.Sleep); err != nil {
 		return err
 	}
 
@@ -69,8 +69,8 @@ func Apply(ctx context.Context, kube kubeclient.Interface, owner domain.Object, 
 		return fmt.Errorf("replicaset.Apply: invalid spec: %w", err)
 	}
 
-	namespace := common.ResolveNamespace(owner, spec.Namespace)
-	if err := common.SleepIfNeeded(spec.Sleep); err != nil {
+	namespace := shared.ResolveNamespace(owner, spec.Namespace)
+	if err := shared.SleepIfNeeded(spec.Sleep); err != nil {
 		return err
 	}
 
@@ -84,7 +84,7 @@ func Apply(ctx context.Context, kube kubeclient.Interface, owner domain.Object, 
 
 	if _, err = kube.Clientset().AppsV1().ReplicaSets(namespace).Patch(
 		ctx, spec.Name, k8stypes.ApplyPatchType, body,
-		metav1.PatchOptions{FieldManager: konfig.FieldManagerRuntime, Force: common.ResolveForceConflict(kube, spec.ForceConflict)},
+		metav1.PatchOptions{FieldManager: konfig.FieldManagerRuntime, Force: shared.ResolveForceConflict(kube, spec.ForceConflict)},
 	); err != nil {
 		return fmt.Errorf("replicaset.Apply: %w", err)
 	}
@@ -105,8 +105,8 @@ func Update(ctx context.Context, kube kubeclient.Interface, owner domain.Object,
 
 // Delete deletes the ReplicaSet if it exists.
 func Delete(ctx context.Context, kube kubeclient.Interface, owner domain.Object, spec ResolvedReplicaSetSpec) error {
-	namespace := common.ResolveNamespace(owner, spec.Namespace)
-	if err := common.SleepIfNeeded(spec.Sleep); err != nil {
+	namespace := shared.ResolveNamespace(owner, spec.Namespace)
+	if err := shared.SleepIfNeeded(spec.Sleep); err != nil {
 		return err
 	}
 
@@ -158,14 +158,14 @@ func Resolve(src orktypes.ReplicaSetTemplateSource, ownerName string, reg orktyp
 		Name:            src.Name,
 		Image:           src.Image,
 		Namespace:       src.Namespace,
-		Resources:       common.ResolveResources(src.Resources, reg),
+		Resources:       shared.ResolveResources(src.Resources, reg),
 		Labels:          make(map[string]string),
 		Annotations:     make(map[string]string),
 		EnvFrom:         src.EnvFrom,
 		Probes:          src.Probes,
 		Profiles:        reg,
-		SecurityContext: common.ResolveContainerSecurityContext(src.SecurityContext, reg),
-		PodSecurity:     common.ResolvePodSecurityContext(src.PodSecurity, reg),
+		SecurityContext: shared.ResolveContainerSecurityContext(src.SecurityContext, reg),
+		PodSecurity:     shared.ResolvePodSecurityContext(src.PodSecurity, reg),
 		Volumes:         src.Volumes,
 		VolumeMounts:    src.VolumeMounts,
 		Sleep:           src.Sleep,
@@ -176,7 +176,7 @@ func Resolve(src orktypes.ReplicaSetTemplateSource, ownerName string, reg orktyp
 		spec.Name = ownerName + "-replicaset"
 	}
 
-	spec.Replicas = common.ParseReplicas(src.Replicas)
+	spec.Replicas = shared.ParseReplicas(src.Replicas)
 	spec.HasAutoscale = src.Autoscale != nil
 
 	if src.Port != "" {
@@ -184,7 +184,7 @@ func Resolve(src orktypes.ReplicaSetTemplateSource, ownerName string, reg orktyp
 			spec.Port = int32(p)
 		}
 	}
-	spec.Protocol = common.ParseProtocol(src.Protocol)
+	spec.Protocol = shared.ParseProtocol(src.Protocol)
 
 	for k, v := range src.Labels {
 		spec.Labels[k] = v
@@ -239,7 +239,7 @@ func buildReplicaSet(owner domain.Object, spec ResolvedReplicaSetSpec, namespace
 			Namespace:       namespace,
 			Labels:          spec.Labels,
 			Annotations:     spec.Annotations,
-			OwnerReferences: common.ResolveOwnerReferences(owner),
+			OwnerReferences: shared.ResolveOwnerReferences(owner),
 		},
 		Spec: appsv1.ReplicaSetSpec{
 			Replicas: &replicas,
@@ -274,13 +274,13 @@ func buildReplicaSet(owner domain.Object, spec ResolvedReplicaSetSpec, namespace
 	}
 
 	if spec.Resources != nil {
-		rs.Spec.Template.Spec.Containers[0].Resources = common.BuildResourceRequirements(spec.Resources)
+		rs.Spec.Template.Spec.Containers[0].Resources = shared.BuildResourceRequirements(spec.Resources)
 	}
 
-	common.ApplyProbes(&rs.Spec.Template.Spec.Containers[0], spec.Probes, spec.Port, spec.Profiles)
+	shared.ApplyProbes(&rs.Spec.Template.Spec.Containers[0], spec.Probes, spec.Port, spec.Profiles)
 
 	// Security
-	common.ApplySecurityContext(&rs.Spec.Template.Spec.Containers[0], &rs.Spec.Template.Spec, spec.SecurityContext, spec.PodSecurity)
+	shared.ApplySecurityContext(&rs.Spec.Template.Spec.Containers[0], &rs.Spec.Template.Spec, spec.SecurityContext, spec.PodSecurity)
 
 	if len(spec.Env) > 0 {
 		rs.Spec.Template.Spec.Containers[0].Env = make([]corev1.EnvVar, 0, len(spec.Env))
@@ -309,15 +309,15 @@ func buildReplicaSet(owner domain.Object, spec ResolvedReplicaSetSpec, namespace
 		}
 	}
 
-	envFrom, extraEnv := common.ExpandEnvFrom(spec.EnvFrom)
+	envFrom, extraEnv := shared.ExpandEnvFrom(spec.EnvFrom)
 	rs.Spec.Template.Spec.Containers[0].EnvFrom = envFrom
 	rs.Spec.Template.Spec.Containers[0].Env = append(rs.Spec.Template.Spec.Containers[0].Env, extraEnv...)
 
 	// Volumes / VolumeMounts
-	if vols := common.BuildVolumes(spec.Volumes); len(vols) > 0 {
+	if vols := shared.BuildVolumes(spec.Volumes); len(vols) > 0 {
 		rs.Spec.Template.Spec.Volumes = vols
 	}
-	if mounts := common.BuildVolumeMounts(spec.VolumeMounts); len(mounts) > 0 {
+	if mounts := shared.BuildVolumeMounts(spec.VolumeMounts); len(mounts) > 0 {
 		rs.Spec.Template.Spec.Containers[0].VolumeMounts = mounts
 	}
 

@@ -1,5 +1,5 @@
-// pkg/resources/common/resource.go
-package common
+// pkg/resources/shared/resource.go
+package shared
 
 import (
 	"github.com/orkspace/orkestra/pkg/logger"

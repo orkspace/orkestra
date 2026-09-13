@@ -1,4 +1,4 @@
-// pkg/kordinator/cr_handlers.go
+// pkg/runtime/kordinator/vitals/cr_handlers.go
 //
 // CR-level endpoints — list, detail, and events per CRD instance.
 //
@@ -24,13 +24,13 @@
 //
 // Registration — add to wherever BuildKatalogHandler is registered:
 //
-//   crHandler := kordinator.NewCRHandler(kube, reg, rcMap)
+//   crHandler := crdhealth.NewCRHandler(kube, reg, rcMap)
 //   mux.Handle("/katalog/", crHandler.Route(existingKatalogMux))
 //
 // Or call BuildCRListHandler / BuildCRDetailHandler / BuildCREventsHandler
 // directly alongside the existing per-CRD handler registrations.
 
-package kordinator
+package vitals
 
 import (
 	"context"
@@ -149,7 +149,7 @@ type CREventsResponse struct {
 func BuildCRListHandler(
 	crd orktypes.CRDEntry,
 	inf cache.SharedIndexInformer,
-	o *OrkestraHealth,
+	o *RuntimeHealth,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if inf == nil {
@@ -209,7 +209,7 @@ func BuildCRDetailHandler(
 	inf cache.SharedIndexInformer,
 	kube *kubeclient.Kubeclient,
 	rc orktypes.OperatorBoxConfig,
-	o *OrkestraHealth,
+	o *RuntimeHealth,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if inf == nil {
@@ -271,7 +271,7 @@ func BuildCRDetailAndEventsHandler(
 	inf cache.SharedIndexInformer,
 	kube *kubeclient.Kubeclient,
 	rc orktypes.OperatorBoxConfig,
-	o *OrkestraHealth,
+	o *RuntimeHealth,
 ) http.HandlerFunc {
 	detail := BuildCRDetailHandler(crd, inf, kube, rc, o)
 	events := BuildCREventsHandler(crd, kube)

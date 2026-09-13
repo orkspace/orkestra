@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/orkspace/orkestra/pkg/runtime/kordinator/vitals"
 	"github.com/orkspace/orkestra/pkg/types"
 )
 
@@ -84,7 +85,7 @@ func (k *DependencyKordinator) checkDependencyHealthForGVK(gvk string) {
 		depGVK, exists := k.NameToGVKMap()[depName]
 		if !exists {
 			// Dependency declared but not present in graph
-			health.SetDependencyHealth(depName, DependencyStatus{
+			health.SetDependencyHealth(depName, vitals.DependencyStatus{
 				Name:      depName,
 				State:     "missing",
 				Condition: "started",
@@ -96,7 +97,7 @@ func (k *DependencyKordinator) checkDependencyHealthForGVK(gvk string) {
 		// Dependency present in graph - health lookup with gvk
 		depHealth := k.crdHealthMap[depGVK]
 		if depHealth == nil {
-			health.SetDependencyHealth(depName, DependencyStatus{
+			health.SetDependencyHealth(depName, vitals.DependencyStatus{
 				Name:      depName,
 				State:     "unknown",
 				Condition: "started",
@@ -132,7 +133,7 @@ func (k *DependencyKordinator) checkDependencyHealthForGVK(gvk string) {
 			satisfied = true
 		}
 
-		health.SetDependencyHealth(depName, DependencyStatus{
+		health.SetDependencyHealth(depName, vitals.DependencyStatus{
 			Name:                depName,
 			AcceptableCondition: acceptableCondition,
 			State:               string(state),

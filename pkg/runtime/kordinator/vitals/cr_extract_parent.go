@@ -1,4 +1,4 @@
-package kordinator
+package vitals
 
 import (
 	"fmt"

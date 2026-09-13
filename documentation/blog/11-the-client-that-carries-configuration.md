@@ -80,7 +80,7 @@ At construction time, the runtime sets the CRD-level value:
 kube.WithForceConflict(crd.ResolveForceConflict())
 ```
 
-Inside `pkg/resources/common`, the resolution is ten lines that don't
+Inside `pkg/resources/shared`, the resolution is ten lines that don't
 know where the CRD-level setting came from:
 
 ```go

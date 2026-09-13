@@ -10,7 +10,7 @@ Collection notes work with lists and maps from the CR spec. They cover both the 
 | `listGet` | Return the element at a given index. |
 | `listLen` | Return the number of elements in a list. |
 | `mapGet` | Return a map value by key. |
-| `mapKeys` | Return all keys of a map as `[]string`. |
+| `mapKeys` | Return all keys of a map as sorted `[]string`. |
 | `mapValues` | Return all values of a map as `[]interface{}`. |
 | `asList` | Convert input to `[]interface{}`. |
 | `asMap` | Convert input to `map[string]interface{}`. |

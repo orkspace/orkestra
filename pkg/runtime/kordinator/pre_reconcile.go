@@ -4,12 +4,13 @@ import (
 	"context"
 
 	"github.com/orkspace/orkestra/domain"
+	"github.com/orkspace/orkestra/pkg/runtime/kordinator/contract"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 // objectFromCache retrieves the live CR from the informer cache for the given
 // key. Returns nil if the entry has no informer or the key is not found.
-func (k *Kontroller) objectFromCache(entry RegistryEntry, key string) *unstructured.Unstructured {
+func (k *Kontroller) objectFromCache(entry contract.RegistryEntry, key string) *unstructured.Unstructured {
 	if entry.Informer == nil {
 		return nil
 	}

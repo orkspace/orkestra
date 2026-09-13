@@ -13,7 +13,7 @@ import (
 	"github.com/orkspace/orkestra/pkg/labels"
 	"github.com/orkspace/orkestra/pkg/logger"
 	"github.com/orkspace/orkestra/pkg/profiles"
-	"github.com/orkspace/orkestra/pkg/resources/common"
+	"github.com/orkspace/orkestra/pkg/resources/shared"
 	orktypes "github.com/orkspace/orkestra/pkg/types"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -30,8 +30,8 @@ func Create(ctx context.Context, kube kubeclient.Interface, owner domain.Object,
 		return fmt.Errorf("deployment.Create: invalid spec: %w", err)
 	}
 
-	namespace := common.ResolveNamespace(owner, spec.Namespace)
-	if err := common.SleepIfNeeded(spec.Sleep); err != nil {
+	namespace := shared.ResolveNamespace(owner, spec.Namespace)
+	if err := shared.SleepIfNeeded(spec.Sleep); err != nil {
 		return err
 	}
 
@@ -70,8 +70,8 @@ func Apply(ctx context.Context, kube kubeclient.Interface, owner domain.Object, 
 		return fmt.Errorf("deployment.Apply: invalid spec: %w", err)
 	}
 
-	namespace := common.ResolveNamespace(owner, spec.Namespace)
-	if err := common.SleepIfNeeded(spec.Sleep); err != nil {
+	namespace := shared.ResolveNamespace(owner, spec.Namespace)
+	if err := shared.SleepIfNeeded(spec.Sleep); err != nil {
 		return err
 	}
 
@@ -85,7 +85,7 @@ func Apply(ctx context.Context, kube kubeclient.Interface, owner domain.Object, 
 
 	if _, err = kube.Clientset().AppsV1().Deployments(namespace).Patch(
 		ctx, spec.Name, k8stypes.ApplyPatchType, body,
-		metav1.PatchOptions{FieldManager: konfig.FieldManagerRuntime, Force: common.ResolveForceConflict(kube, spec.ForceConflict)},
+		metav1.PatchOptions{FieldManager: konfig.FieldManagerRuntime, Force: shared.ResolveForceConflict(kube, spec.ForceConflict)},
 	); err != nil {
 		return fmt.Errorf("deployment.Apply: %w", err)
 	}
@@ -94,7 +94,7 @@ func Apply(ctx context.Context, kube kubeclient.Interface, owner domain.Object, 
 		Str("deployment", spec.Name).
 		Str("namespace", namespace).
 		Str("owner", owner.GetName()).
-		Bool("force", *common.ResolveForceConflict(kube, spec.ForceConflict)).
+		Bool("force", *shared.ResolveForceConflict(kube, spec.ForceConflict)).
 		Msg("deployment applied")
 
 	return nil
@@ -109,8 +109,8 @@ func Update(ctx context.Context, kube kubeclient.Interface, owner domain.Object,
 // For most cases owner references handle cascade deletion — use this only
 // for explicit cleanup declared in onDelete templates.
 func Delete(ctx context.Context, kube kubeclient.Interface, owner domain.Object, spec ResolvedDeploymentSpec) error {
-	namespace := common.ResolveNamespace(owner, spec.Namespace)
-	if err := common.SleepIfNeeded(spec.Sleep); err != nil {
+	namespace := shared.ResolveNamespace(owner, spec.Namespace)
+	if err := shared.SleepIfNeeded(spec.Sleep); err != nil {
 		return err
 	}
 
@@ -165,14 +165,14 @@ func Resolve(src orktypes.DeploymentTemplateSource, ownerName string, reg orktyp
 		Name:            src.Name,
 		Image:           src.Image,
 		Namespace:       src.Namespace,
-		Resources:       common.ResolveResources(src.Resources, reg),
+		Resources:       shared.ResolveResources(src.Resources, reg),
 		Labels:          make(map[string]string),
 		Annotations:     make(map[string]string),
 		EnvFrom:         src.EnvFrom,
 		Probes:          src.Probes,
 		Profiles:        reg,
-		SecurityContext: common.ResolveContainerSecurityContext(src.SecurityContext, reg),
-		PodSecurity:     common.ResolvePodSecurityContext(src.PodSecurity, reg),
+		SecurityContext: shared.ResolveContainerSecurityContext(src.SecurityContext, reg),
+		PodSecurity:     shared.ResolvePodSecurityContext(src.PodSecurity, reg),
 		Volumes:         src.Volumes,
 		VolumeMounts:    src.VolumeMounts,
 		Sleep:           src.Sleep,
@@ -183,7 +183,7 @@ func Resolve(src orktypes.DeploymentTemplateSource, ownerName string, reg orktyp
 		spec.Name = ownerName + "-deployment"
 	}
 
-	spec.Replicas = common.ParseReplicas(src.Replicas)
+	spec.Replicas = shared.ParseReplicas(src.Replicas)
 	spec.HasAutoscale = src.Autoscale != nil
 
 	// Port — prefer dynamic resolved string, fall back to static int
@@ -193,7 +193,7 @@ func Resolve(src orktypes.DeploymentTemplateSource, ownerName string, reg orktyp
 		}
 	}
 
-	spec.Protocol = common.ParseProtocol(src.Protocol)
+	spec.Protocol = shared.ParseProtocol(src.Protocol)
 
 	for k, v := range src.Labels {
 		spec.Labels[k] = v
@@ -242,7 +242,7 @@ func buildDeployment(owner domain.Object, spec ResolvedDeploymentSpec, namespace
 			Namespace:       namespace,
 			Labels:          spec.Labels,
 			Annotations:     spec.Annotations,
-			OwnerReferences: common.ResolveOwnerReferences(owner),
+			OwnerReferences: shared.ResolveOwnerReferences(owner),
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: &replicas,
@@ -256,7 +256,7 @@ func buildDeployment(owner domain.Object, spec ResolvedDeploymentSpec, namespace
 					Labels: podTemplateLabels(spec.Labels, owner.GetName()),
 				},
 				Spec: corev1.PodSpec{
-					ImagePullSecrets:   common.ToPullSecrets(spec.ImagePullSecrets),
+					ImagePullSecrets:   shared.ToPullSecrets(spec.ImagePullSecrets),
 					ServiceAccountName: spec.ServiceAccountName,
 					NodeSelector:       spec.NodeSelector,
 					Containers: []corev1.Container{
@@ -279,19 +279,19 @@ func buildDeployment(owner domain.Object, spec ResolvedDeploymentSpec, namespace
 
 	// Resources
 	if spec.Resources != nil {
-		d.Spec.Template.Spec.Containers[0].Resources = common.BuildResourceRequirements(spec.Resources)
+		d.Spec.Template.Spec.Containers[0].Resources = shared.BuildResourceRequirements(spec.Resources)
 	}
 
 	// Probes
-	common.ApplyProbes(&d.Spec.Template.Spec.Containers[0], spec.Probes, spec.Port, spec.Profiles)
+	shared.ApplyProbes(&d.Spec.Template.Spec.Containers[0], spec.Probes, spec.Port, spec.Profiles)
 
 	// Rolling update strategy
 	if spec.RollingUpdate != nil {
-		d.Spec.Strategy = common.BuildDeploymentRollingUpdateStrategy(spec.RollingUpdate)
+		d.Spec.Strategy = shared.BuildDeploymentRollingUpdateStrategy(spec.RollingUpdate)
 	}
 
 	// Security
-	common.ApplySecurityContext(&d.Spec.Template.Spec.Containers[0], &d.Spec.Template.Spec, spec.SecurityContext, spec.PodSecurity)
+	shared.ApplySecurityContext(&d.Spec.Template.Spec.Containers[0], &d.Spec.Template.Spec, spec.SecurityContext, spec.PodSecurity)
 
 	// Env
 	if len(spec.Env) > 0 {
@@ -322,15 +322,15 @@ func buildDeployment(owner domain.Object, spec ResolvedDeploymentSpec, namespace
 	}
 
 	// EnvFrom
-	envFrom, extraEnv := common.ExpandEnvFrom(spec.EnvFrom)
+	envFrom, extraEnv := shared.ExpandEnvFrom(spec.EnvFrom)
 	d.Spec.Template.Spec.Containers[0].EnvFrom = envFrom
 	d.Spec.Template.Spec.Containers[0].Env = append(d.Spec.Template.Spec.Containers[0].Env, extraEnv...)
 
 	// Volumes / VolumeMounts
-	if vols := common.BuildVolumes(spec.Volumes); len(vols) > 0 {
+	if vols := shared.BuildVolumes(spec.Volumes); len(vols) > 0 {
 		d.Spec.Template.Spec.Volumes = vols
 	}
-	if mounts := common.BuildVolumeMounts(spec.VolumeMounts); len(mounts) > 0 {
+	if mounts := shared.BuildVolumeMounts(spec.VolumeMounts); len(mounts) > 0 {
 		d.Spec.Template.Spec.Containers[0].VolumeMounts = mounts
 	}
 

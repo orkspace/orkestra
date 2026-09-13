@@ -9,7 +9,7 @@ import (
 	"github.com/orkspace/orkestra/pkg/kubeclient"
 	"github.com/orkspace/orkestra/pkg/labels"
 	"github.com/orkspace/orkestra/pkg/logger"
-	"github.com/orkspace/orkestra/pkg/resources/common"
+	"github.com/orkspace/orkestra/pkg/resources/shared"
 	orktypes "github.com/orkspace/orkestra/pkg/types"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -83,8 +83,8 @@ func Create(ctx context.Context, kube kubeclient.Interface, owner domain.Object,
 		return fmt.Errorf("job.Create: invalid spec: %w", err)
 	}
 
-	namespace := common.ResolveNamespace(owner, spec.Namespace)
-	if err := common.SleepIfNeeded(spec.Sleep); err != nil {
+	namespace := shared.ResolveNamespace(owner, spec.Namespace)
+	if err := shared.SleepIfNeeded(spec.Sleep); err != nil {
 		return err
 	}
 
@@ -118,8 +118,8 @@ func Create(ctx context.Context, kube kubeclient.Interface, owner domain.Object,
 
 // Delete deletes the Job if it exists.
 func Delete(ctx context.Context, kube kubeclient.Interface, owner domain.Object, spec ResolvedJobSpec) error {
-	namespace := common.ResolveNamespace(owner, spec.Namespace)
-	if err := common.SleepIfNeeded(spec.Sleep); err != nil {
+	namespace := shared.ResolveNamespace(owner, spec.Namespace)
+	if err := shared.SleepIfNeeded(spec.Sleep); err != nil {
 		return err
 	}
 
@@ -158,9 +158,9 @@ func Resolve(src orktypes.JobTemplateSource, backoffLimit int, ownerName string,
 		Args:            src.Args,
 		BackoffLimit:    backoffLimit,
 		Labels:          make(map[string]string),
-		Resources:       common.ResolveResources(src.Resources, reg),
-		SecurityContext: common.ResolveContainerSecurityContext(src.SecurityContext, reg),
-		PodSecurity:     common.ResolvePodSecurityContext(src.PodSecurity, reg),
+		Resources:       shared.ResolveResources(src.Resources, reg),
+		SecurityContext: shared.ResolveContainerSecurityContext(src.SecurityContext, reg),
+		PodSecurity:     shared.ResolvePodSecurityContext(src.PodSecurity, reg),
 		Volumes:         src.Volumes,
 		VolumeMounts:    src.VolumeMounts,
 		Sleep:           src.Sleep,
@@ -196,7 +196,7 @@ func buildJob(owner domain.Object, spec ResolvedJobSpec, namespace string) *batc
 		Args:    spec.Args,
 	}
 	if spec.Resources != nil {
-		container.Resources = common.BuildResourceRequirements(spec.Resources)
+		container.Resources = shared.BuildResourceRequirements(spec.Resources)
 	}
 
 	job := &batchv1.Job{
@@ -209,7 +209,7 @@ func buildJob(owner domain.Object, spec ResolvedJobSpec, namespace string) *batc
 			// deleted and the Job must outlive it to complete cleanup.
 			// The caller (run_jobs.go) is responsible for this distinction.
 			// We always set it here — the reconciler controls when to call Create.
-			OwnerReferences: common.ResolveOwnerReferences(owner),
+			OwnerReferences: shared.ResolveOwnerReferences(owner),
 		},
 		Spec: batchv1.JobSpec{
 			BackoffLimit: &backoffLimit,
@@ -218,7 +218,7 @@ func buildJob(owner domain.Object, spec ResolvedJobSpec, namespace string) *batc
 					Labels: spec.Labels,
 				},
 				Spec: corev1.PodSpec{
-					ImagePullSecrets: common.ToPullSecrets(spec.ImagePullSecrets),
+					ImagePullSecrets: shared.ToPullSecrets(spec.ImagePullSecrets),
 					RestartPolicy:    corev1.RestartPolicyOnFailure,
 					Containers:       []corev1.Container{container},
 				},
@@ -227,13 +227,13 @@ func buildJob(owner domain.Object, spec ResolvedJobSpec, namespace string) *batc
 	}
 
 	// Security
-	common.ApplySecurityContext(&job.Spec.Template.Spec.Containers[0], &job.Spec.Template.Spec, spec.SecurityContext, spec.PodSecurity)
+	shared.ApplySecurityContext(&job.Spec.Template.Spec.Containers[0], &job.Spec.Template.Spec, spec.SecurityContext, spec.PodSecurity)
 
 	// Volumes / VolumeMounts
-	if vols := common.BuildVolumes(spec.Volumes); len(vols) > 0 {
+	if vols := shared.BuildVolumes(spec.Volumes); len(vols) > 0 {
 		job.Spec.Template.Spec.Volumes = vols
 	}
-	if mounts := common.BuildVolumeMounts(spec.VolumeMounts); len(mounts) > 0 {
+	if mounts := shared.BuildVolumeMounts(spec.VolumeMounts); len(mounts) > 0 {
 		job.Spec.Template.Spec.Containers[0].VolumeMounts = mounts
 	}
 

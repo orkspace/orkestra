@@ -1,4 +1,4 @@
-package kordinator
+package vitals
 
 import (
 	"fmt"
@@ -211,10 +211,7 @@ func BuildCRDEnrichedHandler(kat *katalog.Katalog, crdName string) http.HandlerF
 // ─────────────────────────────────────────────────────────────────────────────
 func BuildEnrichedKatalogHandler(kat *katalog.Katalog) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Get the enriched Katalog (already validated with all defaults applied)
-		enrichedKatalog := kat.ToUI()
-
 		// Use the pruned writer to remove all null/empty values
-		utils.WriteJSONPruned(w, http.StatusOK, enrichedKatalog)
+		utils.WriteJSONPruned(w, http.StatusOK, kat.ToUI())
 	}
 }

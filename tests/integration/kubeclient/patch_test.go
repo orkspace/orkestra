@@ -111,7 +111,7 @@ func TestPatchFinalizers_Idempotent(t *testing.T) {
 
 	finalizers := []string{"orkestra.io/cleanup"}
 	// Patch twice with same value — must not error
-	if err := kube.PatchFinalizers(ctx, obj, finalizers,noOpPatchOpts); err != nil {
+	if err := kube.PatchFinalizers(ctx, obj, finalizers, noOpPatchOpts); err != nil {
 		t.Fatalf("first patch: %v", err)
 	}
 	if err := kube.PatchFinalizers(ctx, obj, finalizers, noOpPatchOpts); err != nil {

@@ -19,6 +19,7 @@ import (
 	"github.com/orkspace/orkestra/pkg/logger"
 	"github.com/orkspace/orkestra/pkg/runtime/autoscaler"
 	"github.com/orkspace/orkestra/pkg/runtime/kordinator"
+	"github.com/orkspace/orkestra/pkg/runtime/kordinator/vitals"
 	orkqueue "github.com/orkspace/orkestra/pkg/runtime/queue"
 	"github.com/orkspace/orkestra/pkg/runtime/runners"
 	orktmpl "github.com/orkspace/orkestra/pkg/template"
@@ -31,43 +32,17 @@ import (
 
 // GenericReconciler manages the full lifecycle of one CRD.
 //
-// This file is a pure dispatcher. It owns:
-//   - Context enrichment
-//   - Cache reads
-//   - Deletion routing
-//   - Finalizer/Annotation/Label management
-//   - Template interpretation
-//   - Reconcile priority (Go hooks → declarative templates → no-op)
-//   - Event firing and logging
+// It coordinates context enrichment, cache reads, deletion handling,
+// metadata management, template execution, reconciliation priority, events,
+// and logging. Resource-specific operations are implemented in separate
+// resource runners.
 //
-// Resource-specific logic lives in separate files:
-//
-//	run_deployments.go    — Deployment create/update
-//	run_services.go       — Service create/update
-//	run_secrets.go        — Secret create/copy/sync
-//	run_configmaps.go     — ConfigMap create/copy/sync
-//	run_serviceaccounts.go — ServiceAccount create
-//	run_jobs.go           — Job create (onDelete cleanup)
-//	run_cronjobs.go       — CronJob create/update
-//
-// Adding a new resource type:
-//  1. Add a file run_<resource>.go with a runXxx() function
-//  2. Call it from runTemplateReconcile() and/or runTemplateOnDelete()
-//  3. Add the field to orktypes.HookTemplates
-//     That is all — generic.go does not change.
-//
-// Type parameter PTR:
-//
-// PTR must be a pointer to the concrete CR struct (e.g. *Database).
-// This matches Kubernetes informer semantics: the informer stores pointer values
-// so the type assertion raw.(PTR) in reconcileCore succeeds only for pointer types.
-// When used through the dynamic registry path in runtime_konstructor.go, PTR is inferred
-// as domain.Object (the interface), which also satisfies the constraint and is safe
-// because the informer cache always holds the correct underlying concrete type.
-// See pkg/reconciler/ptr_hooks.go for the full design rationale.
+// PTR must be a pointer to the concrete CR struct (for example, *Database).
+// The dynamic registry path uses domain.Object, which is also supported
+// because the informer cache stores the underlying concrete object.
 type GenericReconciler[PTR domain.Object] struct {
 	katalogRegistry   *kordinator.ResourceKatalog
-	crdHealthRegistry map[string]*kordinator.CRDHealth
+	crdHealthRegistry map[string]*vitals.CRDHealth
 	providerRegistry  orktypes.ProviderRegistry
 	providerStats     providerStatsRecorder
 	informer          cache.SharedIndexInformer
@@ -153,7 +128,7 @@ func NewGenericReconciler[PTR domain.Object](
 	anyHooks domain.AnyReconcileHooks,
 	newObj func() PTR,
 	katalogRegistry *kordinator.ResourceKatalog,
-	crdHealthRegistry map[string]*kordinator.CRDHealth,
+	crdHealthRegistry map[string]*vitals.CRDHealth,
 	providerRegistry orktypes.ProviderRegistry,
 	providerStats providerStatsRecorder,
 	kat *katalog.Katalog,

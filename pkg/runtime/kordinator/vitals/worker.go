@@ -1,4 +1,4 @@
-package kordinator
+package vitals
 
 import "github.com/orkspace/orkestra/pkg/metrics"
 
@@ -96,4 +96,18 @@ func (h *CRDHealth) ResetWorkerCounts() {
 		metrics.SetWorkersProcessing(h.gvk, 0)
 		metrics.SetWorkersIdle(h.gvk, 0)
 	}
+}
+
+// MarkWorkersStopped transitions every known worker to the stopped state.
+// Unlike ResetWorkerCounts, it does not touch processing/idle counters or totalWorkers.
+func (h *CRDHealth) MarkWorkersStopped() {
+	h.workerStates.Range(func(key, _ any) bool {
+		h.workerStates.Store(key, WorkerStateStopped)
+		return true
+	})
+}
+
+// MarkStartupWorkerIdle marks a worker idle on startup
+func (h *CRDHealth) MarkStartupWorkerIdle(key string) {
+	h.workerStates.Store(key, WorkerStateStopped)
 }

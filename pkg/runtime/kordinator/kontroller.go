@@ -18,6 +18,7 @@ import (
 	"github.com/orkspace/orkestra/pkg/logger"
 	"github.com/orkspace/orkestra/pkg/runtime/informer"
 	"github.com/orkspace/orkestra/pkg/runtime/informer/observe"
+	"github.com/orkspace/orkestra/pkg/runtime/kordinator/vitals"
 	"github.com/orkspace/orkestra/pkg/runtime/queue"
 )
 
@@ -36,8 +37,8 @@ type Kontroller struct {
 	failureThreshold map[string]int
 
 	hs           domain.Health
-	crdHealthMap map[string]*CRDHealth
-	orkHealth    *OrkestraHealth
+	crdHealthMap map[string]*vitals.CRDHealth
+	orkHealth    *vitals.RuntimeHealth
 
 	defaultWorkers int
 	startedKtrl    atomic.Bool
@@ -62,8 +63,8 @@ func NewKontroller(
 	kat *katalog.Katalog,
 	event *event.Event,
 	hs domain.Health,
-	crdHealthMap map[string]*CRDHealth,
-	orkHealth *OrkestraHealth,
+	crdHealthMap map[string]*vitals.CRDHealth,
+	orkHealth *vitals.RuntimeHealth,
 	queueRegistry *queue.QueueRegistry,
 	defaultWorkqueue *queue.Workqueue,
 	defaultWorkers int,

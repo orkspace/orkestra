@@ -49,7 +49,7 @@ Kubernetes API                            ← resource, security context, probe 
 ```
 pkg/types      ←── pkg/profiles ←── pkg/katalog
                          │
-                         └──────────── pkg/resources/common
+                         └──────────── pkg/resources/shared
 ```
 
 `pkg/profiles` imports only `pkg/types` and `pkg/utils`. Both `pkg/katalog` and `pkg/resources` import `pkg/profiles`. Neither imports the other — `pkg/profiles` is the clean meeting point.

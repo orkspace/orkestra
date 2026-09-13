@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/orkspace/orkestra/pkg/runtime/kordinator"
+	"github.com/orkspace/orkestra/pkg/runtime/kordinator/vitals"
 )
 
 // IsUnique lists every existing instance of the CRD via the runtime's cache
@@ -13,7 +13,7 @@ import (
 func (q *runtimeQuery) IsUnique(field, value, selfNamespace, selfName string) (bool, error) {
 	reqURL := fmt.Sprintf("%s/katalog/%s/cr?field=%s", q.endpoint, q.crdName, url.QueryEscape(field))
 
-	var list kordinator.CRListResponse
+	var list vitals.CRListResponse
 	_, err := q.result(list, "uniqueness", reqURL)
 	if err != nil {
 		return false, err

@@ -1,5 +1,5 @@
-// pkg/kordinator/crd_rbac_health.go
-package kordinator
+// pkg/runtime/kordinator/vitals/crd_rbac_health.go
+package vitals
 
 import (
 	"fmt"
