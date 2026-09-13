@@ -447,11 +447,11 @@
 
           var empty = document.getElementById('katalogEmpty');
           if (filtered.length === 0) {
-            if (Empty() empty.classList.remove('hidden');
+            if (empty) empty.classList.remove('hidden');
             updatePagination(0);
             return;
           }
-          if (Empty() empty.classList.add('hidden');
+          if (empty) empty.classList.add('hidden');
 
           var start = (currentPage - 1) * PAGE_SIZE;
           var end = Math.min(start + PAGE_SIZE, filtered.length);

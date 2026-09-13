@@ -465,7 +465,7 @@
     updateCrPagination(visible);
 
     var empty = document.getElementById('emptyFilterState');
-    if (Empty() {
+    if (empty) {
       if (visible.length === 0 && allRows.length > 0) {
         empty.classList.remove('hidden');
       } else {

@@ -1180,7 +1180,7 @@ func idpParseGVK(gvk string) (kind, apiVersion string) {
 }
 
 // handleCRDetail renders one CR instance with its children and events.
-// Route: /katalog/{katalog}/crd/{crd}/cr/{ns}/{name}  (namespace may be Empty()
+// Route: /katalog/{katalog}/crd/{crd}/cr/{ns}/{name}  (namespace may be empty)
 func (cc *ControlCenter) handleCRDetail(w http.ResponseWriter, r *http.Request, instanceURL, katalogName, crdName, namespace, name string) {
 	client := cc.clientFor(instanceURL)
 
