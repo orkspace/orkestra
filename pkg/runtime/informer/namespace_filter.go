@@ -31,9 +31,9 @@ package informer
 import (
 	"strings"
 
+	"github.com/orkspace/orkestra/domain"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/tools/cache"
 )
 
 // NamespaceFilter holds the namespace restriction configuration for one GVK.
@@ -52,7 +52,7 @@ type NamespaceFilter struct {
 
 // Allows returns true when the namespace passes this filter.
 //
-// Logic (mirrors the existing CheckNamespace in pkg/reconciler):
+// Logic (mirrors the existing CheckNamespace in pkg/runtime/reconciler):
 //  1. If AllowedNamespaces is declared — namespace must be in the list.
 //  2. Else if RestrictedNamespaces is declared — namespace must NOT be in the list.
 //  3. Otherwise — allow all.
@@ -136,10 +136,8 @@ func (f *Factory) namespaceAllowed(gvkStr, namespace string) bool {
 // Handles both regular objects and DeletedFinalStateUnknown (tombstone) wrappers.
 // Returns "" for cluster-scoped resources — Allows("") returns true so they pass.
 func extractNamespace(obj interface{}) string {
-	// Unwrap tombstone — produced when deletion event arrives after object is gone.
-	if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
-		obj = tombstone.Obj
-	}
+	// Handle tombstone (deleted objects)
+	obj = domain.UnwrapCacheTombstone(obj)
 
 	if rObj, ok := obj.(runtime.Object); ok {
 		if accessor, err := meta.Accessor(rObj); err == nil {

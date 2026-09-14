@@ -71,7 +71,7 @@ func (k *Katalog) BuildServeEnabledCRDs() []*orktypes.CRDEntry {
 	if k == nil {
 		return nil
 	}
-	serveEnabled := make([]*orktypes.CRDEntry, 0, len(k.enabledCRDs))
+	serveEnabled := make([]*orktypes.CRDEntry, 0, k.Len())
 	for _, crd := range k.enabledCRDs {
 		if crd.ServeEnabled() {
 			entry := crd
@@ -154,6 +154,21 @@ func (k *Katalog) LookupByName(name string) *CRDLookupResult {
 			return &CRDLookupResult{CRD: &entry}
 		}
 	}
+	return nil
+}
+
+// LookupByLabel finds the CRD entry whose name (the Katalog map key) matches
+// the given label. Case-sensitive. Nil-safe.
+func (k *Katalog) LookupByLabel(labels map[string]string) *CRDLookupResult {
+	if k == nil {
+		return nil
+	}
+	for _, entry := range k.enabledCRDs {
+		if entry.Labels.Contains(labels) {
+			return &CRDLookupResult{CRD: &entry}
+		}
+	}
+
 	return nil
 }
 
@@ -373,4 +388,30 @@ func (k *Katalog) ListGVRs() []string {
 	}
 	sort.Strings(gvrs)
 	return gvrs
+}
+
+// domain.Katalog Getters
+
+// GetNameByGVKString delegates to LookupByGVKString.
+// Used by domain.Katalog for callers who cannot import katalog
+func (k *Katalog) GetNameByGVKString(gvkString string) string {
+	return k.LookupByGVKString(gvkString).Entry().Name
+}
+
+// GetNameByGVRString delegates to LookupByGVRString.
+// Used by domain.Katalog for callers who cannot import katalog
+func (k *Katalog) GetNameByGVRString(gvrString string) string {
+	return k.LookupByGVRString(gvrString).Entry().Name
+}
+
+// GetNameByKind delegates to LookupByKind.
+// Used by domain.Katalog for callers who cannot import katalog
+func (k *Katalog) GetNameByKind(kind string) string {
+	return k.LookupByKind(kind).Entry().Name
+}
+
+// GetNameByTarget delegates to LookupByGVRString.
+// Used by domain.Katalog for callers who cannot import katalog
+func (k *Katalog) GetNameByTarget(target string) string {
+	return k.LookupByTargetOrAlias(target).Entry().Name
 }

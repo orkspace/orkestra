@@ -239,9 +239,14 @@ Orkestra computes the topological order from the dependency graph and starts
 CRDs in that order. Missing CRDs — declared but not yet installed in the
 cluster — are retried in the background without blocking healthy CRDs.
 
-This capability is structurally impossible with separate operators. Separate
-processes have no coordination mechanism. Orkestra provides it as a declared
-property of the Katalog.
+With independently deployed operators, cross-operator coordination is possible 
+but external to the operator model itself. It must be implemented through 
+additional APIs, shared resources, messaging, or another coordination mechanism.
+
+In Orkestra, relationships between declarative capabilities can be represented 
+directly in the Katalog and interpreted by the shared runtime. 
+Coordination therefore becomes a property of the declared control plane rather 
+than a separate integration layer.
 
 Shutdown runs in reverse dependency order. No partial reconciliations. No
 orphaned resources.
@@ -374,17 +379,14 @@ what level, before making any decision about whether to import it.
 
 ### 4.3 Supply Chain Integrity
 
-Binary operator distribution has no provenance story. A consumer pulls an
-image, trusts the tag, and deploys it. There is no portable record of what
-behavior was verified before the image was published. There is no mechanism
-to inspect what the operator will do before it runs.
+Binary operator distribution separates the executable artifact from the declarative description of its behavior. 
+A consumer typically pulls an image and deploys the executable, while understanding what that operator does may require inspecting its source code, documentation, image contents, or other associated artifacts. Provenance, verification, and policy can certainly be added to this workflow, but they are additional supply-chain mechanisms rather than inherent properties of the operator artifact itself.
 
-The Orkestra model provides supply chain integrity as a structural
-consequence of the artifact model, not as an add-on.
+The Orkestra model makes the declarative control-plane definition a first-class artifact. The behavior is represented before deployment in a form that can be reviewed, validated, simulated, and tested independently of the runtime that will execute it.
 
-The pattern is YAML — reviewable at any point in the supply chain. The
-behavior is knowable before deployment. The verification record is
-immutable and attached to the artifact:
+This creates a different supply-chain property: verification can travel with the declarative artifact that defines the behavior being verified, rather than existing only as an external assertion about an executable image.
+
+The pattern is YAML — reviewable at each stage of the supply chain. The declared behavior is inspectable before deployment. Verification can be performed against that same artifact and associated with the artifact that is ultimately distributed.
 
 ```bash
 ork inspect postgres:v14

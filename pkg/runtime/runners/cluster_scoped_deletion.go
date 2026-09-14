@@ -13,7 +13,7 @@ import (
 	orkcust "github.com/orkspace/orkestra/pkg/resources/customresources"
 	orkns "github.com/orkspace/orkestra/pkg/resources/namespaces"
 	orkpv "github.com/orkspace/orkestra/pkg/resources/pvs"
-	orktmpl "github.com/orkspace/orkestra/pkg/resources/template"
+	orktmpl "github.com/orkspace/orkestra/pkg/template"
 	orktypes "github.com/orkspace/orkestra/pkg/types"
 )
 

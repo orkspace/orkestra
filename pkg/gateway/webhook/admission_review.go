@@ -66,5 +66,3 @@ type AdmissionStatus struct {
 }
 
 const jsonPatchType = "JSONPatch"
-
-func ptrString(s string) *string { return &s }

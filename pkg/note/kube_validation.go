@@ -13,9 +13,9 @@ import (
 // an annotation value, which is an unrestricted free-form string) follows
 // that same name format. ork validate already runs this exact check once,
 // at katalog-authoring time, against the keys a katalog author declares
-// under serve.additionalFields — but nothing checks the values a runtime
-// client actually submits (curl, raw kubectl, a custom UI) until the
-// object reaches the real API server.
+// under serve.labels and serve.annotations — but nothing checks the values
+// a runtime client actually submits (curl, raw kubectl, a custom UI) until
+// the object reaches the real API server.
 //
 // These notes expose that same upstream Kubernetes check so a
 // validation.rules entry can gate on it directly, at admission time, with

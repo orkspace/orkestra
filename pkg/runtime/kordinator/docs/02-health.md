@@ -140,9 +140,9 @@ type RollbackStats struct {
 
 The handler includes this under `"rollback"` in the `/katalog/{crd}` response only when `crd.HasRollbackRules()` is true.
 
-## OrkestraHealth
+## RuntimeHealth
 
-`OrkestraHealth` is the operator-level aggregate signal. It is separate from per-CRD health.
+`RuntimeHealth` is the operator-level aggregate signal. It is separate from per-CRD health.
 
 ```
 SetOrkReady()        — called at the start of Kordinate(); /ready returns 200
@@ -151,7 +151,7 @@ SetKatalogDegraded() — called when any CRD is missing or degraded
 SetOrkDegraded()     — called on leadership loss before shutdown
 ```
 
-`/health` reflects `OrkestraHealth`. `/ready` reflects both `OrkestraHealth` and whether `Kordinate()` has started.
+`/health` reflects `RuntimeHealth`. `/ready` reflects both `RuntimeHealth` and whether `Kordinate()` has started.
 
 ---
 

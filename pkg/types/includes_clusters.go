@@ -2,10 +2,7 @@ package types
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
-
-	orkutils "github.com/orkspace/orkestra/pkg/utils"
 )
 
 // ExpandGatewayClustersInclude resolves gateway.clusters.include by reading the
@@ -22,7 +19,7 @@ func ExpandGatewayClustersInclude(gw *GatewayConfig, baseDir string) error {
 	if !filepath.IsAbs(path) {
 		path = filepath.Join(baseDir, path)
 	}
-	data, err := os.ReadFile(path)
+	data, err := readLocal(path)
 	if err != nil {
 		return fmt.Errorf("reading gateway.clusters.include %q: %w", gw.Clusters.Include, err)
 	}
@@ -30,7 +27,7 @@ func ExpandGatewayClustersInclude(gw *GatewayConfig, baseDir string) error {
 	var f struct {
 		Clusters map[string]GatewayClusterConfig `yaml:"clusters"`
 	}
-	if err := orkutils.StrictUnmarshal(data, &f); err != nil {
+	if err := strictUnmarshal(data, &f); err != nil {
 		return fmt.Errorf("parsing gateway.clusters.include %q: %w", gw.Clusters.Include, err)
 	}
 

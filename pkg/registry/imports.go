@@ -6,7 +6,6 @@ package registry
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	orktypes "github.com/orkspace/orkestra/pkg/types"
@@ -35,7 +34,7 @@ func (o *OCIImports) Empty() bool {
 // treated as OCI — they resolve against the default motif registry, same
 // as the LoadImport resolution order.
 func ExtractOCIImports(filePath string) (*OCIImports, error) {
-	data, err := os.ReadFile(filePath)
+	data, err := readLocal(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("reading %q: %w", filePath, err)
 	}
@@ -85,7 +84,7 @@ func (h *HelmAndFileImports) Empty() bool {
 // ExtractHelmAndFileImports parses a komposer file and returns all helm sources
 // and HTTPS file sources. Local file paths are excluded — they need no caching.
 func ExtractHelmAndFileImports(filePath string) (*HelmAndFileImports, error) {
-	data, err := os.ReadFile(filePath)
+	data, err := readLocal(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("reading %q: %w", filePath, err)
 	}
@@ -125,7 +124,7 @@ type LocalMotifImport struct {
 // that reference local file paths. The caller should block ork push when the
 // result is non-empty and prompt the user to replace them with OCI refs.
 func ExtractLocalMotifImports(filePath string) ([]LocalMotifImport, error) {
-	data, err := os.ReadFile(filePath)
+	data, err := readLocal(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("reading %q: %w", filePath, err)
 	}
@@ -136,7 +135,7 @@ func ExtractLocalMotifImports(filePath string) ([]LocalMotifImport, error) {
 	var out []LocalMotifImport
 	for crdName, crd := range kf.Spec.CRDs {
 		for i, imp := range crd.Imports {
-			if ref := strings.TrimSpace(imp.Motif); isMotifFilePath(ref) {
+			if ref := strings.TrimSpace(imp.Motif); IsFilePath(ref) {
 				out = append(out, LocalMotifImport{CRDName: crdName, Index: i, Path: ref})
 			}
 		}
@@ -156,7 +155,7 @@ func isOCIMotifImport(imp orktypes.MotifImport) bool {
 	if ref == "" {
 		return false
 	}
-	if isMotifFilePath(ref) || isMotifGitURL(ref) {
+	if IsFilePath(ref) || isMotifGitURL(ref) {
 		return false
 	}
 	if strings.HasPrefix(ref, "oci://") || imp.OCI {
@@ -164,21 +163,13 @@ func isOCIMotifImport(imp orktypes.MotifImport) bool {
 	}
 	// Bare name: no dots in the host segment before the first slash, not a full ref.
 	// e.g. "postgres", "postgres:v0.1.0" — resolves against default motif registry.
-	return !looksLikeFull(ref)
+	return !LooksLikeFullRef(ref)
 }
 
 // isOCIRegistrySource returns true when a RegistrySource resolves via OCI.
 // Explicit oci: true flag or an oci:// prefix on the URL both count.
 func isOCIRegistrySource(src orktypes.RegistrySource) bool {
 	return src.OCI || strings.HasPrefix(strings.TrimSpace(src.URL), "oci://")
-}
-
-// isMotifFilePath mirrors isFilePath in pkg/motif/loader.go.
-func isMotifFilePath(ref string) bool {
-	if strings.HasPrefix(ref, "./") || strings.HasPrefix(ref, "/") || strings.HasPrefix(ref, "../") {
-		return true
-	}
-	return strings.HasSuffix(ref, ".yaml") || strings.HasSuffix(ref, ".yml")
 }
 
 // isMotifGitURL mirrors isGitURL in pkg/motif/loader.go.

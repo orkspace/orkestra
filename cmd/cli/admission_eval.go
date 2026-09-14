@@ -5,8 +5,8 @@ package cli
 import (
 	"fmt"
 
-	orktmpl "github.com/orkspace/orkestra/pkg/resources/template"
 	"github.com/orkspace/orkestra/pkg/runtime/reconciler"
+	orktmpl "github.com/orkspace/orkestra/pkg/template"
 	orktypes "github.com/orkspace/orkestra/pkg/types"
 	"github.com/orkspace/orkestra/pkg/utils"
 )

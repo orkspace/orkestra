@@ -11,9 +11,8 @@ import (
 	"github.com/orkspace/orkestra/pkg/kubeclient"
 	"github.com/orkspace/orkestra/pkg/labels"
 	"github.com/orkspace/orkestra/pkg/logger"
-	"github.com/orkspace/orkestra/pkg/resources/common"
+	"github.com/orkspace/orkestra/pkg/resources/shared"
 	orktypes "github.com/orkspace/orkestra/pkg/types"
-	"github.com/orkspace/orkestra/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,8 +27,8 @@ func Create(ctx context.Context, kube kubeclient.Interface, owner domain.Object,
 		return fmt.Errorf("pod.Create: invalid spec: %w", err)
 	}
 
-	namespace := common.ResolveNamespace(owner, spec.Namespace)
-	if err := common.SleepIfNeeded(spec.Sleep); err != nil {
+	namespace := shared.ResolveNamespace(owner, spec.Namespace)
+	if err := shared.SleepIfNeeded(spec.Sleep); err != nil {
 		return err
 	}
 
@@ -69,8 +68,8 @@ func Apply(ctx context.Context, kube kubeclient.Interface, owner domain.Object, 
 		return fmt.Errorf("pod.Apply: invalid spec: %w", err)
 	}
 
-	namespace := common.ResolveNamespace(owner, spec.Namespace)
-	if err := common.SleepIfNeeded(spec.Sleep); err != nil {
+	namespace := shared.ResolveNamespace(owner, spec.Namespace)
+	if err := shared.SleepIfNeeded(spec.Sleep); err != nil {
 		return err
 	}
 
@@ -84,7 +83,7 @@ func Apply(ctx context.Context, kube kubeclient.Interface, owner domain.Object, 
 
 	if _, err = kube.Clientset().CoreV1().Pods(namespace).Patch(
 		ctx, spec.Name, k8stypes.ApplyPatchType, body,
-		metav1.PatchOptions{FieldManager: konfig.FieldManagerRuntime, Force: utils.BoolPtr(true)},
+		metav1.PatchOptions{FieldManager: konfig.FieldManagerRuntime, Force: shared.ResolveForceConflict(kube, spec.ForceConflict)},
 	); err != nil {
 		if errors.IsInvalid(err) {
 			logger.Info().Str("pod", spec.Name).Msg("pod spec immutable — delete+recreate")
@@ -114,8 +113,8 @@ func Update(ctx context.Context, kube kubeclient.Interface, owner domain.Object,
 // For most cases owner references handle cascade deletion automatically —
 // only use this when you need explicit cleanup control in onDelete.
 func Delete(ctx context.Context, kube kubeclient.Interface, owner domain.Object, spec ResolvedPodSpec) error {
-	namespace := common.ResolveNamespace(owner, spec.Namespace)
-	if err := common.SleepIfNeeded(spec.Sleep); err != nil {
+	namespace := shared.ResolveNamespace(owner, spec.Namespace)
+	if err := shared.SleepIfNeeded(spec.Sleep); err != nil {
 		return err
 	}
 
@@ -170,8 +169,10 @@ func DeleteIfOwned(ctx context.Context, kube kubeclient.Interface,
 // and cannot be overridden by the user.
 func Resolve(src orktypes.PodTemplateSource, ownerName string, reg orktypes.ProfileRegistry) ResolvedPodSpec {
 	spec := ResolvedPodSpec{
-		Labels:      make(map[string]string),
-		Annotations: make(map[string]string),
+		Labels:        make(map[string]string),
+		Annotations:   make(map[string]string),
+		Sleep:         src.Sleep,
+		ForceConflict: src.ForceConflict,
 	}
 
 	spec.Name = src.Name
@@ -184,16 +185,16 @@ func Resolve(src orktypes.PodTemplateSource, ownerName string, reg orktypes.Prof
 	spec.Resources = src.Resources
 	spec.Probes = src.Probes
 	spec.Profiles = reg
-	spec.SecurityContext = common.ResolveContainerSecurityContext(src.SecurityContext, reg)
-	spec.PodSecurity = common.ResolvePodSecurityContext(src.PodSecurity, reg)
+	spec.SecurityContext = shared.ResolveContainerSecurityContext(src.SecurityContext, reg)
+	spec.PodSecurity = shared.ResolvePodSecurityContext(src.PodSecurity, reg)
 	spec.Volumes = src.Volumes
 	spec.VolumeMounts = src.VolumeMounts
 	spec.Sleep = src.Sleep
 
 	if src.Port != "" {
-		spec.Port = common.ParsePort(src.Port)
+		spec.Port = shared.ParsePort(src.Port)
 	}
-	spec.Protocol = common.ParseProtocol(src.Protocol)
+	spec.Protocol = shared.ParseProtocol(src.Protocol)
 
 	for k, v := range src.Labels {
 		spec.Labels[k] = v
@@ -213,23 +214,14 @@ func buildPod(owner domain.Object, spec ResolvedPodSpec, namespace string) *core
 	spec.Labels = labels.StampOrkestraLabels(spec.Labels, owner.GetName(), owner.GetAnnotations())
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        spec.Name,
-			Namespace:   namespace,
-			Labels:      spec.Labels,
-			Annotations: spec.Annotations,
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					APIVersion:         owner.GetObjectKind().GroupVersionKind().GroupVersion().String(),
-					Kind:               owner.GetObjectKind().GroupVersionKind().Kind,
-					Name:               owner.GetName(),
-					UID:                owner.GetUID(),
-					Controller:         utils.BoolPtr(true),
-					BlockOwnerDeletion: utils.BoolPtr(true),
-				},
-			},
+			Name:            spec.Name,
+			Namespace:       namespace,
+			Labels:          spec.Labels,
+			Annotations:     spec.Annotations,
+			OwnerReferences: shared.ResolveOwnerReferences(owner),
 		},
 		Spec: corev1.PodSpec{
-			ImagePullSecrets:   common.ToPullSecrets(spec.ImagePullSecrets),
+			ImagePullSecrets:   shared.ToPullSecrets(spec.ImagePullSecrets),
 			ServiceAccountName: spec.ServiceAccountName,
 			NodeSelector:       spec.NodeSelector,
 			Containers: []corev1.Container{
@@ -248,19 +240,19 @@ func buildPod(owner domain.Object, spec ResolvedPodSpec, namespace string) *core
 	}
 
 	if spec.Resources != nil {
-		pod.Spec.Containers[0].Resources = common.BuildResourceRequirements(spec.Resources)
+		pod.Spec.Containers[0].Resources = shared.BuildResourceRequirements(spec.Resources)
 	}
 
-	common.ApplyProbes(&pod.Spec.Containers[0], spec.Probes, int32(spec.Port), spec.Profiles)
+	shared.ApplyProbes(&pod.Spec.Containers[0], spec.Probes, int32(spec.Port), spec.Profiles)
 
 	// Security
-	common.ApplySecurityContext(&pod.Spec.Containers[0], &pod.Spec, spec.SecurityContext, spec.PodSecurity)
+	shared.ApplySecurityContext(&pod.Spec.Containers[0], &pod.Spec, spec.SecurityContext, spec.PodSecurity)
 
 	// Volumes / VolumeMounts
-	if vols := common.BuildVolumes(spec.Volumes); len(vols) > 0 {
+	if vols := shared.BuildVolumes(spec.Volumes); len(vols) > 0 {
 		pod.Spec.Volumes = vols
 	}
-	if mounts := common.BuildVolumeMounts(spec.VolumeMounts); len(mounts) > 0 {
+	if mounts := shared.BuildVolumeMounts(spec.VolumeMounts); len(mounts) > 0 {
 		pod.Spec.Containers[0].VolumeMounts = mounts
 	}
 

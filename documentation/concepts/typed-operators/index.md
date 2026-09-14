@@ -23,7 +23,7 @@ func (r *PipelineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 // ReconcilerFrom adapts the controller-runtime signature to Orkestra's interface.
 func NewPipelineReconciler(kube kubeclient.Interface) domain.Reconciler {
     return domain.ReconcilerFrom(&PipelineReconciler{
-        client: kubeclient.ToClient(kube),
+        Client: orkadapter.ToClient(kube),
     })
 }
 ```

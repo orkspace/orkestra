@@ -5,40 +5,44 @@ import (
 	"strings"
 )
 
-// ONCOPType defines the category of cross-operator data being fetched.
-type ONCOPType string
+// ONCOProtocol defines the category of cross-operator data being fetched.
+type ONCOProtocol string
 
 const (
-	ONCOPMetrics ONCOPType = "metrics"
-	ONCOPHealth  ONCOPType = "health"
-	ONCOPInfo    ONCOPType = "info"
-	ONCOPCR      ONCOPType = "cr"
-	ONCOPEvents  ONCOPType = "events"
+	ONCOPMetrics ONCOProtocol = "metrics"
+	ONCOPHealth  ONCOProtocol = "health"
+	ONCOPInfo    ONCOProtocol = "info"
+	ONCOPCR      ONCOProtocol = "cr"
+	ONCOPEvents  ONCOProtocol = "events"
 )
 
-func MetricsType() ONCOPType { return ONCOPMetrics }
-func HealthType() ONCOPType  { return ONCOPHealth }
-func InfoType() ONCOPType    { return ONCOPInfo }
-func CRType() ONCOPType      { return ONCOPCR }
-func EventsType() ONCOPType  { return ONCOPEvents }
+func MetricsProtocol() ONCOProtocol { return ONCOPMetrics }
+func HealthProtocol() ONCOProtocol  { return ONCOPHealth }
+func InfoProtocol() ONCOProtocol    { return ONCOPInfo }
+func CRProtocol() ONCOProtocol      { return ONCOPCR }
+func EventsProtocol() ONCOProtocol  { return ONCOPEvents }
 
-// String returns the string representation of the ONCOPType.
+// String returns the string representation of the ONCOProtocol.
 // This ensures fmt.Printf, logs, and YAML marshaling behave predictably.
-func (t ONCOPType) String() string {
-	switch t {
-	case ONCOPMetrics:
-		return "metrics"
-	case ONCOPHealth:
-		return "health"
-	case ONCOPInfo:
-		return "info"
-	case ONCOPCR:
-		return "cr"
-	case ONCOPEvents:
-		return "events"
-	default:
-		return string(t)
+func (t ONCOProtocol) String() string {
+	return string(t)
+}
+
+// ValidONCOProtocols returns the list of all valid protocol types
+func (d CrossCRDDeclaration) ValidONCOProtocols() []string {
+	return []string{
+		ONCOPCR.String(), ONCOPEvents.String(), ONCOPHealth.String(), ONCOPInfo.String(), ONCOPMetrics.String(),
 	}
+}
+
+// IsValid repors whether a given protocol is valid ONCOP
+func (d CrossCRDDeclaration) IsValid(p string) bool {
+	for _, proto := range d.ValidONCOProtocols() {
+		if p == proto {
+			return true
+		}
+	}
+	return false
 }
 
 //
@@ -76,13 +80,13 @@ func (t ONCOPType) String() string {
 // URL construction semantics.
 func BuildONCOPURL(decl CrossCRDDeclaration) string {
 	src := decl.Source
-	crd := decl.Crd
+	crd := decl.CRD
 	name := decl.Selector.Name
 	ns := decl.Selector.Namespace
 
 	host := strings.TrimSuffix(src.Host, "/")
 
-	switch src.Type {
+	switch src.Protocol {
 	case ONCOPMetrics, ONCOPInfo, "":
 		return fmt.Sprintf("%s/katalog/%s", host, crd)
 

@@ -15,7 +15,6 @@ import (
 	"time"
 
 	orktypes "github.com/orkspace/orkestra/pkg/types"
-	orkutils "github.com/orkspace/orkestra/pkg/utils"
 	authorizationv1 "k8s.io/api/authorization/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,7 +38,7 @@ func verifyExpectation(ctx context.Context, exp orktypes.E2EExpectation, workDir
 		return errSkipped
 	}
 	if exp.Wait != "" {
-		if d, err := orkutils.ParseTimeDuration(exp.Wait); err == nil && d > 0 {
+		if d, err := parseTimeDuration(exp.Wait); err == nil && d > 0 {
 			select {
 			case <-time.After(d):
 			case <-ctx.Done():
@@ -48,7 +47,7 @@ func verifyExpectation(ctx context.Context, exp orktypes.E2EExpectation, workDir
 		}
 	}
 
-	timeout, err := orkutils.ParseTimeDuration(exp.Timeout)
+	timeout, err := parseTimeDuration(exp.Timeout)
 	if err != nil || timeout <= 0 {
 		timeout = 60 * time.Second
 	}
@@ -877,7 +876,7 @@ func doPortForwardGoRaw(ctx context.Context, cfg *rest.Config, ns, pod string, e
 	}
 
 	if e.Wait != "" {
-		if d, err := orkutils.ParseTimeDuration(e.Wait); err == nil && d > 0 {
+		if d, err := parseTimeDuration(e.Wait); err == nil && d > 0 {
 			select {
 			case <-time.After(d):
 			case <-ctx.Done():
@@ -891,7 +890,7 @@ func doPortForwardGoRaw(ctx context.Context, cfg *rest.Config, ns, pod string, e
 		method = "GET"
 	}
 	reqURL := fmt.Sprintf("http://localhost:%s%s", localPort, e.Path)
-	sp := orkutils.StartSpinner(fmt.Sprintf("%s %s (→ pod/%s)", method, reqURL, pod))
+	sp := startSpinner(fmt.Sprintf("%s %s (→ pod/%s)", method, reqURL, pod))
 
 	var reqBody io.Reader
 	if e.Body != "" {
@@ -1035,7 +1034,7 @@ func checkKubectlCp(ctx context.Context, e orktypes.E2EKubectlCp, workDir string
 		return fmt.Errorf("kubectl cp %s: %s", src, out)
 	}
 
-	raw, err := os.ReadFile(tmp.Name())
+	raw, err := readLocal(tmp.Name())
 	if err != nil {
 		return fmt.Errorf("kubectl cp: reading temp file: %w", err)
 	}

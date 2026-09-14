@@ -12,61 +12,37 @@ import (
 	"github.com/orkspace/orkestra/domain"
 	"github.com/orkspace/orkestra/pkg/event"
 	"github.com/orkspace/orkestra/pkg/gateway/notification"
+	orktarget "github.com/orkspace/orkestra/pkg/intent/target"
 	"github.com/orkspace/orkestra/pkg/katalog"
 	"github.com/orkspace/orkestra/pkg/kubeclient"
 	"github.com/orkspace/orkestra/pkg/labels"
 	"github.com/orkspace/orkestra/pkg/logger"
-	orktmpl "github.com/orkspace/orkestra/pkg/resources/template"
 	"github.com/orkspace/orkestra/pkg/runtime/autoscaler"
 	"github.com/orkspace/orkestra/pkg/runtime/kordinator"
+	"github.com/orkspace/orkestra/pkg/runtime/kordinator/vitals"
 	orkqueue "github.com/orkspace/orkestra/pkg/runtime/queue"
 	"github.com/orkspace/orkestra/pkg/runtime/runners"
+	orktmpl "github.com/orkspace/orkestra/pkg/template"
 	orktypes "github.com/orkspace/orkestra/pkg/types"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/tools/cache"
 )
 
 // GenericReconciler manages the full lifecycle of one CRD.
 //
-// This file is a pure dispatcher. It owns:
-//   - Context enrichment
-//   - Cache reads
-//   - Deletion routing
-//   - Finalizer/Annotation/Label management
-//   - Template interpretation
-//   - Reconcile priority (Go hooks → declarative templates → no-op)
-//   - Event firing and logging
+// It coordinates context enrichment, cache reads, deletion handling,
+// metadata management, template execution, reconciliation priority, events,
+// and logging. Resource-specific operations are implemented in separate
+// resource runners.
 //
-// Resource-specific logic lives in separate files:
-//
-//	run_deployments.go    — Deployment create/update
-//	run_services.go       — Service create/update
-//	run_secrets.go        — Secret create/copy/sync
-//	run_configmaps.go     — ConfigMap create/copy/sync
-//	run_serviceaccounts.go — ServiceAccount create
-//	run_jobs.go           — Job create (onDelete cleanup)
-//	run_cronjobs.go       — CronJob create/update
-//
-// Adding a new resource type:
-//  1. Add a file run_<resource>.go with a runXxx() function
-//  2. Call it from runTemplateReconcile() and/or runTemplateOnDelete()
-//  3. Add the field to orktypes.HookTemplates
-//     That is all — generic.go does not change.
-//
-// Type parameter PTR:
-//
-// PTR must be a pointer to the concrete CR struct (e.g. *Database).
-// This matches Kubernetes informer semantics: the informer stores pointer values
-// so the type assertion raw.(PTR) in reconcileCore succeeds only for pointer types.
-// When used through the dynamic registry path in runtime_konstructor.go, PTR is inferred
-// as domain.Object (the interface), which also satisfies the constraint and is safe
-// because the informer cache always holds the correct underlying concrete type.
-// See pkg/reconciler/ptr_hooks.go for the full design rationale.
+// PTR must be a pointer to the concrete CR struct (for example, *Database).
+// The dynamic registry path uses domain.Object, which is also supported
+// because the informer cache stores the underlying concrete object.
 type GenericReconciler[PTR domain.Object] struct {
 	katalogRegistry   *kordinator.ResourceKatalog
-	crdHealthRegistry map[string]*kordinator.CRDHealth
+	crdHealthRegistry map[string]*vitals.CRDHealth
 	providerRegistry  orktypes.ProviderRegistry
 	providerStats     providerStatsRecorder
 	informer          cache.SharedIndexInformer
@@ -79,7 +55,7 @@ type GenericReconciler[PTR domain.Object] struct {
 	hooks domain.ObjectHooks
 
 	// targetHooks holds per-target hook sets for CRDs that have distinct hook
-	// binaries per serve.target entry (TargetHookFactories non-empty).
+	// binaries per serve.target entry (TargetHookFactories non-Empty().
 	// Built once at construction time; read concurrently during reconcile.
 	// When empty, all targets fall back to the CRD-level hooks field.
 	targetHooks map[string]domain.ObjectHooks
@@ -152,7 +128,7 @@ func NewGenericReconciler[PTR domain.Object](
 	anyHooks domain.AnyReconcileHooks,
 	newObj func() PTR,
 	katalogRegistry *kordinator.ResourceKatalog,
-	crdHealthRegistry map[string]*kordinator.CRDHealth,
+	crdHealthRegistry map[string]*vitals.CRDHealth,
 	providerRegistry orktypes.ProviderRegistry,
 	providerStats providerStatsRecorder,
 	kat *katalog.Katalog,
@@ -232,6 +208,7 @@ func NewGenericReconciler[PTR domain.Object](
 			Resync:   box.Reconciler.Resync.Duration,
 		}
 		r.autoscaler = autoscaler.NewAutoscaler(
+			kube.Clientset(),
 			crd.APITypes.Kind,
 			box.Autoscale,
 			baseline,
@@ -327,16 +304,16 @@ func (r *GenericReconciler[PTR]) reconcileCore(ctx context.Context, key string) 
 	if len(normalizeChanges) > 0 {
 		resolver = resolver.WithNormalizeChanges(normalizeChanges)
 	}
-	if r.kat != nil && !r.kat.Profiles.IsEmpty() {
+	if r.kat != nil && !r.kat.Profiles.Empty() {
 		resolver = resolver.WithProfiles(r.kat.Profiles)
 	}
-	if r.kat != nil && !r.kat.Notes.IsEmpty() {
+	if r.kat != nil && !r.kat.Notes.Empty() {
 		resolver = resolver.WithUserNotes(r.kat.UserNotes())
 	}
 	// Inject raw serve intent as .request.<field> so operatorBox templates,
 	// mutation rules, and validation rules can all read the caller's vocabulary.
 	// Only present when the CR was submitted through the Gateway API in target mode.
-	if intent := orktypes.ServeIntentFromObject(resolver.Data()); intent != nil {
+	if intent := orktarget.ResolveIntentFromObject(resolver.Data()); intent != nil {
 		resolver = resolver.WithRequest(intent)
 	}
 	// Gives operator: unique live CRD access for the rest of this reconcile
@@ -376,11 +353,7 @@ func (r *GenericReconciler[PTR]) reconcileCore(ctx context.Context, key string) 
 	//
 	// ──────────────────────────────────────────────────────────────────────────────
 	if obj.GetObjectKind().GroupVersionKind().Empty() {
-		obj.GetObjectKind().SetGroupVersionKind(schema.GroupVersionKind{
-			Group:   r.crd.APITypes.Group,
-			Version: r.crd.APITypes.Version,
-			Kind:    r.crd.APITypes.Kind,
-		})
+		obj.GetObjectKind().SetGroupVersionKind(r.crd.GVK())
 	}
 	// Check if resource is being deleted
 	if obj.GetDeletionTimestamp() != nil {
@@ -492,14 +465,14 @@ func (r *GenericReconciler[PTR]) reconcileCore(ctx context.Context, key string) 
 	}
 
 	// One atomic patch: diff serverLabels → desired. No-op if nothing changed.
-	if err := r.kube.PatchLabels(ctx, obj, serverLabels, obj.GetLabels()); err != nil {
+	if err := r.kube.PatchLabels(ctx, obj, serverLabels, obj.GetLabels(), metav1.PatchOptions{}); err != nil {
 		return err
 	}
 
 	// Annotations only ever add keys (managed-by, managed-since are write-once),
 	// so a plain Merge Patch with the desired map is correct here.
 	if labelMgr.EnsureManagedAnnotations(obj, r.crd.KatalogName) {
-		if err := r.kube.PatchAnnotations(ctx, obj, obj.GetAnnotations()); err != nil {
+		if err := r.kube.PatchAnnotations(ctx, obj, obj.GetAnnotations(), metav1.PatchOptions{}); err != nil {
 			return err
 		}
 	}
@@ -671,9 +644,15 @@ func (r *GenericReconciler[PTR]) reconcileImpl(ctx context.Context, resolver *or
 	// This surfaces the operatorbox health endpoint directly into templates,
 	// enabling CR status fields to show live reconcile health, uptime,
 	// dependency health, and error information without any API calls.
-	if h, ok := r.crdHealthRegistry[r.crd.GVKString()]; ok {
+	h, healthOk := r.crdHealthRegistry[r.crd.GVKString()]
+	if healthOk {
 		resolver = resolver.WithHealth(h.HealthAsMap())
 	}
+
+	// Inject live runtime metrics/health also to the object as annotation so that the gateway
+	// Uses it for metrics-level and health-level gating in validation and mutation rules.
+	// This respects crossAccess and endpoint security declaration
+	r.injectRuntimeHealthAndMetrics(obj, metricsMap, h.HealthAsMap(), healthOk)
 
 	// Always patch status — best-effort, never fails reconcile.
 	// Called with the outcome so Ready condition reflects reality.
@@ -700,25 +679,6 @@ func (r *GenericReconciler[PTR]) reconcileImpl(ctx context.Context, resolver *or
 		Msgf("reconciled %s", r.crd.GVKString())
 
 	return nil
-}
-
-// namespaceAllowed returns true when the target namespace passes both the
-// restricted and allowed namespace checks for this CRD.
-// Called inside runResourceGroup before dispatching to each resource type.
-func (r *GenericReconciler[PTR]) namespaceAllowed(
-	ctx context.Context,
-	obj domain.Object,
-	targetNamespace string,
-) bool {
-	result := CheckNamespace(
-		ctx,
-		obj,
-		targetNamespace,
-		r.crd.RestrictedNamespaces,
-		r.crd.AllowedNamespaces,
-		r.crd.APITypes.Kind,
-	)
-	return result.Allowed
 }
 
 // handleDeletion runs cleanup then removes our finalizers.

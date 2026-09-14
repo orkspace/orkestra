@@ -28,19 +28,19 @@ import (
 func PullImport(imp *orktypes.MotifImport) error {
 	ref := strings.TrimSpace(imp.Motif)
 
-	if isFilePath(ref) || isGitURL(ref) {
+	if registry.IsFilePath(ref) || isGitURL(ref) {
 		return nil
 	}
 
 	oci := imp.OCI
-	if strings.HasPrefix(ref, "oci://") {
+	if registry.IsOCIRef(ref) {
 		oci = true
-		ref = strings.TrimPrefix(ref, "oci://")
+		ref = registry.CleanOCIRef(ref)
 	}
 
 	// Bare name → resolve against default motif registry.
 	var resolved *registry.Ref
-	if !oci && !looksLikeFullRef(ref) {
+	if !oci && !registry.LooksLikeFullRef(ref) {
 		r, err := registry.ResolveForKind(ref, registry.MotifKind)
 		if err != nil {
 			return fmt.Errorf("motif %q: resolving reference: %w", imp.Motif, err)

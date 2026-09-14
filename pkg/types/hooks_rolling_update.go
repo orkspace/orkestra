@@ -5,7 +5,7 @@ package types
 // and to enforce mutual exclusivity with explicit maxSurge/maxUnavailable.
 type RollingUpdateProfileEntry struct {
 	Phase        string // "onCreate", "onReconcile", "onDelete"
-	ResourceName string // Deployment name template (may be empty)
+	ResourceName string // Deployment name template (may be Empty()
 	Profile      string // raw profile name as written in the katalog
 	Mixed        bool   // true when profile is set alongside explicit maxSurge or maxUnavailable
 }

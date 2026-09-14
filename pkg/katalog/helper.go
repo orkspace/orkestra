@@ -7,6 +7,7 @@ import (
 	"github.com/orkspace/orkestra/pkg/note"
 	orktypes "github.com/orkspace/orkestra/pkg/types"
 	"github.com/orkspace/orkestra/pkg/utils"
+	"k8s.io/apimachinery/pkg/api/validate/content"
 )
 
 // ── utils aliases ────────────────────────────────────────────────────────────
@@ -26,11 +27,17 @@ var (
 	parseTimeDuration = utils.ParseTimeDuration
 
 	// helpers
-	exit         = utils.Exit
-	toStringSet  = utils.ToStringSet
-	isNestedPath = utils.IsNestedPath
-	isTemplate   = orktypes.IsTemplate
+	exit              = utils.Exit
+	toStringSet       = utils.ToStringSet
+	isNestedPath      = utils.IsNestedPath
+	isTemplate        = orktypes.IsTemplate
+	isValidLabelKey   = content.IsLabelKey
+	isValidLabelValue = content.IsLabelValue
+	isValidK8sName    = utils.ValidKubernetesName
+	readLocal         = utils.ReadLocal
 )
+
+func boolPtr(b bool) *bool { return &b }
 
 // buildFuncMapForValidation builds a stub FuncMap that includes all registered
 // note functions (so cross-note references compile) and all built-in functions.

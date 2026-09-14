@@ -129,7 +129,7 @@ Your `Reconcile` method stays completely unchanged — same signature, same body
 ```go
 func NewWebAppReconciler(kube kubeclient.Interface) domain.Reconciler {
     return domain.ReconcilerFrom(&WebAppReconciler{
-        Client: kubeclient.ToClient(kube),
+        Client: orkadapter.ToClient(kube),
     })
 }
 ```
@@ -149,7 +149,7 @@ If you want to understand the full range of options first, the [Migration Guide]
 ```go
 func NewWebAppReconciler(kube kubeclient.Interface) domain.Reconciler {
     return domain.ReconcilerFrom(&WebAppReconciler{
-        Client: kubeclient.ToClient(kube),
+        Client: orkadapter.ToClient(kube),
     })
 }
 ```

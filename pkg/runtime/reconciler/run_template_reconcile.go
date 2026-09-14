@@ -20,9 +20,10 @@ import (
 	"github.com/orkspace/orkestra/pkg/kubeclient"
 	orklabels "github.com/orkspace/orkestra/pkg/labels"
 	"github.com/orkspace/orkestra/pkg/logger"
-	orktmpl "github.com/orkspace/orkestra/pkg/resources/template"
 	"github.com/orkspace/orkestra/pkg/runtime/runners"
+	orktmpl "github.com/orkspace/orkestra/pkg/template"
 	orktypes "github.com/orkspace/orkestra/pkg/types"
+	"k8s.io/client-go/tools/cache"
 )
 
 // runTemplateReconcile interprets the Katalog's onCreate and onReconcile blocks.
@@ -297,8 +298,15 @@ func crossDataKeys(m map[string]interface{}) []string {
 //
 // Resolution priority per declaration:
 //  1. Informer cache via r.katalogRegistry — zero API calls, same-binary CRDs
-//  2. HTTP endpoint (decl.Source.Endpoint) — cross-binary, cross-cluster
-//  3. Empty not-found map — when neither path is available
+//  2. HTTP endpoint — cross-binary or cross-cluster (raw endpoint or ONCOP host inference)
+//  3. Not-found result — when neither path is available
+//
+// Within the informer path, finding the informer and finding the CR are separate steps:
+//   - IsCRDBased: informer looked up by CRD name
+//   - IsLabelBased: informer looked up by decl.LabelSelector (CRD-entry labelSelector in registry)
+//   - selector.IsNameBased: CR found by namespace/name key
+//   - selector.MatchLabels: CR found by scanning instance labels in the informer
+//   - neither selector: first CR matching decl.LabelSelector (label-based decl only)
 func (r *GenericReconciler[PTR]) readCross(
 	ctx context.Context,
 	obj domain.Object,
@@ -312,12 +320,10 @@ func (r *GenericReconciler[PTR]) readCross(
 	log := logger.FromContext(ctx)
 	result := make(map[string]interface{}, len(decls))
 
-	registryNil := r.katalogRegistry == nil
-
 	for _, decl := range decls {
 		as := decl.As
 		if as == "" {
-			as = decl.Crd
+			as = decl.CRD
 		}
 
 		name, _ := resolver.Resolve(decl.Selector.Name)
@@ -325,108 +331,118 @@ func (r *GenericReconciler[PTR]) readCross(
 		if namespace == "" {
 			namespace = obj.GetNamespace()
 		}
-		key := crossKey(namespace, name)
 
-		// Path 1: informer cache — zero API calls.
-		// katalogRegistry is threaded in from konstructRuntime via NewGenericReconciler.
-		// Path 1a: label-based informer lookup
-		if len(decl.LabelSelector) > 0 && r.katalogRegistry != nil {
-			for labelKey, labelValue := range decl.LabelSelector {
-				inf, found := r.katalogRegistry.GetInformerByLabelSelector(labelKey, labelValue)
-				if found {
-					data := ReadCrossFromInformerByLabel(inf.GetIndexer(), labelKey, labelValue)
-					result[as] = data
+		// Step 1: find the informer. decl.LabelSelector keys the registry (CRD-entry labelSelector);
+		// decl.CRD keys by name. These are mutually exclusive per ork validate.
+		var inf cache.SharedIndexInformer
+		if r.katalogRegistry != nil {
+			switch {
+			case decl.IsCRDBased():
+				if i, found := r.katalogRegistry.GetInformerByName(decl.CRD); found {
+					inf = i
+				}
+			case decl.IsLabelBased():
+				for k, v := range decl.LabelSelector {
+					if i, found := r.katalogRegistry.GetInformerByLabelSelector(k, v); found {
+						inf = i
+						break
+					}
+				}
+			}
+		}
+
+		// Step 2: find the CR within the informer.
+		if inf != nil {
+			// CrossAccess is only meaningful for CRD-named declarations.
+			var crossAccess *bool
+			if decl.IsCRDBased() {
+				crossAccess = r.katalogRegistry.GetCrossAccessByName(decl.CRD)
+			}
+
+			sel := decl.Selector
+			var data map[string]interface{}
+			switch {
+			case !sel.MatchLabels.Empty():
+				// selector.matchLabels filters CR instances within the informer by their labels.
+				for k, v := range sel.MatchLabels {
+					data = ReadCrossFromInformerByLabel(inf.GetIndexer(), k, v)
 					break
 				}
-				log.Warn().
-					Str("label_key", labelKey).
-					Str("label_val", labelValue).
-					Str("crd", decl.Crd).
-					Str("as", as).
-					Msg("cross: no CRD matched label selector in registry")
-			}
-		}
-
-		notFoundInBianry := false
-		// Path 1b: name-based informer lookup
-		if decl.Crd != "" && r.katalogRegistry != nil {
-			inf, found := r.katalogRegistry.GetInformerByName(decl.Crd)
-			if found {
-				name, _ := resolver.Resolve(decl.Selector.Name)
-				ns, _ := resolver.Resolve(decl.Selector.Namespace)
-				if ns == "" {
-					ns = obj.GetNamespace()
+			case decl.IsLabelBased():
+				// Label-based decl with no CR selector — first CR matching the decl label.
+				for k, v := range decl.LabelSelector {
+					data = ReadCrossFromInformerByLabel(inf.GetIndexer(), k, v)
+					break
 				}
-				crossAccess := r.katalogRegistry.GetCrossAccessByName(decl.Crd)
-				data := ReadCrossFromInformer(inf.GetIndexer(), crossKey(ns, name), crossAccess)
+			case sel.IsNameBased():
+				// Name is the precision tool — used when label identity is insufficient.
+				data = ReadCrossFromInformerByName(inf.GetIndexer(), crossKey(namespace, name), crossAccess)
+			}
+
+			if data != nil {
 				result[as] = data
+				log.Debug().
+					Str("crd", decl.CRD).
+					Str("as", as).
+					Msg("cross: read from informer cache")
 				continue
 			}
-			notFoundInBianry = true
+
+			log.Warn().
+				Str("crd", decl.CRD).
+				Str("as", as).
+				Msg("cross: informer found but CR not matched")
+		} else if r.katalogRegistry != nil {
+			log.Warn().
+				Str("crd", decl.CRD).
+				Str("as", as).
+				Msg("cross: CRD not found in registry — trying HTTP")
 		}
 
-		notFoundCrossBinary := false
-		// For cross-binary or cross-cluster. Uses Orkestra's CR detail endpoint.
-		// Path 2: HTTP fallback (raw endpoint OR ONCOP host-based URL inference)
-		if decl.Source != nil {
-
-			// 2a: Raw endpoint takes precedence (non-Orkestra operators)
-			if decl.Source.Endpoint != "" {
-				endpointURL, _ := resolver.Resolve(decl.Source.Endpoint)
-				token := expandEnv(decl.Source.Token)
-
-				data := fetchCrossViaHTTP(ctx, endpointURL, token)
+		// Step 3: HTTP fallback (cross-binary or cross-cluster).
+		if decl.HasSource() {
+			// 3a: raw endpoint — non-Orkestra operators or arbitrary JSON APIs.
+			if decl.Source.HasEndpoint() {
+				src := *decl.Source
+				src.Endpoint, _ = resolver.Resolve(decl.Source.Endpoint)
+				data := fetchCrossViaHTTP(ctx, r.kube.Clientset(), &src)
 				if data != nil {
 					result[as] = data
 					log.Debug().
-						Str("crd", decl.Crd).
+						Str("crd", decl.CRD).
 						Str("as", as).
-						Str("endpoint", endpointURL).
-						Msg("cross: read via raw HTTP endpoint")
+						Str("endpoint", src.Endpoint).
+						Msg("cross: read via raw endpoint")
 					continue
 				}
-
-				notFoundCrossBinary = true
 				log.Warn().
-					Str("crd", decl.Crd).
-					Str("endpoint", endpointURL).
-					Msg("cross: raw HTTP endpoint returned nil")
+					Str("crd", decl.CRD).
+					Str("endpoint", src.Endpoint).
+					Msg("cross: raw endpoint returned nil")
 			}
 
-			// 2b: ONCOP host-based URL inference (Orkestra-native operators)
-			if decl.Source.Host != "" {
-				// Build ONCOP URL from host + type + crd + ns + name
-				url := orktypes.BuildONCOPURL(decl)
-
-				token := expandEnv(decl.Source.Token)
-				data := fetchCrossViaHTTP(ctx, url, token)
+			// 3b: ONCOP host inference — Orkestra-native operators.
+			if decl.Source.HasHost() {
+				src := *decl.Source
+				src.Endpoint = orktypes.BuildONCOPURL(decl)
+				data := fetchCrossViaHTTP(ctx, r.kube.Clientset(), &src)
 				if data != nil {
 					result[as] = data
 					log.Debug().
-						Str("crd", decl.Crd).
+						Str("crd", decl.CRD).
 						Str("as", as).
-						Str("endpoint", url).
+						Str("endpoint", src.Endpoint).
 						Msg("cross: read via ONCOP host")
 					continue
 				}
-
-				notFoundCrossBinary = true
 				log.Warn().
-					Str("crd", decl.Crd).
-					Str("endpoint", url).
+					Str("crd", decl.CRD).
+					Str("endpoint", src.Endpoint).
 					Msg("cross: ONCOP endpoint returned nil")
 			}
 		}
 
-		if notFoundInBianry && notFoundCrossBinary {
-			log.Warn().
-				Str("crd", decl.Crd).
-				Str("as", as).
-				Bool("registry_nil", registryNil).
-				Msg("cross: no CRD matched name in registry")
-		}
-
-		// Path 3: not found.
+		// Step 4: not found.
 		result[as] = map[string]interface{}{
 			"found":     "false",
 			"name":      name,
@@ -435,9 +451,8 @@ func (r *GenericReconciler[PTR]) readCross(
 			"spec":      map[string]interface{}{},
 		}
 		log.Debug().
-			Str("crd", decl.Crd).
+			Str("crd", decl.CRD).
 			Str("as", as).
-			Str("key", key).
 			Msg("cross: not found — empty result")
 	}
 

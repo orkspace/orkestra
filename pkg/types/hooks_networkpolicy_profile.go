@@ -5,7 +5,7 @@ package types
 // profiles and to enforce mutual exclusivity with explicit ingress/egress/policyTypes.
 type NetworkPolicyProfileEntry struct {
 	Phase        string // "onCreate", "onReconcile", "onDelete"
-	ResourceName string // NetworkPolicy name template (may be empty)
+	ResourceName string // NetworkPolicy name template (may be Empty()
 	Profile      string // raw profile name as written in the katalog
 	Mixed        bool   // true when profile is set alongside explicit ingress/egress/policyTypes
 }

@@ -32,10 +32,9 @@ import (
 	"github.com/orkspace/orkestra/pkg/katalog"
 	"github.com/orkspace/orkestra/pkg/registry"
 	"github.com/orkspace/orkestra/pkg/registry/motif"
-	orktmpl "github.com/orkspace/orkestra/pkg/resources/template"
+	orktmpl "github.com/orkspace/orkestra/pkg/template"
 	"github.com/orkspace/orkestra/pkg/tools/cluster"
 	orktypes "github.com/orkspace/orkestra/pkg/types"
-	orkutils "github.com/orkspace/orkestra/pkg/utils"
 	"gopkg.in/yaml.v3"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -114,13 +113,13 @@ type Options struct {
 
 // New loads an E2E spec from a YAML file and constructs a Runner.
 func New(e2eFile string, opts Options) (*Runner, error) {
-	data, err := os.ReadFile(e2eFile)
+	data, err := readLocal(e2eFile)
 	if err != nil {
 		return nil, fmt.Errorf("reading %s: %w", e2eFile, err)
 	}
 
 	var e2e orktypes.E2E
-	if err := orkutils.StrictUnmarshal(data, &e2e); err != nil {
+	if err := strictUnmarshal(data, &e2e); err != nil {
 		return nil, fmt.Errorf("parsing %s: %w", e2eFile, err)
 	}
 	if e2e.Kind != "E2E" {
@@ -318,7 +317,7 @@ func (r *Runner) Run(ctx context.Context) (*Result, error) {
 			if out, err := kubectl(ctx, "apply", "-f", bundleFile); err != nil {
 				return nil, fmt.Errorf("apply bundle: %w\n%s", err, out)
 			}
-			fmt.Printf("  %s Bundle applied\n", orkutils.SuccessMark())
+			fmt.Printf("  %s Bundle applied\n", successMark())
 		}
 
 		// ── 6. Setup ─────────────────────────────────────────────────────
@@ -339,7 +338,7 @@ func (r *Runner) Run(ctx context.Context) (*Result, error) {
 			if err := checkDevServerHealth(); err != nil {
 				return nil, err
 			}
-			fmt.Printf("  %s Dev server ready\n", orkutils.SuccessMark())
+			fmt.Printf("  %s Dev server ready\n", successMark())
 		}
 
 		// ── 7. Install Orkestra ──────────────────────────────────────────
@@ -366,7 +365,7 @@ func (r *Runner) Run(ctx context.Context) (*Result, error) {
 			}
 
 			if !cluster.RuntimeInstalled() {
-				sp := orkutils.StartSpinner("Installing Orkestra" + text)
+				sp := startSpinner("Installing Orkestra" + text)
 				if err := cluster.InstallOrUpgradeOrkestra(r.orkestraVersion, r.valueFiles, r.helmArgs...); err != nil {
 					sp.Failure()
 					return nil, fmt.Errorf("helm install: %w", err)
@@ -380,7 +379,7 @@ func (r *Runner) Run(ctx context.Context) (*Result, error) {
 				//    When values match the previous import the pod is not restarted.
 				// 2. SyncRuntime — restarts the pod so it loads the new bundle ConfigMap.
 				//    Without this, a values-identical upgrade leaves the old bundle in memory.
-				sp := orkutils.StartSpinner("Upgrading Orkestra" + text)
+				sp := startSpinner("Upgrading Orkestra" + text)
 				if err := cluster.InstallOrUpgradeOrkestra(r.orkestraVersion, r.valueFiles, r.helmArgs...); err != nil {
 					sp.Failure()
 					return nil, fmt.Errorf("helm upgrade: %w", err)
@@ -397,7 +396,7 @@ func (r *Runner) Run(ctx context.Context) (*Result, error) {
 							return nil, fmt.Errorf("syncing Orkestra gateway: %w", err)
 						}
 					} else {
-						sp := orkutils.StartSpinner("Upgrading Orkestra to enable gateway...")
+						sp := startSpinner("Upgrading Orkestra to enable gateway...")
 						if err := cluster.InstallOrUpgradeOrkestra(r.orkestraVersion, r.valueFiles, r.helmArgs...); err != nil {
 							sp.Failure()
 							return nil, fmt.Errorf("helm upgrade (gateway): %w", err)
@@ -460,7 +459,7 @@ func (r *Runner) Run(ctx context.Context) (*Result, error) {
 							return nil, fmt.Errorf("apply CR %s: %w\n%s", p, err, out)
 						}
 					}
-					fmt.Printf("  %s CR(s) applied\n\n", orkutils.SuccessMark())
+					fmt.Printf("  %s CR(s) applied\n\n", successMark())
 					crApplied = true
 				}
 
@@ -472,7 +471,7 @@ func (r *Runner) Run(ctx context.Context) (*Result, error) {
 							return nil, fmt.Errorf("delete CR %s: %w\n%s", p, err, out)
 						}
 					}
-					fmt.Printf("  %s CR(s) deleted\n\n", orkutils.SuccessMark())
+					fmt.Printf("  %s CR(s) deleted\n\n", successMark())
 					crDeleted = true
 				}
 
@@ -523,10 +522,10 @@ func (r *Runner) Run(ctx context.Context) (*Result, error) {
 			case skipped:
 				fmt.Printf("  ~ %s (skipped)\n", exp.Name)
 			case verifyErr != nil:
-				fmt.Printf("  %s %s (%s): %v\n", orkutils.FailureMark(), exp.Name, caseElapsed.Round(time.Millisecond), verifyErr)
+				fmt.Printf("  %s %s (%s): %v\n", failureMark(), exp.Name, caseElapsed.Round(time.Millisecond), verifyErr)
 				runOnFailure(ctx, exp.OnFailure, r.e2eDir, r.cs)
 			default:
-				fmt.Printf("  %s %s (%s)\n", orkutils.SuccessMark(), exp.Name, caseElapsed.Round(time.Millisecond))
+				fmt.Printf("  %s %s (%s)\n", successMark(), exp.Name, caseElapsed.Round(time.Millisecond))
 			}
 		}
 	}
@@ -543,7 +542,7 @@ func (r *Runner) Run(ctx context.Context) (*Result, error) {
 
 		for _, c := range cases {
 			if c.Passed {
-				fmt.Printf("  %s %-40s (%s)\n", orkutils.SuccessMark(), c.Name, c.Elapsed.Round(time.Millisecond))
+				fmt.Printf("  %s %-40s (%s)\n", successMark(), c.Name, c.Elapsed.Round(time.Millisecond))
 			}
 		}
 
@@ -556,7 +555,7 @@ func (r *Runner) Run(ctx context.Context) (*Result, error) {
 		if len(failures) > 0 {
 			fmt.Printf("\n")
 			for _, c := range failures {
-				fmt.Printf("  %s %-40s (%s)\n", orkutils.FailureMark(), c.Name, c.Elapsed.Round(time.Millisecond))
+				fmt.Printf("  %s %-40s (%s)\n", failureMark(), c.Name, c.Elapsed.Round(time.Millisecond))
 				if c.Err != nil {
 					for _, line := range strings.Split(strings.TrimSpace(c.Err.Error()), "\n") {
 						fmt.Printf("      %s\n", line)
@@ -618,7 +617,7 @@ func (r *Runner) Run(ctx context.Context) (*Result, error) {
 		if err := r.deleteCluster(ctx); err != nil {
 			fmt.Printf("  ! Could not delete cluster: %v\n", err)
 		} else {
-			fmt.Printf("  %s Cluster deleted\n", orkutils.SuccessMark())
+			fmt.Printf("  %s Cluster deleted\n", successMark())
 		}
 	}
 
@@ -636,7 +635,7 @@ func resolveGatewayEnabled(katalogFile string) (bool, error) {
 		Gateway *orktypes.GatewayConfig `yaml:"gateway,omitempty"`
 	}
 
-	data, err := os.ReadFile(katalogFile)
+	data, err := readLocal(katalogFile)
 	if err != nil {
 		return false, err
 	}
@@ -677,7 +676,7 @@ func (r *Runner) ensureCluster(ctx context.Context) error {
 		if out, err := exec.CommandContext(ctx, "kubectl", "config", "use-context", r.clusterCtx).CombinedOutput(); err != nil {
 			return fmt.Errorf("switching context: %w\n%s", err, out)
 		}
-		fmt.Printf("  %s Using context %s\n", orkutils.SuccessMark(), r.clusterCtx)
+		fmt.Printf("  %s Using context %s\n", successMark(), r.clusterCtx)
 		return nil
 	}
 
@@ -715,7 +714,7 @@ func (r *Runner) applyCRD(ctx context.Context) ([]string, error) {
 			}
 			applied = append(applied, path)
 		}
-		fmt.Printf("  %s CRD(s) applied\n", orkutils.SuccessMark())
+		fmt.Printf("  %s CRD(s) applied\n", successMark())
 		return applied, nil
 	}
 
@@ -731,7 +730,7 @@ func (r *Runner) applyCRD(ctx context.Context) ([]string, error) {
 			} `yaml:"crds"`
 		} `yaml:"spec"`
 	}
-	data, err := os.ReadFile(r.katalogFile)
+	data, err := readLocal(r.katalogFile)
 	if err != nil {
 		return nil, err
 	}
@@ -752,7 +751,7 @@ func (r *Runner) applyCRD(ctx context.Context) ([]string, error) {
 		if out, err := kubectl(ctx, "apply", "-f", path); err != nil {
 			fmt.Printf("  ! CRD apply failed (continuing): %v\n%s\n", err, out)
 		} else {
-			fmt.Printf("  %s CRD applied\n", orkutils.SuccessMark())
+			fmt.Printf("  %s CRD applied\n", successMark())
 			applied = append(applied, path)
 		}
 	}
@@ -815,7 +814,7 @@ func (r *Runner) generateBundle(ctx context.Context) (string, error) {
 		os.Remove(bundleFile.Name())
 		return "", fmt.Errorf("ork generate bundle: %w", err)
 	}
-	fmt.Printf("  %s Bundle generated\n", orkutils.SuccessMark())
+	fmt.Printf("  %s Bundle generated\n", successMark())
 	return bundleFile.Name(), nil
 }
 
@@ -838,7 +837,7 @@ func (r *Runner) pullOCIImports(_ context.Context) error {
 		if err := motif.PullImport(&imp); err != nil {
 			return fmt.Errorf("pulling motif %q: %w", imp.Motif, err)
 		}
-		fmt.Printf("  %s %s\n", orkutils.SuccessMark(), imp.Motif)
+		fmt.Printf("  %s %s\n", successMark(), imp.Motif)
 	}
 
 	client, err := registry.NewClient()
@@ -865,7 +864,7 @@ func (r *Runner) applySetup(ctx context.Context) ([]string, error) {
 		if out, err := kubectl(ctx, "apply", "-f", abs); err != nil {
 			return applied, fmt.Errorf("setup apply %s: %w\n%s", entry.Path, err, out)
 		}
-		fmt.Printf("  %s Applied\n", orkutils.SuccessMark())
+		fmt.Printf("  %s Applied\n", successMark())
 		applied = append(applied, abs)
 		for _, w := range entry.Wait {
 			if err := runSetupWait(ctx, w); err != nil {
@@ -884,7 +883,7 @@ func (r *Runner) applySetup(ctx context.Context) ([]string, error) {
 				h.ValueFiles[i] = r.abs(f)
 			}
 		}
-		sp := orkutils.StartSpinner(fmt.Sprintf("Installing %s...", h.ReleaseName()))
+		sp := startSpinner(fmt.Sprintf("Installing %s...", h.ReleaseName()))
 		if err := cluster.HelmInstall(ctx, h); err != nil {
 			sp.Failure()
 			return applied, fmt.Errorf("setup helm %s: %w", h.Chart, err)
@@ -912,7 +911,7 @@ func runSetupWait(ctx context.Context, w orktypes.SetupWait) error {
 	if w.Namespace != "" {
 		loc += " (" + w.Namespace + ")"
 	}
-	sp := orkutils.StartSpinner(fmt.Sprintf("Waiting for %s...", loc))
+	sp := startSpinner(fmt.Sprintf("Waiting for %s...", loc))
 	if err := cluster.WaitForResource(ctx, w); err != nil {
 		sp.Failure()
 		return err
@@ -992,7 +991,7 @@ func (r *Runner) teardown(ctx context.Context, crdPaths []string, bundlePath str
 		if out, err := cmd.CombinedOutput(); err != nil {
 			fmt.Printf("  ! helm uninstall failed: %v\n%s\n", err, out)
 		} else {
-			fmt.Printf("  %s Orkestra uninstalled\n", orkutils.SuccessMark())
+			fmt.Printf("  %s Orkestra uninstalled\n", successMark())
 		}
 	}
 
@@ -1006,7 +1005,7 @@ func (r *Runner) teardown(ctx context.Context, crdPaths []string, bundlePath str
 			if out, err := kubectl(ctx, "delete", "-f", bundlePath, "--ignore-not-found"); err != nil {
 				fmt.Printf("  ! bundle delete failed: %v\n%s\n", err, out)
 			} else {
-				fmt.Printf("  %s Bundle resources deleted\n", orkutils.SuccessMark())
+				fmt.Printf("  %s Bundle resources deleted\n", successMark())
 			}
 		}
 		os.Remove(bundlePath)
@@ -1021,7 +1020,7 @@ func (r *Runner) teardown(ctx context.Context, crdPaths []string, bundlePath str
 			if err := cluster.HelmUninstall(ctx, h); err != nil {
 				fmt.Printf("  ! setup helm uninstall failed (%s): %v\n", h.ReleaseName(), err)
 			} else {
-				fmt.Printf("  %s %s uninstalled\n", orkutils.SuccessMark(), h.ReleaseName())
+				fmt.Printf("  %s %s uninstalled\n", successMark(), h.ReleaseName())
 			}
 		}
 	}
@@ -1041,11 +1040,11 @@ func (r *Runner) teardown(ctx context.Context, crdPaths []string, bundlePath str
 		if out, err := kubectl(ctx, "delete", "-f", path, "--ignore-not-found"); err != nil {
 			fmt.Printf("  ! CRD delete failed (%s): %v\n%s\n", path, err, out)
 		} else {
-			fmt.Printf("  %s CRD deleted\n", orkutils.SuccessMark())
+			fmt.Printf("  %s CRD deleted\n", successMark())
 		}
 	}
 
-	fmt.Printf("  %s Cleanup complete\n", orkutils.SuccessMark())
+	fmt.Printf("  %s Cleanup complete\n", successMark())
 }
 
 // validateImports is a backstop that delegates to the exported ValidateImports.
@@ -1112,7 +1111,7 @@ func (r *Runner) runImports(ctx context.Context) []ImportResult {
 				if out, err := cmd.CombinedOutput(); err != nil {
 					fmt.Printf("  ! helm uninstall failed: %v\n%s\n", err, out)
 				} else {
-					fmt.Printf("  %s Orkestra uninstalled\n", orkutils.SuccessMark())
+					fmt.Printf("  %s Orkestra uninstalled\n", successMark())
 				}
 			}()
 		}
@@ -1124,7 +1123,7 @@ func (r *Runner) runImports(ctx context.Context) []ImportResult {
 		ir := ImportResult{Path: imp.Path}
 
 		if imp.Wait != "" {
-			d, _ := orkutils.ParseTimeDuration(imp.Wait) // already validated at load time
+			d, _ := parseTimeDuration(imp.Wait) // already validated at load time
 			fmt.Printf("→ Waiting %s before %s...\n", imp.Wait, filepath.Base(imp.Path))
 			time.Sleep(d)
 		}

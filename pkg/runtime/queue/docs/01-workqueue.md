@@ -39,9 +39,7 @@ check `item.GVK` against their own GVK and re-queue items that belong elsewhere.
 ```go
 func (q *Workqueue) Enqueue(obj interface{}, gvk string) {
     // Handle tombstone (deleted objects from informer cache)
-    if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
-        obj = tombstone.Obj
-    }
+	obj = domain.UnwrapCacheTombstone(obj)
 
     key, err := cache.MetaNamespaceKeyFunc(obj)
     if err != nil { ... return }

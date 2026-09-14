@@ -30,7 +30,7 @@ func OwnerNameIndexFunc(obj interface{}) ([]string, error) {
 }
 
 // StoreFor returns the informer store for the given GVK, or nil if no informer
-// is registered for that type. Used by kubeclient.ToClient to serve cached reads.
+// is registered for that type. Used by orkadapter.ToClient to serve cached reads.
 func (f *Factory) StoreFor(gvk schema.GroupVersionKind) cache.Store {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
@@ -79,7 +79,7 @@ func (f *Factory) For(obj runtime.Object, ctx context.Context, opts Options) cac
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	gvk, err := f.gvkFromObject(obj)
+	gvk, err := gvkFromObj(obj, f.scheme)
 	if err != nil {
 		return nil
 	}
@@ -95,7 +95,7 @@ func (f *Factory) ForListerWatcher(lw cache.ListerWatcher, obj runtime.Object, c
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	gvk, err := f.gvkFromObject(obj)
+	gvk, err := gvkFromObj(obj, f.scheme)
 	if err != nil {
 		return nil
 	}
@@ -133,20 +133,20 @@ func (f *Factory) getOrCreate(
 	inf.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			normalizeInformerObject(obj, gvk)
-			f.handleEvent(obj)
+			f.handleEvent(ctx, obj)
 		},
 		UpdateFunc: func(oldObj, newObj interface{}) {
 			normalizeInformerObject(newObj, gvk)
-			f.handleUpdateEvent(gvkStr, oldObj, newObj)
+			f.handleUpdate(ctx, gvkStr, oldObj, newObj)
 		},
 		DeleteFunc: func(obj interface{}) {
 			normalizeInformerObject(obj, gvk)
-			f.handleEvent(obj)
+			f.handleEvent(ctx, obj)
 		},
 	})
 
 	// Check if CRD exists
-	crdExists := f.crdExists(gvk)
+	crdExists := crdExists(gvk, f.restConfig)
 
 	entry := &InformerEntry{
 		Informer: inf,

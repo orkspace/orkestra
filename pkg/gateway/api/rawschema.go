@@ -77,7 +77,7 @@ func rawSchemaHandler(
 	kat *katalog.Katalog,
 ) http.HandlerFunc {
 	var notes orktypes.NoteRegistry
-	if !kat.IsEmpty() {
+	if !kat.Empty() {
 		notes = kat.UserNotes()
 	}
 	return func(w http.ResponseWriter, r *http.Request) {

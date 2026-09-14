@@ -33,6 +33,7 @@ import (
 	"github.com/orkspace/orkestra/pkg/gateway/certmanager"
 	"github.com/orkspace/orkestra/pkg/kubeclient"
 	"github.com/orkspace/orkestra/pkg/logger"
+	"github.com/orkspace/orkestra/pkg/resources/shared"
 	"github.com/orkspace/orkestra/pkg/secrets"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -68,8 +69,6 @@ func createTLSSecret(
 
 	annotations := GenerationAnnotations(rotateAfter)
 
-	controller := true
-	blockOwner := true
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        name,
@@ -79,16 +78,7 @@ func createTLSSecret(
 				"orkestra-owner":               owner.GetName(),
 				"app.kubernetes.io/managed-by": "orkestra",
 			},
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					APIVersion:         owner.GetObjectKind().GroupVersionKind().GroupVersion().String(),
-					Kind:               owner.GetObjectKind().GroupVersionKind().Kind,
-					Name:               owner.GetName(),
-					UID:                owner.GetUID(),
-					Controller:         &controller,
-					BlockOwnerDeletion: &blockOwner,
-				},
-			},
+			OwnerReferences: shared.ResolveOwnerReferences(owner),
 		},
 		Type: corev1.SecretTypeTLS,
 		Data: map[string][]byte{

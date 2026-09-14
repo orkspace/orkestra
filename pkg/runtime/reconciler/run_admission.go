@@ -5,7 +5,7 @@ import (
 
 	orkexternal "github.com/orkspace/orkestra/pkg/external"
 	"github.com/orkspace/orkestra/pkg/logger"
-	orktmpl "github.com/orkspace/orkestra/pkg/resources/template"
+	orktmpl "github.com/orkspace/orkestra/pkg/template"
 )
 
 // applyReconcileTimeValidation evaluates validation rules against the live CR.

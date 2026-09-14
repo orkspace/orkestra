@@ -267,7 +267,7 @@ func (g *GatewayConfig) HasWebhooks() bool {
 	if g.Webhooks == nil {
 		return false
 	}
-	return !g.Webhooks.IsEmpty()
+	return !g.Webhooks.Empty()
 }
 
 // HasClusters reports whether any remote clusters are registered.
@@ -379,8 +379,8 @@ func (a APIAuth) HasTokens() bool {
 	return len(a.Tokens) > 0
 }
 
-// IsEmpty reports whether the auth struct is completely unconfigured.
-func (a APIAuth) IsEmpty() bool {
+// Empty reports whether the auth struct is completely unconfigured.
+func (a APIAuth) Empty() bool {
 	return len(a.Tokens) == 0
 }
 
@@ -464,6 +464,22 @@ type KatalogFile struct {
 	//       auth:
 	//         mongoUri: "$MONGODB_URL"
 	Providers []KatalogProviderRequirement `yaml:"providers,omitempty"`
+}
+
+// LooksLikeKomposer reports if this document looks like a Komposer
+func (k *KatalogFile) LooksLikeKomposer() bool {
+	if k == nil {
+		return false
+	}
+	return k.Imports != nil && (len(k.Imports.Files) > 0 || len(k.Imports.Registry) > 0 || len(k.Imports.Helm) > 0)
+}
+
+// WithImportsOrSpecOverrides reports if this document should be a Komposer (has imports or inline CRDs)
+func (k *KatalogFile) WithImportsOrSpecOverrides() bool {
+	if k == nil {
+		return false
+	}
+	return k.Imports != nil || len(k.Spec.CRDs) > 0
 }
 
 // KatalogMeta holds identifying metadata for a Katalog.

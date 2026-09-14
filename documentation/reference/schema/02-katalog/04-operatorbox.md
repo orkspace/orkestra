@@ -50,6 +50,7 @@ operatorBox:
   when:
     ...               # → when-conditions.md
 
+  observe:            # → observe
   preReconcile:
     external:         # → preReconcile.external section below (shared calls)
       - ...
@@ -59,6 +60,7 @@ operatorBox:
       when:
         - ...
     reconcileGate:    # → preReconcile.reconcileGate section below
+      eventAware:
       external:
         - ...
       when:
@@ -355,6 +357,18 @@ Available resource types: `deployments`, `services`, `configmaps`, `secrets`, `j
 
 Templates are Go templates evaluated against the CR object. Use `{{ .Name }}`, `{{ .Namespace }}`, `{{ .Spec.* }}`, `{{ .Status.* }}`.
 
+## `observe`
+
+Declares the resources and Kubernetes Events Orkestra observes for changes that may trigger reconciliation.
+
+* **`watch`** — declares secondary Kubernetes resources to observe and the primary resources they can trigger.
+* **`events`** — declares Kubernetes Events to observe and the primary resources they can trigger.
+
+See the dedicated references for the full declaration syntax and field details:
+
+* [`watch`](27-watch.md)
+* [`events`](28-events.md)
+
 ## `preReconcile`
 
 Pre-reconcile gate conditions. Two sub-blocks control where in the pipeline the gate fires:
@@ -390,6 +404,20 @@ operatorBox:
           equals: "staging"
 ```
 
+### `preReconcile.sentinels`
+
+A list of sentinels available for use in this CRD preReconcile gates is declared here. Once declared, they can be used in enqueue and reconcile gates.
+
+```yaml
+operatorBox:
+  preReconcile:
+    sentinels:
+      - generationChanged
+      - labelsChanged
+      - annotationsChanged
+```
+
+
 ### `preReconcile.enqueueGate`
 
 Evaluated by the **informer** in `handleEvent` before the item enters the work queue. When the gate fires the object is silently dropped — it never reaches the kordinator or reconciler.
@@ -406,13 +434,24 @@ Evaluated by the **informer** in `handleEvent` before the item enters the work q
 
 Evaluated by the **kordinator** after the item is dequeued. When conditions fail, the item is discarded without calling the reconciler and the CRD reports health state `gated`.
 
-| Property | Behavior |
-|---|---|
-| **Phase** | After dequeue, before the reconciler runs |
-| **On gate** | Item dropped. No error. No status write. |
-| **Health state** | `gated` — idle, not degraded. Clears on next successful reconcile. |
-| **Resolver** | Full chain — CR fields, profiles, notes, serve intent, external results |
-| **On CR update** | Object re-enqueued; gate re-evaluated with new field values |
+| Property         | Behavior                                                                                                                                        |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Phase**        | After dequeue, before the reconciler runs                                                                                                       |
+| **On gate**      | Item dropped. No error. No status write.                                                                                                        |
+| **Health state** | `gated` — idle, not degraded. Clears on next successful reconcile.                                                                              |
+| **Resolver**     | Full chain — CR fields, profiles, notes, serve intent, external results                                                                         |
+| **On CR update** | Object is re-enqueued; gate is re-evaluated against the current object state                                                                    |
+| **Sentinels**    | May reference event-time sentinel values declared by `preReconcile.sentinels`                                                                   |
+| **`eventAware`** | When `true`, preserves individual event identity through the queue so the gate is evaluated against the sentinel context of that specific event |
+| **Default**      | `false` — normal workqueue coalescing applies                                                                                                   |
+
+!!! tip "Event-aware reconciliation"
+    `eventAware: true` is an explicit opt-in for event-preserving reconcile-gate evaluation. Without it, multiple updates for the same object may be coalesced by the workqueue before reconciliation, so sentinel conditions are evaluated using the sentinel context associated with the surviving queued item. With `eventAware: true`, each admitted event receives a distinct queue identity and retains its own sentinel context through dequeue and gate evaluation.
+
+!!! note "Additional Note"
+    `eventAware` applies to the **entire `reconcileGate` evaluation**, including `when`, `or`, `external`, and sentinel conditions. It does not mean that the reconciler receives a historical copy of the object; reconciliation still operates on the current object state.
+    Use when event-specific gate evaluation is required and the **additional reconcile cycles are acceptable**.
+
 
 ### `preReconcile.external`
 

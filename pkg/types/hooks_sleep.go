@@ -12,7 +12,7 @@ import (
 type SleepEntry struct {
 	Phase        string // "onCreate", "onReconcile", "onDelete"
 	Resource     string // e.g., "Deployment", "Service", "Job"
-	ResourceName string // template name field if available (may be empty)
+	ResourceName string // template name field if available (may be Empty()
 	Duration     string // raw duration string as written in the katalog
 }
 

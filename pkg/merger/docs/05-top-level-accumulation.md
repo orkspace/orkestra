@@ -4,7 +4,7 @@ When a Komposer references multiple source Katalogs, each source may declare its
 
 ## The problem without accumulation
 
-`loadKatalog` sets `m.security`, `m.notification`, and `m.providers` as side-effects when it loads each source Katalog. Without accumulation, the last source loaded overwrites all earlier ones. The Komposer's own (possibly empty) block then further overwrites whatever the last source set.
+`loadKatalog` sets `m.security`, `m.notification`, and `m.providers` as side-effects when it loads each source Katalog. Without accumulation, the last source loaded overwrites all earlier ones. The Komposer's own (possibly Empty() block then further overwrites whatever the last source set.
 
 Result: the Komposer appears to have no security or providers, even though its sources declare them.
 
@@ -57,5 +57,5 @@ if len(doc.Providers) > 0 {
 ### `providers` — append + replace
 
 - All source providers are appended into `accProviders`.
-- If the Komposer declares its own `providers:` list (non-empty), that list replaces `accProviders` entirely.
+- If the Komposer declares its own `providers:` list (non-Empty(), that list replaces `accProviders` entirely.
 - Rationale: a Komposer that declares providers explicitly knows exactly what it needs; one that doesn't should inherit whatever its imports require.

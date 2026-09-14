@@ -2,12 +2,10 @@ package e2e
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
 	orktypes "github.com/orkspace/orkestra/pkg/types"
-	orkutils "github.com/orkspace/orkestra/pkg/utils"
 	"gopkg.in/yaml.v3"
 )
 
@@ -21,7 +19,7 @@ func ValidateImports(baseDir string, imports []orktypes.E2EImport) []error {
 		if !filepath.IsAbs(path) {
 			path = filepath.Join(baseDir, path)
 		}
-		data, err := os.ReadFile(path)
+		data, err := readLocal(path)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("%s: %w", imp.Path, err))
 			continue
@@ -37,7 +35,7 @@ func ValidateImports(baseDir string, imports []orktypes.E2EImport) []error {
 			errs = append(errs, fmt.Errorf("%s: expected kind E2E, got %q", imp.Path, head.Kind))
 		}
 		if imp.Wait != "" {
-			if _, err := orkutils.ParseTimeDuration(imp.Wait); err != nil {
+			if _, err := parseTimeDuration(imp.Wait); err != nil {
 				errs = append(errs, fmt.Errorf("%s: wait %q is not a valid duration: %w", imp.Path, imp.Wait, err))
 			}
 		}
@@ -59,7 +57,7 @@ func ExpandExpectIncludes(expects []orktypes.E2EExpectation, baseDir string) ([]
 		if !filepath.IsAbs(path) {
 			path = filepath.Join(baseDir, path)
 		}
-		data, err := os.ReadFile(path)
+		data, err := readLocal(path)
 		if err != nil {
 			return nil, fmt.Errorf("include %s: %w", exp.Include, err)
 		}

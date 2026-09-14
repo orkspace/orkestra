@@ -253,7 +253,7 @@ operatorBox:
     default: false   # GenericReconciler is replaced; constructor owns everything
 ```
 
-`reconciler.default: false` is the one field change. Your constructor receives `kubeclient.Interface` — Orkestra's single interface for informer, kube calls, events, and args. If you are migrating from controller-runtime, `kubeclient.ToClient(kube)` returns a `client.Client` so your existing `Reconcile` body compiles unchanged. `domain.ReconcilerFrom` adapts the `ctrl.Request` signature.
+`reconciler.default: false` is the one field change. Your constructor receives `kubeclient.Interface` — Orkestra's single interface for informer, kube calls, events, and args. If you are migrating from controller-runtime, `orkadapter.ToClient(kube)` returns a `client.Client` so your existing `Reconcile` body compiles unchanged. `domain.ReconcilerFrom` adapts the `ctrl.Request` signature.
 
 Declarative templates (`onCreate`, `onReconcile`, `status.fields`) are not applied when `reconciler.default: false` — the constructor is responsible for all state.
 

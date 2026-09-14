@@ -5,7 +5,7 @@ package types
 // profiles and to enforce mutual exclusivity with explicit hard limits.
 type ResourceQuotaProfileEntry struct {
 	Phase        string // "onCreate", "onReconcile", "onDelete"
-	ResourceName string // ResourceQuota name template (may be empty)
+	ResourceName string // ResourceQuota name template (may be Empty()
 	Profile      string // raw profile name as written in the katalog
 	Mixed        bool   // true when profile is set alongside an explicit hard map
 }

@@ -5,7 +5,6 @@ package cli
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/orkspace/orkestra/pkg/katalog"
@@ -62,7 +61,7 @@ func runPlan(ctx context.Context, localPath, cmName, namespace string) error {
 	}
 
 	// Read local Katalog
-	localData, err := os.ReadFile(localPath)
+	localData, err := readLocal(localPath)
 	if err != nil {
 		return fmt.Errorf("reading %s: %w", localPath, err)
 	}
@@ -70,7 +69,7 @@ func runPlan(ctx context.Context, localPath, cmName, namespace string) error {
 	// If --cm ends with .yaml or .yml, treat it as a local file instead of a cluster name.
 	var deployedData string
 	if strings.HasSuffix(cmName, ".yaml") || strings.HasSuffix(cmName, ".yml") {
-		raw, rerr := os.ReadFile(cmName)
+		raw, rerr := readLocal(cmName)
 		if rerr != nil {
 			return fmt.Errorf("reading ConfigMap file %s: %w", cmName, rerr)
 		}
@@ -131,12 +130,12 @@ func runPlan(ctx context.Context, localPath, cmName, namespace string) error {
 }
 
 func runPlanFromBundle(localPath, bundlePath string) error {
-	localData, err := os.ReadFile(localPath)
+	localData, err := readLocal(localPath)
 	if err != nil {
 		return fmt.Errorf("reading %s: %w", localPath, err)
 	}
 
-	bundleData, err := os.ReadFile(bundlePath)
+	bundleData, err := readLocal(bundlePath)
 	if err != nil {
 		return fmt.Errorf("reading bundle %s: %w", bundlePath, err)
 	}

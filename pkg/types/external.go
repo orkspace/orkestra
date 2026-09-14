@@ -86,7 +86,7 @@ type ExternalAuth struct {
 	// SecretRef reads the credential from a Kubernetes Secret.
 	// Namespace defaults to the operator's own namespace if omitted.
 	// Read via the API server watch cache — no etcd round-trip.
-	SecretRef *ExternalSecretRef `yaml:"secretRef,omitempty" json:"secretRef,omitempty"`
+	SecretRef *APISecretRef `yaml:"secretRef,omitempty" json:"secretRef,omitempty"`
 
 	// Env reads the credential from a pod environment variable.
 	// Value is the variable name without $: env: MY_TOKEN reads $MY_TOKEN.
@@ -99,7 +99,7 @@ type ExternalAuth struct {
 	Header string `yaml:"header,omitempty" json:"header,omitempty"`
 }
 
-// ExternalSecretRef locates a Kubernetes Secret that holds a credential.
+// Deprecated ExternalSecretRef locates a Kubernetes Secret that holds a credential.
 type ExternalSecretRef struct {
 	// Name is the Secret name.
 	Name string `yaml:"name" json:"name"`
@@ -115,7 +115,7 @@ type ExternalCallSpec struct {
 	//   name: health-check → {{ .external.health-check.status }}
 	Name string `yaml:"name" json:"name"`
 
-	// Protocol identifies the wire protocol. Default (empty): HTTP.
+	// Protocol identifies the wire protocol. Default (Empty(): HTTP.
 	//   protocol: prometheus
 	//   protocol: redis
 	//   protocol: postgres
@@ -221,4 +221,9 @@ type ExternalCallResult struct {
 	// Additional values for metrics
 	StatusCode      int     `json:"statusCode" yaml:"statusCode"`
 	DurationSeconds float64 `json:"durationSeconds" yaml:"durationSeconds"`
+}
+
+// hasSecreRef is a generic helper that
+func (e *ExternalCallSpec) HasSecretRef() bool {
+	return e.Auth != nil && e.Auth.SecretRef != nil
 }

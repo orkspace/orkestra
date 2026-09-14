@@ -21,7 +21,6 @@ import (
 	"github.com/orkspace/orkestra/pkg/konfig"
 	"github.com/orkspace/orkestra/pkg/logger"
 	orktypes "github.com/orkspace/orkestra/pkg/types"
-	"github.com/orkspace/orkestra/pkg/utils"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/cli"
@@ -250,7 +249,7 @@ func renderAndExtract(src orktypes.HelmSource, chartPath string) (map[string]ork
 		}
 
 		if strings.HasPrefix(resolved, "http") {
-			data, err := utils.LoadFile(resolved)
+			data, err := loadFile(resolved)
 			if err != nil {
 				return nil, fmt.Errorf("fetching remote values %q: %w", resolved, err)
 			}

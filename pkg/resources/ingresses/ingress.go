@@ -12,13 +12,11 @@ import (
 	"github.com/orkspace/orkestra/pkg/kubeclient"
 	"github.com/orkspace/orkestra/pkg/labels"
 	"github.com/orkspace/orkestra/pkg/logger"
-	"github.com/orkspace/orkestra/pkg/resources/common"
+	"github.com/orkspace/orkestra/pkg/resources/shared"
 	orktypes "github.com/orkspace/orkestra/pkg/types"
-	"github.com/orkspace/orkestra/pkg/utils"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 )
 
@@ -29,8 +27,8 @@ func Create(ctx context.Context, kube kubeclient.Interface, owner domain.Object,
 		return fmt.Errorf("ingress.Create: invalid spec: %w", err)
 	}
 
-	namespace := common.ResolveNamespace(owner, spec.Namespace)
-	if err := common.SleepIfNeeded(spec.Sleep); err != nil {
+	namespace := shared.ResolveNamespace(owner, spec.Namespace)
+	if err := shared.SleepIfNeeded(spec.Sleep); err != nil {
 		return err
 	}
 
@@ -69,8 +67,8 @@ func Apply(ctx context.Context, kube kubeclient.Interface, owner domain.Object, 
 		return fmt.Errorf("ingress.Apply: invalid spec: %w", err)
 	}
 
-	namespace := common.ResolveNamespace(owner, spec.Namespace)
-	if err := common.SleepIfNeeded(spec.Sleep); err != nil {
+	namespace := shared.ResolveNamespace(owner, spec.Namespace)
+	if err := shared.SleepIfNeeded(spec.Sleep); err != nil {
 		return err
 	}
 
@@ -84,7 +82,7 @@ func Apply(ctx context.Context, kube kubeclient.Interface, owner domain.Object, 
 
 	if _, err = kube.Clientset().NetworkingV1().Ingresses(namespace).Patch(
 		ctx, spec.Name, k8stypes.ApplyPatchType, body,
-		metav1.PatchOptions{FieldManager: konfig.FieldManagerRuntime, Force: utils.BoolPtr(true)},
+		metav1.PatchOptions{FieldManager: konfig.FieldManagerRuntime, Force: shared.ResolveForceConflict(kube, spec.ForceConflict)},
 	); err != nil {
 		return fmt.Errorf("ingress.Apply: %w", err)
 	}
@@ -105,8 +103,8 @@ func Update(ctx context.Context, kube kubeclient.Interface, owner domain.Object,
 
 // Delete deletes the Ingress if it exists.
 func Delete(ctx context.Context, kube kubeclient.Interface, owner domain.Object, spec ResolvedIngressSpec) error {
-	namespace := common.ResolveNamespace(owner, spec.Namespace)
-	if err := common.SleepIfNeeded(spec.Sleep); err != nil {
+	namespace := shared.ResolveNamespace(owner, spec.Namespace)
+	if err := shared.SleepIfNeeded(spec.Sleep); err != nil {
 		return err
 	}
 
@@ -154,16 +152,17 @@ func DeleteIfOwned(ctx context.Context, kube kubeclient.Interface,
 // All template expressions must be evaluated before calling here.
 func Resolve(src orktypes.IngressTemplateSource, ownerName string) ResolvedIngressSpec {
 	spec := ResolvedIngressSpec{
-		Name:         src.Name,
-		Namespace:    src.Namespace,
-		Host:         src.Host,
-		ServiceName:  src.ServiceName,
-		Path:         src.Path,
-		PathType:     src.PathType,
-		IngressClass: src.IngressClass,
-		Labels:       make(map[string]string),
-		Annotations:  make(map[string]string),
-		Sleep:        src.Sleep,
+		Name:          src.Name,
+		Namespace:     src.Namespace,
+		Host:          src.Host,
+		ServiceName:   src.ServiceName,
+		Path:          src.Path,
+		PathType:      src.PathType,
+		IngressClass:  src.IngressClass,
+		Labels:        make(map[string]string),
+		Annotations:   make(map[string]string),
+		Sleep:         src.Sleep,
+		ForceConflict: src.ForceConflict,
 	}
 
 	if spec.Name == "" {
@@ -211,16 +210,6 @@ func Resolve(src orktypes.IngressTemplateSource, ownerName string) ResolvedIngre
 
 func buildIngress(owner domain.Object, spec ResolvedIngressSpec, namespace string) *networkingv1.Ingress {
 	spec.Labels = labels.StampOrkestraLabels(spec.Labels, owner.GetName(), owner.GetAnnotations())
-	apiVersion := ""
-	kind := ""
-	if u, ok := owner.(*unstructured.Unstructured); ok {
-		apiVersion = u.GetAPIVersion()
-		kind = u.GetKind()
-	} else {
-		gvk := owner.GetObjectKind().GroupVersionKind()
-		apiVersion = gvk.GroupVersion().String()
-		kind = gvk.Kind
-	}
 
 	pathType := networkingv1.PathTypePrefix
 	switch spec.PathType {
@@ -232,20 +221,11 @@ func buildIngress(owner domain.Object, spec ResolvedIngressSpec, namespace strin
 
 	ing := &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        spec.Name,
-			Namespace:   namespace,
-			Labels:      spec.Labels,
-			Annotations: spec.Annotations,
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					APIVersion:         apiVersion,
-					Kind:               kind,
-					Name:               owner.GetName(),
-					UID:                owner.GetUID(),
-					Controller:         utils.BoolPtr(true),
-					BlockOwnerDeletion: utils.BoolPtr(true),
-				},
-			},
+			Name:            spec.Name,
+			Namespace:       namespace,
+			Labels:          spec.Labels,
+			Annotations:     spec.Annotations,
+			OwnerReferences: shared.ResolveOwnerReferences(owner),
 		},
 		Spec: networkingv1.IngressSpec{
 			Rules: []networkingv1.IngressRule{

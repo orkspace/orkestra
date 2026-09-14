@@ -137,7 +137,7 @@ func DiscoverSimulateFiles(root string, skip []string) ([]string, error) {
 
 // isSimulatePureAggregator returns true when the file has imports but no spec.
 func isSimulatePureAggregator(path string) bool {
-	data, err := os.ReadFile(path)
+	data, err := readLocal(path)
 	if err != nil {
 		return false
 	}
@@ -155,7 +155,7 @@ func isSimulatePureAggregator(path string) bool {
 
 // isPureAggregatorFile reads the file and returns true if it has imports but no spec.
 func isPureAggregatorFile(path string) bool {
-	data, err := os.ReadFile(path)
+	data, err := readLocal(path)
 	if err != nil {
 		return false
 	}

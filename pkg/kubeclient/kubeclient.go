@@ -65,7 +65,10 @@ type Kubeclient struct {
 	FakeClientset kubernetes.Interface
 }
 
-func (k *Kubeclient) Mapper() meta.RESTMapper {
+// Compile check — *Kubeclient must satisfy this.
+var _ Interface = (*Kubeclient)(nil)
+
+func (k *Kubeclient) RESTMapper() meta.RESTMapper {
 	return k.mapper
 }
 
@@ -310,4 +313,29 @@ func (k *Kubeclient) WithIndexerFor(fn func(schema.GroupVersionKind) cache.Index
 // GetIndexerFor returns the indexer-lookup closure, or nil if none was attached.
 func (k *Kubeclient) GetIndexerFor() func(schema.GroupVersionKind) cache.Indexer {
 	return k.indexerFor
+}
+
+// WithForceConflict returns a copy of this Interface with the CRD-level
+// force-conflict attached.
+func (k *Kubeclient) WithForceConflict(forceConflict *bool) Interface {
+	cp := *k
+	info := k.Info
+	if info == nil {
+		info = &CRDInfo{}
+	} else {
+		// Make a copy to avoid mutating the original
+		copyInfo := *info
+		info = &copyInfo
+	}
+	info.ForceConflict = forceConflict
+	cp.Info = info
+	return &cp
+}
+
+// ForceConflict returns the CRD-level force-conflict setting.
+func (k *Kubeclient) ForceConflict() *bool {
+	if k == nil || k.Info == nil {
+		return nil
+	}
+	return k.Info.ForceConflict
 }

@@ -11,9 +11,8 @@ import (
 	"github.com/orkspace/orkestra/pkg/kubeclient"
 	"github.com/orkspace/orkestra/pkg/labels"
 	"github.com/orkspace/orkestra/pkg/logger"
-	"github.com/orkspace/orkestra/pkg/resources/common"
+	"github.com/orkspace/orkestra/pkg/resources/shared"
 	orktypes "github.com/orkspace/orkestra/pkg/types"
-	"github.com/orkspace/orkestra/pkg/utils"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,6 +31,11 @@ type ResolvedRoleBindingSpec struct {
 	// Useful for autoscale testing, latency simulation, and chaos engineering.
 	// Accepts extended duration units (s, m, h, d, w, mo, y).
 	Sleep string
+
+	// ForceConflict, when true, sets Force: true when applying this resource,
+	// taking ownership of conflicting fields instead of returning a conflict error.
+	// Overrides the CRD-level ForceConflict setting.
+	ForceConflict *bool
 }
 
 // Create creates a RoleBinding if it does not already exist.
@@ -42,8 +46,8 @@ func Create(ctx context.Context, kube kubeclient.Interface, owner domain.Object,
 		return fmt.Errorf("rolebinding.Create: invalid spec: %w", err)
 	}
 
-	namespace := common.ResolveNamespace(owner, spec.Namespace)
-	if err := common.SleepIfNeeded(spec.Sleep); err != nil {
+	namespace := shared.ResolveNamespace(owner, spec.Namespace)
+	if err := shared.SleepIfNeeded(spec.Sleep); err != nil {
 		return err
 	}
 
@@ -79,8 +83,8 @@ func Create(ctx context.Context, kube kubeclient.Interface, owner domain.Object,
 // RoleRef is immutable — if SSA is rejected due to a changed roleRef,
 // the binding is deleted and recreated.
 func Apply(ctx context.Context, kube kubeclient.Interface, owner domain.Object, spec ResolvedRoleBindingSpec) error {
-	namespace := common.ResolveNamespace(owner, spec.Namespace)
-	if err := common.SleepIfNeeded(spec.Sleep); err != nil {
+	namespace := shared.ResolveNamespace(owner, spec.Namespace)
+	if err := shared.SleepIfNeeded(spec.Sleep); err != nil {
 		return err
 	}
 
@@ -94,7 +98,7 @@ func Apply(ctx context.Context, kube kubeclient.Interface, owner domain.Object, 
 
 	if _, err = kube.Clientset().RbacV1().RoleBindings(namespace).Patch(
 		ctx, spec.Name, k8stypes.ApplyPatchType, body,
-		metav1.PatchOptions{FieldManager: konfig.FieldManagerRuntime, Force: utils.BoolPtr(true)},
+		metav1.PatchOptions{FieldManager: konfig.FieldManagerRuntime, Force: shared.ResolveForceConflict(kube, spec.ForceConflict)},
 	); err != nil {
 		if errors.IsInvalid(err) {
 			// roleRef is immutable — delete and recreate.
@@ -123,8 +127,8 @@ func Update(ctx context.Context, kube kubeclient.Interface, owner domain.Object,
 
 // Delete deletes the RoleBinding if it exists.
 func Delete(ctx context.Context, kube kubeclient.Interface, owner domain.Object, spec ResolvedRoleBindingSpec) error {
-	namespace := common.ResolveNamespace(owner, spec.Namespace)
-	if err := common.SleepIfNeeded(spec.Sleep); err != nil {
+	namespace := shared.ResolveNamespace(owner, spec.Namespace)
+	if err := shared.SleepIfNeeded(spec.Sleep); err != nil {
 		return err
 	}
 
@@ -170,10 +174,11 @@ func DeleteIfOwned(ctx context.Context, kube kubeclient.Interface,
 // Template expressions must already be evaluated by template.Resolver before calling.
 func Resolve(src orktypes.RoleBindingTemplateSource, ownerName string) ResolvedRoleBindingSpec {
 	spec := ResolvedRoleBindingSpec{
-		Name:      src.Name,
-		Namespace: src.Namespace,
-		Labels:    make(map[string]string),
-		Sleep:     src.Sleep,
+		Name:          src.Name,
+		Namespace:     src.Namespace,
+		Labels:        make(map[string]string),
+		Sleep:         src.Sleep,
+		ForceConflict: src.ForceConflict,
 	}
 
 	if spec.Name == "" {
@@ -211,19 +216,10 @@ func buildRoleBinding(owner domain.Object, spec ResolvedRoleBindingSpec, namespa
 	spec.Labels = labels.StampOrkestraLabels(spec.Labels, owner.GetName(), owner.GetAnnotations())
 	return &rbacv1.RoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      spec.Name,
-			Namespace: namespace,
-			Labels:    spec.Labels,
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					APIVersion:         owner.GetObjectKind().GroupVersionKind().GroupVersion().String(),
-					Kind:               owner.GetObjectKind().GroupVersionKind().Kind,
-					Name:               owner.GetName(),
-					UID:                owner.GetUID(),
-					Controller:         utils.BoolPtr(true),
-					BlockOwnerDeletion: utils.BoolPtr(true),
-				},
-			},
+			Name:            spec.Name,
+			Namespace:       namespace,
+			Labels:          spec.Labels,
+			OwnerReferences: shared.ResolveOwnerReferences(owner),
 		},
 		RoleRef:  spec.RoleRef,
 		Subjects: spec.Subjects,

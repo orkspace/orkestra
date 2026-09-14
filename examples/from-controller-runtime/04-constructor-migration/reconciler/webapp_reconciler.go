@@ -13,7 +13,7 @@
 //  2. Scheme is gone — Orkestra handles scheme registration.
 //
 //  3. NewWebAppReconciler is added — two lines wire the reconciler into Orkestra:
-//     kubeclient.ToClient wraps Orkestra's interface as a client.Client,
+//     orkadapter.ToClient wraps Orkestra's interface as a client.Client,
 //     domain.ReconcilerFrom adapts the ctrl.Request signature.
 //
 // Everything else — struct, Reconcile signature, reconcileDeployment,
@@ -37,6 +37,7 @@ import (
 	demov1alpha1 "github.com/orkspace/from-controller-runtime-demo/api/v1alpha1"
 	"github.com/orkspace/orkestra/domain"
 	"github.com/orkspace/orkestra/pkg/kubeclient"
+	orkadapter "github.com/orkspace/orkestra/pkg/kubeclient/adapter"
 )
 
 // WebAppReconciler reconciles a WebApp object.
@@ -50,7 +51,7 @@ type WebAppReconciler struct {
 // Two lines replace all of main.go, scheme registration, and SetupWithManager.
 func NewWebAppReconciler(kube kubeclient.Interface) domain.Reconciler {
 	return domain.ReconcilerFrom(&WebAppReconciler{
-		Client: kubeclient.ToClient(kube),
+		Client: orkadapter.ToClient(kube),
 	})
 }
 

@@ -58,7 +58,7 @@ Four layers run before any bytes are sent to the registry:
 |-------|----------------|
 | `ValidateArtifactDirectory` | Required files present (`katalog.yaml`, `crd.yaml`) |
 | `merger.New().Merge()` | Katalog YAML parses correctly; sources resolve |
-| `katalog.ValidateConfig` | Full semantic validation: field types, GVK uniqueness, dependency graph |
+| `katalog.Validate` | Full semantic validation: field types, GVK uniqueness, dependency graph |
 | `validateCRDFile` | YAML parses; `kind: CustomResourceDefinition`; `spec.group` and `spec.names.kind` present |
 
 ### Publishing a pattern

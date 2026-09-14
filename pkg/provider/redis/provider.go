@@ -22,7 +22,7 @@
 // Auth keys (providers[].auth block):
 //
 //	addr     — server address as host:port (default: localhost:6379)
-//	password — server password / default user password (default: empty)
+//	password — server password / default user password (default: Empty()
 //	db       — logical database index (default: 0)
 //	tls      — "true" to enable TLS (default: false)
 //

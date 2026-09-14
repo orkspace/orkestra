@@ -37,7 +37,7 @@ import (
 
 	"github.com/orkspace/orkestra/pkg/logger"
 	"github.com/orkspace/orkestra/pkg/metrics"
-	orktmpl "github.com/orkspace/orkestra/pkg/resources/template"
+	orktmpl "github.com/orkspace/orkestra/pkg/template"
 	orktypes "github.com/orkspace/orkestra/pkg/types"
 )
 

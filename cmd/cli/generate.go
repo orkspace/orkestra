@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/orkspace/orkestra/pkg/katalog"
+	"github.com/orkspace/orkestra/pkg/katalog/pipeline"
 	"github.com/orkspace/orkestra/pkg/merger"
 	"github.com/orkspace/orkestra/pkg/tools/generate"
 	orktypes "github.com/orkspace/orkestra/pkg/types"
@@ -97,7 +98,7 @@ func parseFilePaths(paths []string) []string {
 
 // rejectCRDFile returns an error if any CRD used a local crdFile shortcut.
 // Pass k.WithCRDFiles() as names and k.Enabled() as resolved — both available
-// after katalog.BuildExpanded, which records crdFile names before clearing the field.
+// after pipeline.BuildExpanded, which records crdFile names before clearing the field.
 func rejectCRDFile(names []string, resolved map[string]orktypes.CRDEntry) error {
 	for _, name := range names {
 		crd := resolved[name]
@@ -188,7 +189,7 @@ func buildKatalog(cmd *cobra.Command) (*katalog.Katalog, error) {
 	if err != nil {
 		return nil, fmt.Errorf("generating Katalog: %w", err)
 	}
-	return katalog.BuildExpanded(kfg, m.m)
+	return pipeline.BuildExpanded(kfg, m.m)
 }
 
 // buildKatalogFromPath builds an expanded Katalog from a file path without
@@ -198,7 +199,7 @@ func buildKatalogFromPath(path string) (*katalog.Katalog, error) {
 	if err := m.Merge(); err != nil {
 		return nil, fmt.Errorf("merging katalog: %w", err)
 	}
-	return katalog.BuildExpanded(kfg, m)
+	return pipeline.BuildExpanded(kfg, m)
 }
 
 var generateDashboardsCmd = &cobra.Command{
@@ -272,7 +273,7 @@ Examples:
 		namespace, _ := cmd.Flags().GetString("namespace")
 		outputFile, _ := cmd.Flags().GetString("output")
 
-		k, err := katalog.BuildExpanded(kfg, out.m)
+		k, err := pipeline.BuildExpanded(kfg, out.m)
 		if err != nil {
 			return fmt.Errorf("build katalog: %w", err)
 		}
@@ -325,7 +326,7 @@ Example:
 		namespace, _ := cmd.Flags().GetString("namespace")
 		outputFile, _ := cmd.Flags().GetString("output")
 
-		k, err := katalog.BuildExpanded(kfg, out.m)
+		k, err := pipeline.BuildExpanded(kfg, out.m)
 		if err != nil {
 			return fmt.Errorf("build katalog: %w", err)
 		}
@@ -376,7 +377,7 @@ Examples:
 		workloadNamespace, _ := cmd.Flags().GetString("workload-namespace")
 		outputFile, _ := cmd.Flags().GetString("output")
 
-		k, err := katalog.BuildExpanded(kfg, out.m)
+		k, err := pipeline.BuildExpanded(kfg, out.m)
 		if err != nil {
 			return fmt.Errorf("build katalog: %w", err)
 		}

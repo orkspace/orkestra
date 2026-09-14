@@ -98,7 +98,7 @@ func Expand(m *orktypes.Motif, bindings map[string]string) (*ExpandedMotif, erro
 		}
 		filterExpandedResources(&mr.HookTemplates)
 		inline := mr.HookTemplates
-		if !inline.IsEmpty() {
+		if !inline.Empty() {
 			onReconcile = &inline
 		}
 	}

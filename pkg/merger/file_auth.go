@@ -13,7 +13,7 @@ import (
 // loadImportFileWithAuth loads a Katalog import file with optional authentication.
 // Imports must be Katalogs — a Komposer cannot import another Komposer.
 func (m *Merger) loadImportFileWithAuth(komposerPath, importPath string, auth *utils.FileAuth) (map[string]orktypes.CRDEntry, error) {
-	data, err := utils.LoadFileWithAuth(importPath, auth)
+	data, err := loadFileWithAuth(importPath, auth)
 	if err != nil {
 		return nil, fmt.Errorf("reading %q: %w", importPath, err)
 	}

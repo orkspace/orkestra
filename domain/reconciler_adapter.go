@@ -19,7 +19,7 @@ import (
 //
 //	func NewMyReconciler(kube kubeclient.Interface) domain.Reconciler {
 //	    return domain.ReconcilerFrom(&MyReconciler{
-//	        client: kubeclient.ToClient(kube),
+//	        Client: orkadapter.ToClient(kube),
 //	    })
 //	}
 func ReconcilerFrom(r reconcile.Reconciler) Reconciler {

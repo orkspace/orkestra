@@ -46,32 +46,30 @@ package types
 // YAML:
 //
 //   cross:
-//     - crd: managed-database          # name-based (existing path)
+//     - crd: managed-database          # name-based
 //       selector:
 //         name: "{{ .metadata.name }}-db"
 //       as: db
 //
-//     - labelSelector:                  # label-based (new path)
+//     - labelSelector:                  # label-based — keys the registry by CRD-entry labelSelector
 //         tier: platform
 //       selector:
 //         name: "{{ .metadata.name }}-platform"
 //       as: platform
 //
-// The reconciler checks CrossSelector.LabelSelector first. If non-empty,
-// it calls ReadCrossFromInformerByLabel. Otherwise it uses the crd name
-// to look up the informer and calls ReadCrossFromInformer with the
-// resolved namespace/name key.
+// Step 1 finds the informer: IsCRDBased uses crd name, IsLabelBased uses labelSelector to key
+// the registry. Step 2 finds the CR: matchLabels filters instances, then labelSelector fallback,
+// then name for precision.
 
 // CrossCRDDeclaration declares one cross-CRD observation.
 // Declared in the operatorBox config under cross: for a CRD.
 type CrossCRDDeclaration struct {
-	// Crd is the target CRD name (lowercase, matches the map key in spec.crds).
+	// CRD is the target CRD name (lowercase, matches the map key in spec.crds).
 	//   crd: database
-	Crd string `yaml:"crd" json:"crd"`
+	CRD string `yaml:"crd" json:"crd"`
 
-	// LabelSelector is a label key/value pair for label-based informer lookup.
-	// Mutually exclusive with Kind.
-	LabelSelector map[string]string `yaml:"labelSelector,omitempty" json:"labelSelector,omitempty"`
+	// LabelSelector keys the katalog registry by CRD-entry labelSelector for label-based informer lookup.
+	LabelSelector Labels `yaml:"labelSelector,omitempty" json:"labelSelector,omitempty"`
 
 	// Selector identifies which CR instance to observe.
 	Selector CrossSelector `yaml:"selector" json:"selector"`
@@ -84,12 +82,65 @@ type CrossCRDDeclaration struct {
 	// Strategy controls what happens when multiple CRs match the selector.
 	//   first (default) — use the first match
 	//   all             — put all matches in .cross.<as>[] (array)
+	// NOT YET IMPLEMENTED
 	Strategy string `yaml:"strategy,omitempty" json:"strategy,omitempty"`
 
 	// Source is the fallback for cross-binary or cross-cluster observation.
 	// When absent, the informer cache is used (zero API calls).
 	// When set, the endpoint is called when the informer is unavailable.
 	Source *CrossSource `yaml:"source,omitempty" json:"source,omitempty"`
+}
+
+func (d *CrossCRDDeclaration) Empty() bool {
+	return d == nil
+}
+
+// HasSource reports whether this cross declaration has source: block
+func (d *CrossCRDDeclaration) HasSource() bool {
+	if d.Empty() {
+		return false
+	}
+	return d.Source != nil
+}
+
+// HasSelector reports whether this cross declaration has selector: block
+func (d *CrossCRDDeclaration) HasSelector() bool {
+	if d.Empty() {
+		return false
+	}
+
+	sel := d.Selector
+	if !sel.MatchLabels.Empty() {
+		return true
+	}
+	return sel.IsNameBased()
+}
+
+// IsLabelBased reports whether this cross declaration uses labels
+// for cross referencing instead of the CRD.
+func (d *CrossCRDDeclaration) IsLabelBased() bool {
+	if d.Empty() {
+		return false
+	}
+	return d.LabelSelector != nil
+}
+
+// IsCRDBased reports whether this cross declaration uses CRD
+// for cross referencing instead of the labels.
+func (d *CrossCRDDeclaration) IsCRDBased() bool {
+	if d.Empty() {
+		return false
+	}
+	return d.CRD != ""
+}
+
+// HasCRDAndLabelDecl reports whether this cross declaration uses has both CRD and labels.
+// An error enforced by ork validate
+func (d *CrossCRDDeclaration) HasCRDAndLabelDecl() bool {
+	if d.Empty() {
+		return false
+	}
+	return d.IsCRDBased() && d.IsLabelBased()
 }
 
 // CrossSelector identifies a CR in the target CRD.
@@ -104,10 +155,20 @@ type CrossSelector struct {
 	// Default: same namespace as the current CR.
 	Namespace string `yaml:"namespace,omitempty" json:"namespace,omitempty"`
 
-	// LabelSelector selects CRs by label — for 1:N or N:1 relationships.
-	//   labelSelector: "tenant={{ .spec.tenant }},env={{ .spec.environment }}"
+	// matchLabels selects CRs by label — for 1:N or N:1 relationships.
+	//   matchLabels:
+	// 		tenant: {{ .spec.tenant }}
+	// 		env: {{ .spec.environment }}
 	// When set, Name and Namespace are ignored.
-	LabelSelector string `yaml:"labelSelector,omitempty" json:"labelSelector,omitempty"`
+	MatchLabels Labels `yaml:"matchLabels,omitempty" json:"matchLabels,omitempty"`
+}
+
+// IsNameBased is true when matchLabels is not defined but name/namespace
+func (sel CrossSelector) IsNameBased() bool {
+	if !sel.MatchLabels.Empty() {
+		return false
+	}
+	return sel.Name != ""
 }
 
 // CrossSource declares how to fetch cross-binary/cluster data for a CRD.
@@ -124,12 +185,8 @@ type CrossSelector struct {
 // i.e., the Orkestra CR detail endpoint format.
 // Namespace is optional; defaults to the CR's namespace when omitted.
 type CrossSource struct {
-	// // CRD short name (e.g. "loader", "processor", "managed-database").
-	// // Required when Host is used.
-	// CRD string `yaml:"crd,omitempty" json:"crd,omitempty"`
-
 	// Endpoint is a fully-qualified URL. If set, Orkestra uses it directly
-	// and ignores Host/Type/Namespace. Template expressions supported.
+	// and ignores Host/Protocol/Namespace. Template expressions supported.
 	Endpoint string `yaml:"endpoint,omitempty" json:"endpoint,omitempty"`
 
 	// Host is the base URL of a remote Orkestra runtime, e.g.:
@@ -137,19 +194,111 @@ type CrossSource struct {
 	// Combined with Type to build the final URL.
 	Host string `yaml:"host,omitempty" json:"host,omitempty"`
 
-	// Type selects which Orkestra-native endpoint to call.
+	// Protocol selects which Orkestra-native endpoint to call.
 	// One of: "info", "metrics", "health", "events".
 	// Default: "info".
-	Type ONCOPType `yaml:"type,omitempty" json:"type,omitempty"`
+	Protocol ONCOProtocol `yaml:"protocol,omitempty" json:"protocol,omitempty"`
 
 	// Namespace overrides the CR namespace when building info/events URLs.
 	// Optional — defaults to the CR's own namespace.
 	Namespace string `yaml:"namespace,omitempty" json:"namespace,omitempty"`
 
-	// Token is a bearer token for the endpoint. $ENV_VAR syntax supported.
-	Token string `yaml:"token,omitempty" json:"token,omitempty"`
+	// Auth handles both ENV-based token and secret reads for cross: authentication
+	// 	auth:
+	// 	  secretRef:
+	// 		name: cross-secret
+	// 		namespace: cross-namespace
+	// 		key: password
+	Auth *Auth `yaml:"auth,omitempty" json:"auth,omitempty"`
 
 	// CacheFor controls how long to cache the result before calling again.
 	// Default: 30s — prevents hammering the endpoint on every evaluation.
 	CacheFor string `yaml:"cacheFor,omitempty" json:"cacheFor,omitempty"`
+}
+
+// Auth is the authentication envelop for handling both ENV-based token and secret reads for cross: authentication
+type Auth struct {
+	// Token is a bearer token for the endpoint. $ENV_VAR syntax supported.
+	Token string `yaml:"token,omitempty" json:"token,omitempty"`
+
+	// SecretRef locates a Kubernetes Secret whose data key holds a bearer token
+	// Mutually exclusive with Token. ork validate enforces this
+	SecretRef *APISecretRef `yaml:"secretRef,omitempty" json:"secretRef,omitempty"`
+}
+
+// HasEndpoint reports whether this cross read has endpoint configured
+// for non-orkestra surfaces (operators, APIs)
+func (s *CrossSource) HasEndpoint() bool {
+	if s == nil {
+		return false
+	}
+	return s.Host != ""
+}
+
+// HasHost reports whether this cross read has host configured for ONCOP reads
+func (s *CrossSource) HasHost() bool {
+	if s == nil {
+		return false
+	}
+	return s.Host != ""
+}
+
+// HasAuth reports whether this cross read has authentication configured
+func (s *CrossSource) HasAuth() bool {
+	if s == nil {
+		return false
+	}
+	return s.Auth != nil
+}
+
+// Token returns the cross token as configured
+func (s *CrossSource) Token() string {
+	if !s.HasAuth() {
+		return ""
+	}
+	return s.Auth.Token
+}
+
+// HasToken reports whether token was configured for this CRD
+func (s *CrossSource) HasToken() bool {
+	if !s.HasAuth() {
+		return false
+	}
+	return s.Auth.Token != ""
+}
+
+// HasTokenAndSecretRef reports whether SecretRef was configured for this CRD
+func (s *CrossSource) HasTokenAndSecretRef() bool {
+	if !s.HasAuth() {
+		return false
+	}
+	return s.Auth.SecretRef != nil && s.Auth.Token != ""
+}
+
+// HasSecretRef reports whether SecretRef was configured for this CRD
+func (s *CrossSource) HasSecretRef() bool {
+	if !s.HasAuth() {
+		return false
+	}
+	return s.Auth.SecretRef != nil
+}
+func (c *CRDEntry) HasCrossSecretRef() bool {
+	if !c.HasCrossDecl() {
+		return false
+	}
+	if c.OperatorBox.Empty() {
+		return false
+	}
+	for _, cr := range c.OperatorBox.Cross {
+		if cr.HasAnySecretRef() {
+			return true
+		}
+	}
+	return false
+}
+func (c *CrossCRDDeclaration) HasAnySecretRef() bool {
+	if !c.HasSource() {
+		return false
+	}
+	return c.Source.HasSecretRef()
 }

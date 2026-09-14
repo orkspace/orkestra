@@ -13,7 +13,6 @@ Type notes inspect and convert the runtime Go types of values in the CR. Because
 | `typeNumber` | Shorthand predicates — return `true` when the value matches that type. |
 | `typeBool` | Shorthand predicates — return `true` when the value matches that type. |
 | `typeNull` | Shorthand predicates — return `true` when the value matches that type. |
-| `isEmpty` | Return `true` when the value is nil, an empty string, an empty slice, or an empty map. |
 | `len` | Return the length of a string, slice, or map. |
 | `toInt` | Convert any value to `int64`. |
 | `toFloat` | Convert any value to `float64`. |
@@ -40,6 +39,10 @@ normalize:
 # value: "{{ typeList .spec.regions }}"
 # spec.regions: [us-east-1, eu-west-1] → true
 # spec.regions: "us-east-1"           → false
+# value: "{{ Empty .spec.annotations }}"
+# {}          → true
+# nil         → true
+# {app: foo}  → false
 
 # typeList
 normalize:
@@ -53,6 +56,10 @@ normalize:
 # value: "{{ typeList .spec.regions }}"
 # spec.regions: [us-east-1, eu-west-1] → true
 # spec.regions: "us-east-1"           → false
+# value: "{{ Empty .spec.annotations }}"
+# {}          → true
+# nil         → true
+# {app: foo}  → false
 
 # typeString
 normalize:
@@ -66,6 +73,10 @@ normalize:
 # value: "{{ typeList .spec.regions }}"
 # spec.regions: [us-east-1, eu-west-1] → true
 # spec.regions: "us-east-1"           → false
+# value: "{{ Empty .spec.annotations }}"
+# {}          → true
+# nil         → true
+# {app: foo}  → false
 
 # typeNumber
 normalize:
@@ -79,6 +90,10 @@ normalize:
 # value: "{{ typeList .spec.regions }}"
 # spec.regions: [us-east-1, eu-west-1] → true
 # spec.regions: "us-east-1"           → false
+# value: "{{ Empty .spec.annotations }}"
+# {}          → true
+# nil         → true
+# {app: foo}  → false
 
 # typeBool
 normalize:
@@ -92,6 +107,10 @@ normalize:
 # value: "{{ typeList .spec.regions }}"
 # spec.regions: [us-east-1, eu-west-1] → true
 # spec.regions: "us-east-1"           → false
+# value: "{{ Empty .spec.annotations }}"
+# {}          → true
+# nil         → true
+# {app: foo}  → false
 
 # typeNull
 normalize:
@@ -105,9 +124,7 @@ normalize:
 # value: "{{ typeList .spec.regions }}"
 # spec.regions: [us-east-1, eu-west-1] → true
 # spec.regions: "us-east-1"           → false
-
-# isEmpty
-# value: "{{ isEmpty .spec.annotations }}"
+# value: "{{ Empty .spec.annotations }}"
 # {}          → true
 # nil         → true
 # {app: foo}  → false

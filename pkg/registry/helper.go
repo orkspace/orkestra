@@ -2,7 +2,6 @@ package registry
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -11,6 +10,7 @@ import (
 )
 
 // Helpers
+var readLocal = utils.ReadLocal
 
 // ToString returns the underlying string value.
 func (k PatternKind) ToString() string {
@@ -50,7 +50,7 @@ func ExtractTagVersion(ref string) string {
 // uses WriteFileAndFormat so the file is formatted after the change.
 func PersistMetadataVersion(dir, primaryFile, newVersion string) error {
 	path := filepath.Join(dir, primaryFile)
-	data, err := os.ReadFile(path)
+	data, err := readLocal(path)
 	if err != nil {
 		return fmt.Errorf("reading %s: %w", primaryFile, err)
 	}
@@ -77,4 +77,21 @@ func PersistMetadataVersion(dir, primaryFile, newVersion string) error {
 		return fmt.Errorf("writing/formatting %s: %w", primaryFile, err)
 	}
 	return nil
+}
+
+// IsFilePath reports whether ref is a local file reference.
+func IsFilePath(ref string) bool {
+	if strings.HasPrefix(ref, "./") || strings.HasPrefix(ref, "/") || strings.HasPrefix(ref, "../") {
+		return true
+	}
+	return strings.HasSuffix(ref, ".yaml") || strings.HasSuffix(ref, ".yml")
+}
+
+// CleanOCIRef returns a clean raw OCI
+func CleanOCIRef(input string) string {
+	if !IsOCIRef(input) {
+		return ""
+	}
+	input = strings.TrimPrefix(input, "oci://")
+	return strings.TrimSuffix(input, "/")
 }

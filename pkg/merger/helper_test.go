@@ -2,7 +2,6 @@
 package merger
 
 import (
-	"os"
 	"testing"
 
 	orktypes "github.com/orkspace/orkestra/pkg/types"
@@ -148,42 +147,5 @@ func TestCheckDuplicate_DifferentSource_Error(t *testing.T) {
 	err := checkDuplicate(seen, "website", "source-b.yaml")
 	if err == nil {
 		t.Error("different source must return duplicate error")
-	}
-}
-
-// ── resolveEnvVar ─────────────────────────────────────────────────────────────
-
-func TestResolveEnvVar_NoPrefix_ReturnAsIs(t *testing.T) {
-	val, err := resolveEnvVar("plain-value")
-	if err != nil || val != "plain-value" {
-		t.Errorf("no $ prefix must return value unchanged: %q %v", val, err)
-	}
-}
-
-func TestResolveEnvVar_SetVar_ReturnsValue(t *testing.T) {
-	os.Setenv("MERGER_TEST_VAR", "hello-merger")
-	defer os.Unsetenv("MERGER_TEST_VAR")
-
-	val, err := resolveEnvVar("$MERGER_TEST_VAR")
-	if err != nil || val != "hello-merger" {
-		t.Errorf("expected hello-merger, got %q err=%v", val, err)
-	}
-}
-
-func TestResolveEnvVar_UnsetVar_Error(t *testing.T) {
-	os.Unsetenv("MERGER_DEFINITELY_NOT_SET")
-	_, err := resolveEnvVar("$MERGER_DEFINITELY_NOT_SET")
-	if err == nil {
-		t.Error("unset env var must return error")
-	}
-}
-
-func TestResolveEnvVar_EmptyVar_Error(t *testing.T) {
-	os.Setenv("MERGER_EMPTY_VAR", "")
-	defer os.Unsetenv("MERGER_EMPTY_VAR")
-
-	_, err := resolveEnvVar("$MERGER_EMPTY_VAR")
-	if err == nil {
-		t.Error("empty env var must return error")
 	}
 }

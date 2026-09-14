@@ -115,7 +115,7 @@ func runTokenVerifyLocal(cmd *cobra.Command, jwt, audienceOverride, tokenFile st
 		return fmt.Errorf("%s %w", failureMark(), err)
 	}
 
-	if !k.IsGatewayEnabled() || !k.Gateway.HasAPI() || k.Gateway.API.Auth.IsEmpty() {
+	if !k.IsGatewayEnabled() || !k.Gateway.HasAPI() || k.Gateway.API.Auth.Empty() {
 		return fmt.Errorf("%s no gateway token auth configured in this katalog", failureMark())
 	}
 
@@ -217,7 +217,7 @@ Example:
 			return fmt.Errorf("%s %w", failureMark(), err)
 		}
 
-		if !k.IsGatewayEnabled() || !k.Gateway.HasAPI() || k.Gateway.API.Auth.IsEmpty() {
+		if !k.IsGatewayEnabled() || !k.Gateway.HasAPI() || k.Gateway.API.Auth.Empty() {
 			return fmt.Errorf("%s no gateway token auth configured in this katalog", failureMark())
 		}
 
@@ -334,7 +334,7 @@ Example:
 			return fmt.Errorf("%s %w", failureMark(), err)
 		}
 
-		if !k.IsGatewayEnabled() || !k.Gateway.HasAPI() || k.Gateway.API.Auth.IsEmpty() {
+		if !k.IsGatewayEnabled() || !k.Gateway.HasAPI() || k.Gateway.API.Auth.Empty() {
 			fmt.Printf("\n  %s no gateway token auth configured\n\n", dim("—"))
 			return nil
 		}
@@ -476,7 +476,7 @@ func allowSummaryMap(m map[string]string) string {
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 func readTokenFile(path string) (string, error) {
-	data, err := os.ReadFile(path)
+	data, err := readLocal(path)
 	if err != nil {
 		return "", err
 	}

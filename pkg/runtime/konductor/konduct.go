@@ -162,7 +162,7 @@ func (ko *KonductorElection) callbacks() leaderelection.LeaderCallbacks {
 				)
 			}
 
-			// Run the actual controller
+			// Run the actual kordinator
 			// With a cancellable context - useful for OnStoppedLeading
 			runCtx, cancel := context.WithCancel(ctx)
 			ko.runCancel = cancel

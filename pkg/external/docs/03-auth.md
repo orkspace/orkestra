@@ -33,7 +33,7 @@ auth:
   env: "$MY_API_TOKEN"
 ```
 
-`ExpandEnv` is called — `$VAR` and `${VAR}` syntax both work. An empty expansion (variable not set or empty) is treated as an error, not a missing credential.
+`ExpandEnv` is called — `$VAR` and `${VAR}` syntax both work. An empty expansion (variable not set or Empty() is treated as an error, not a missing credential.
 
 Use `secretRef` in production. `env` is intended for local development and CI where injecting secrets as environment variables is simpler than managing Kubernetes Secrets.
 

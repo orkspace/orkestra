@@ -182,7 +182,7 @@ spec:
         name: my-app-eu-west
 ```
 
-`preReconcile` gates are evaluated in simulation. A `reconcileGate` that blocks (e.g. `len .spec.regions != 0` when regions is empty) will cause the simulate cycle to produce no ops — use `expect.crds` with `steady: false` to assert the gate fired rather than asserting specific resources.
+`preReconcile` gates are evaluated in simulation. A `reconcileGate` that blocks (e.g. `len .spec.regions != 0` when regions is Empty() will cause the simulate cycle to produce no ops — use `expect.crds` with `steady: false` to assert the gate fired rather than asserting specific resources.
 
 ---
 

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/orkspace/orkestra/pkg/utils"
 	"gopkg.in/yaml.v3"
 )
 
@@ -76,7 +75,7 @@ func (s *SetupConfig) UnmarshalYAML(value *yaml.Node) error {
 	if err != nil {
 		return err
 	}
-	return utils.StrictUnmarshal(raw, (*plain)(s))
+	return strictUnmarshal(raw, (*plain)(s))
 }
 
 // SetupApplyEntry is a single manifest to kubectl-apply during setup.
@@ -111,7 +110,7 @@ func (e *SetupApplyEntry) UnmarshalYAML(value *yaml.Node) error {
 	if err != nil {
 		return err
 	}
-	return utils.StrictUnmarshal(raw, (*plain)(e))
+	return strictUnmarshal(raw, (*plain)(e))
 }
 
 // SetupHelmInstall installs a Helm chart as a real release into the cluster.

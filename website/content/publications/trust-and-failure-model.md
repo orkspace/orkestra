@@ -1,6 +1,6 @@
 ---
 title: "Trust and Failure Model"
-date: 2026-05-25
+date: 2026-05-29
 weight: 2
 ---
 

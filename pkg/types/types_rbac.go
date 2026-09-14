@@ -112,6 +112,11 @@ type RoleTemplateSource struct {
 	// Useful for autoscale testing, latency simulation, and chaos engineering.
 	// Accepts extended duration units (s, m, h, d, w, mo, y).
 	Sleep string `json:"sleep,omitempty" yaml:"sleep,omitempty"`
+
+	// ForceConflict, when true, sets Force: true when applying this resource,
+	// taking ownership of conflicting fields instead of returning a conflict error.
+	// Overrides the CRD-level ForceConflict setting.
+	ForceConflict *bool `yaml:"forceConflict,omitempty" json:"forceConflict,omitempty"`
 }
 
 // RoleBindingTemplateSource declares one RoleBinding to be managed by Orkestra.
@@ -208,6 +213,11 @@ type RoleBindingTemplateSource struct {
 	// Useful for autoscale testing, latency simulation, and chaos engineering.
 	// Accepts extended duration units (s, m, h, d, w, mo, y).
 	Sleep string `json:"sleep,omitempty" yaml:"sleep,omitempty"`
+
+	// ForceConflict, when true, sets Force: true when applying this resource,
+	// taking ownership of conflicting fields instead of returning a conflict error.
+	// Overrides the CRD-level ForceConflict setting.
+	ForceConflict *bool `yaml:"forceConflict,omitempty" json:"forceConflict,omitempty"`
 }
 
 // ── ClusterRole / ClusterRoleBinding ─────────────────────────────────────────
@@ -293,6 +303,11 @@ type ClusterRoleTemplateSource struct {
 	// Useful for autoscale testing, latency simulation, and chaos engineering.
 	// Accepts extended duration units (s, m, h, d, w, mo, y).
 	Sleep string `json:"sleep,omitempty" yaml:"sleep,omitempty"`
+
+	// ForceConflict, when true, sets Force: true when applying this resource,
+	// taking ownership of conflicting fields instead of returning a conflict error.
+	// Overrides the CRD-level ForceConflict setting.
+	ForceConflict *bool `yaml:"forceConflict,omitempty" json:"forceConflict,omitempty"`
 }
 
 // ClusterRoleBindingTemplateSource declares one cluster-scoped ClusterRoleBinding to be managed by Orkestra.
@@ -387,4 +402,9 @@ type ClusterRoleBindingTemplateSource struct {
 	// Useful for autoscale testing, latency simulation, and chaos engineering.
 	// Accepts extended duration units (s, m, h, d, w, mo, y).
 	Sleep string `json:"sleep,omitempty" yaml:"sleep,omitempty"`
+
+	// ForceConflict, when true, sets Force: true when applying this resource,
+	// taking ownership of conflicting fields instead of returning a conflict error.
+	// Overrides the CRD-level ForceConflict setting.
+	ForceConflict *bool `yaml:"forceConflict,omitempty" json:"forceConflict,omitempty"`
 }

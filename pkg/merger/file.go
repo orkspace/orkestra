@@ -9,7 +9,6 @@ import (
 	"github.com/orkspace/orkestra/pkg/konfig"
 	"github.com/orkspace/orkestra/pkg/logger"
 	orktypes "github.com/orkspace/orkestra/pkg/types"
-	"github.com/orkspace/orkestra/pkg/utils"
 )
 
 // ── Merge rules ───────────────────────────────────────────────────────────────
@@ -40,7 +39,7 @@ import (
 // loadKatalogFile parses one file and dispatches to the correct loader
 // based on its kind. Returns the deduplicated CRD map for this file tree.
 func (m *Merger) loadKatalogFile(path string) (map[string]orktypes.CRDEntry, error) {
-	data, err := utils.LoadFile(path)
+	data, err := loadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("reading %q: %w", path, err)
 	}
@@ -75,7 +74,7 @@ func (m *Merger) loadKatalogFile(path string) (map[string]orktypes.CRDEntry, err
 // Map keys are the CRD names; Name is injected from the key.
 func (m *Merger) loadKatalog(path string, doc *orktypes.KatalogFile) (map[string]orktypes.CRDEntry, error) {
 	// Guard — imports in a Katalog is a mistake
-	if doc.Imports != nil && (len(doc.Imports.Files) > 0 || len(doc.Imports.Helm) > 0) {
+	if doc.LooksLikeKomposer() {
 		return nil, fmt.Errorf(
 			"%q: kind Katalog cannot declare imports — "+
 				"use kind: Komposer to compose multiple Katalogs",
@@ -215,7 +214,7 @@ func (m *Merger) loadKatalog(path string, doc *orktypes.KatalogFile) (map[string
 
 // loadKomposer resolves imports from a Komposer file and merges all CRDs.
 func (m *Merger) loadKomposer(path string, doc *orktypes.KatalogFile) (map[string]orktypes.CRDEntry, error) {
-	if doc.Imports == nil && len(doc.Spec.CRDs) == 0 {
+	if !doc.WithImportsOrSpecOverrides() {
 		logger.Warn().
 			Str("path", path).
 			Msg("merger: Komposer has no imports and no inline CRDs — nothing to load")
@@ -225,10 +224,10 @@ func (m *Merger) loadKomposer(path string, doc *orktypes.KatalogFile) (map[strin
 	localSeen := map[string]string{}
 	allCRDs := make(map[string]orktypes.CRDEntry)
 
-	// accSecurity, accNotification, accProviders, and accProfiles accumulate top-level
+	// accSecurity, accNotification, accProviders, accNotes, and accProfiles accumulate top-level
 	// settings from all imported Katalogs. Each import that calls loadKatalog sets these
 	// as side-effects on m; we capture and merge here so they are not discarded
-	// when the Komposer's own (possibly empty) block is applied at the end.
+	// when the Komposer's own (possibly Empty() block is applied at the end.
 	var accSecurity orktypes.KatalogSecurity
 	var accNotification *orktypes.KatalogNotification
 	var accProviders []orktypes.KatalogProviderRequirement

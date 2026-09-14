@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 )
@@ -80,48 +81,35 @@ type Factory struct {
 	// Checked in handleEvent before enqueue — read lock only on the hot path.
 	namespaceFilters map[string]*NamespaceFilter
 
-	// enqueueFilters maps GVK string to a pre-enqueue condition gate function.
-	// Populated by RegisterEnqueueFilter during CRD registration.
-	// enqueueAllowed unwraps tombstones and asserts to domain.Object before
-	// calling the function — works for both dynamic and typed CRDs.
-	enqueueFilters map[string]func(domain.Object) bool
-
-	// updateFilters maps GVK string to a sentinel-aware update config.
-	// The factory computes sentinels from declared names at event time and
-	// calls gate to decide whether to enqueue. Splitting the two means
-	// runtime_konstructor.go only passes configuration; computation stays here.
-	updateFilters map[string]*updateFilterCfg
+	// katalog is the domain.Katalog with useful interface methods for the informer
+	katalog domain.Katalog
+	cs      kubernetes.Interface
 }
 
-// updateFilterCfg holds the configuration registered for a sentinel-aware GVK.
-// declared is captured at startup; gate is evaluated at event time with the
-// already-computed sentinel values so the closure never needs to call sentinel.Compute.
-type updateFilterCfg struct {
-	declared []string
-	gate     func(newObj domain.Object, sentinels map[string]string) bool
+type FactoryOptions struct {
+	Provider      ClientProvider
+	QueueRegistry *queue.QueueRegistry
+	DefaultWq     *queue.Workqueue
+	Scheme        *runtime.Scheme
+	Konfig        *konfig.Konfig
+	Katalog       domain.Katalog
+	ClientSet     kubernetes.Interface
 }
 
-func SharedInformerFactory(
-	cp ClientProvider,
-	restConfig *rest.Config,
-	queueRegistry *queue.QueueRegistry,
-	defaultWq *queue.Workqueue,
-	scheme *runtime.Scheme,
-	kfg *konfig.Konfig,
-) *Factory {
+func SharedInformerFactory(restConfig *rest.Config, opts FactoryOptions) *Factory {
 	return &Factory{
-		clientProvider:   cp,
+		clientProvider:   opts.Provider,
 		restConfig:       restConfig,
-		queueRegistry:    queueRegistry,
-		defaultWq:        defaultWq,
-		namespace:        kfg.Cluster().Namespace(),
-		scheme:           scheme,
-		defaultResync:    kfg.Katalog().DefaultResync(),
+		queueRegistry:    opts.QueueRegistry,
+		defaultWq:        opts.DefaultWq,
+		namespace:        opts.Konfig.Cluster().Namespace(),
+		scheme:           opts.Scheme,
+		defaultResync:    opts.Konfig.Katalog().DefaultResync(),
+		katalog:          opts.Katalog,
+		cs:               opts.ClientSet,
 		informers:        make(map[string]*InformerEntry),
 		missing:          make(map[string]*InformerEntry),
 		ready:            make(chan struct{}),
 		namespaceFilters: make(map[string]*NamespaceFilter),
-		enqueueFilters:   make(map[string]func(domain.Object) bool),
-		updateFilters:    make(map[string]*updateFilterCfg),
 	}
 }

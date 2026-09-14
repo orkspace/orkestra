@@ -56,7 +56,7 @@ when:
 | [01-strings.md](01-strings.md) | `toLower` `toUpper` `trimSpace` `trim` `trimPrefix` `trimSuffix` `hasPrefix` `hasSuffix` `contains` `replace` `split` `join` `repeat` `camelToKebab` `truncate` |
 | [02-math.md](02-math.md) | `add` `sub` `mul` `div` `mod` `min` `max` `clamp` `abs` |
 | [03-conditional.md](03-conditional.md) | `ternary` `boolTernary` `boolDefault` `default` `coalesce` `empty` `notEmpty` |
-| [04-types.md](04-types.md) | `typeOf` `typeMap` `typeList` `typeString` `typeNumber` `typeBool` `typeNull` `isEmpty` `len` `toInt` `toFloat` `toBool` `toString` |
+| [04-types.md](04-types.md) | `typeOf` `typeMap` `typeList` `typeString` `typeNumber` `typeBool` `typeNull` `Empty` `len` `toInt` `toFloat` `toBool` `toString` |
 | [05-cron.md](05-cron.md) | `cronExpr` `cronFromMap` `cronNormalize` `cronDescribe` `cronValid` `cronMinute` `cronHour` `cronDom` `cronMonth` `cronDow` `cronField` |
 | [06-random.md](06-random.md) | `randomAlphanumeric` `randomHex` `randomBase64` |
 | [07-collections.md](07-collections.md) | `listHas` `listGet` `listLen` `mapGet` `mapKeys` `mapValues` `asList` `asMap` `asString` |

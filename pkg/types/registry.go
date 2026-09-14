@@ -204,7 +204,7 @@ func (r RegistrySource) IsOCI() bool {
 //
 // Returns (cleanURL, version).
 // cleanURL is the URL without scheme or @ suffix.
-// version is the resolved version string (never empty).
+// version is the resolved version string (never Empty().
 func (r RegistrySource) ResolvedURL() (cleanURL, version string) {
 	url := strings.TrimSpace(r.URL)
 	url = strings.TrimPrefix(url, "oci://")

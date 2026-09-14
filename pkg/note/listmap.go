@@ -1,6 +1,9 @@
 package note
 
-import "text/template"
+import (
+	"sort"
+	"text/template"
+)
 
 // listMapNotes registers list/map manipulation helpers.
 //
@@ -89,6 +92,7 @@ func noteMapKeys(m interface{}) []string {
 	for k := range mp {
 		keys = append(keys, k)
 	}
+	sort.Strings(keys)
 	return keys
 }
 

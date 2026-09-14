@@ -5,7 +5,6 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/orkspace/orkestra/pkg/gateway/api/intake"
@@ -79,7 +78,7 @@ Examples:
 		if err != nil {
 			return err
 		}
-		if !k.IsGatewayAPIEnabled() || k.Gateway.Webhooks.IsEmpty() {
+		if !k.IsGatewayAPIEnabled() || k.Gateway.Webhooks.Empty() {
 			return fmt.Errorf("%s no gateway.webhooks entries configured", failureMark())
 		}
 
@@ -199,7 +198,7 @@ func playGitPushWebhook(k *katalog.Katalog, source, webhookName, eventFile strin
 		return err
 	}
 
-	data, err := os.ReadFile(eventFile)
+	data, err := readLocal(eventFile)
 	if err != nil {
 		return fmt.Errorf("%s reading event file %q: %w", failureMark(), eventFile, err)
 	}
@@ -255,7 +254,7 @@ func playGitPushWebhook(k *katalog.Katalog, source, webhookName, eventFile strin
 			)))
 			continue
 		}
-		content, err := os.ReadFile(localFile)
+		content, err := readLocal(localFile)
 		if err != nil {
 			printStageError(fmt.Sprintf("reading override file %q: %v", localFile, err))
 			continue

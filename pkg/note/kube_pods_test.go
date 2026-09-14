@@ -51,7 +51,7 @@ func TestNotePodNames(t *testing.T) {
 			want: "web-abc",
 		},
 		{
-			name: "no pods (enrichment empty)",
+			name: "no pods (enrichment Empty()",
 			obj:  enrichedDeployment(nil),
 			want: "",
 		},

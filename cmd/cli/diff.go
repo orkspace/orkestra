@@ -4,7 +4,6 @@ package cli
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -19,12 +18,12 @@ var diffCmd = &cobra.Command{
 		file2 := args[1]
 		verbose, _ := cmd.Flags().GetBool("verbose")
 
-		a, err := os.ReadFile(file1)
+		a, err := readLocal(file1)
 		if err != nil {
 			return fmt.Errorf("reading %s: %w", file1, err)
 		}
 
-		b, err := os.ReadFile(file2)
+		b, err := readLocal(file2)
 		if err != nil {
 			return fmt.Errorf("reading %s: %w", file2, err)
 		}

@@ -6,7 +6,7 @@ metadata:
   version: 0.1.0
   description: >
     WebApp operator — reconciler written in controller-runtime style.
-    The constructor wraps it with domain.ReconcilerFrom and kubeclient.ToClient
+    The constructor wraps it with domain.ReconcilerFrom and orkadapter.ToClient
     so it plugs into Orkestra without rewriting the reconciler body.
 
 spec:
@@ -34,13 +34,16 @@ spec:
               - name: metadata.labels.app
                 field: "metadata.labels.app"
 
+        preReconcile:
+          reconcileGate:
+            eventAware: true
         reconciler:
           default: false
           constructor:
             location: github.com/orkspace/orkestra-ctrlruntime-constructor/constructor
             function: NewWebAppReconciler
             alias: webappconstructor
-            resources:
+            managedResources:
               - kind: Deployment
           workers: 2
           resync: 30s

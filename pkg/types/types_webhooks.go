@@ -106,8 +106,8 @@ type GenericWebhookConfig struct {
 
 // ── GatewayWebhookConfig methods ──────────────────────────────────────────
 
-// IsEmpty reports whether no webhook sources are declared at all.
-func (w *GatewayWebhookConfig) IsEmpty() bool {
+// Empty reports whether no webhook sources are declared at all.
+func (w *GatewayWebhookConfig) Empty() bool {
 	if w == nil {
 		return true
 	}

@@ -18,6 +18,7 @@ import (
 	"github.com/orkspace/orkestra/pkg/gateway/api/intake"
 	"github.com/orkspace/orkestra/pkg/health"
 	"github.com/orkspace/orkestra/pkg/katalog"
+	"github.com/orkspace/orkestra/pkg/katalog/pipeline"
 	"github.com/orkspace/orkestra/pkg/konfig"
 	"github.com/orkspace/orkestra/pkg/kubeclient"
 	"github.com/orkspace/orkestra/pkg/logger"
@@ -37,7 +38,7 @@ func KonductGatewayDev(kfg *konfig.Konfig, m *merger.Merger, ctx context.Context
 	// ── 1. Instance + Katalog ─────────────────────────────────────────────────
 	kfg.SetInstance(konfig.Gateway())
 
-	kat := katalog.NewKatalog(kfg, m)
+	kat := pipeline.NewKatalog(kfg, m)
 
 	if registryURL := kfg.RegistryConfig().RegistryURL; registryURL != "" {
 		m.SetRegistryURL(registryURL)

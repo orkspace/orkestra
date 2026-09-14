@@ -46,7 +46,7 @@ Two lines. Your `Reconcile` method is completely untouched.
 ```go
 func NewWebAppReconciler(kube kubeclient.Interface) domain.Reconciler {
     return domain.ReconcilerFrom(&WebAppReconciler{
-        Client: kubeclient.ToClient(kube),
+        Client: orkadapter.ToClient(kube),
     })
 }
 ```
@@ -96,6 +96,37 @@ ork run
 Orkestra reads the Katalog, installs the CRD, starts the operator, creates the Deployment and Service, sets owner references, writes status, emits events, corrects drift, and exposes health, metrics, and a control center.
 
 Not a single line of Go.
+
+---
+
+## For the security and delivery problem
+
+The same Katalog that declares an operator also declares who can reach it and how. `serve.enabled: true` on a CRD entry surfaces it through the Gateway API — token-scoped, admission-enforced, with field translation and provenance built in. Callers post flat fields in their own vocabulary; the gateway validates, annotates, and applies. The caller never sees a CRD schema or a Kubernetes object.
+
+```yaml
+crds:
+  application:
+    serve:
+      enabled: true
+      target: app
+      fields:
+        image:
+          label: "Container Image"
+          required: true
+        environment:
+          label: "Environment"
+          enum: ["staging", "production"]
+```
+
+```bash
+curl -X POST http://localhost:8443/api/v1/apply \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"target":"app","name":"payments","image":"...","environment":"staging"}'
+```
+
+The gateway owns the delivery boundary — validation, mutation, token scoping, provenance stamping, field routing, CR construction. Everything after the CR lands in etcd belongs to the operator. It works with any reconciler: Orkestra runtime, Argo CD, Flux, Crossplane, or a plain controller.
+
+→ [Self-Service and Intent Delivery](https://orkestra.sh/docs/concepts/self-service/gateway-as-delivery-layer/)
 
 ---
 
@@ -208,6 +239,7 @@ Six Runtimes. 75 CRDs. One Control Center.
 | [Why Orkestra](https://orkestra.sh/blog/why-orkestra) | What Orkestra is, how it works, and why it's different |
 | [Foundations](https://orkestra.sh/docs/foundations) | The decisions that shaped the design — and why they hold |
 | [Trust and Failure Model](https://orkestra.sh/publications/trust-and-failure-model) | What happens when things go wrong |
+| [Self-Service and Intent Delivery](https://orkestra.sh/docs/concepts/self-service/gateway-as-delivery-layer/) | The gateway as a delivery surface — security, field routing, and provenance without changing the operator |
 | [Getting Started](https://orkestra.sh/docs/getting-started) | First operator in under an hour |
 | [Learning to Orkestrate](https://orkestra.sh/docs/getting-started/learning-to-orkestrate) | Every capability, as a runnable example |
 | [Katalog Reference](https://orkestra.sh/docs/reference/schema/katalog/) | Complete field reference |

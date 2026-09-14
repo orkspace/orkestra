@@ -43,6 +43,11 @@ type ResolvedIngressSpec struct {
 	// Useful for autoscale testing, latency simulation, and chaos engineering.
 	// Accepts extended duration units (s, m, h, d, w, mo, y).
 	Sleep string
+
+	// ForceConflict, when true, sets Force: true when applying this resource,
+	// taking ownership of conflicting fields instead of returning a conflict error.
+	// Overrides the CRD-level ForceConflict setting.
+	ForceConflict *bool
 }
 
 // ResolvedIngressTLS holds the fully resolved TLS configuration for an Ingress.

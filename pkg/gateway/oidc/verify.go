@@ -33,7 +33,7 @@ var supportedAlgs = []jose.SignatureAlgorithm{
 //   - Signature validity (via cached JWKS)
 //   - Expiry (exp claim)
 //   - Issuer match (iss claim must equal issuerURL)
-//   - Audience (aud claim must contain audience, when audience is non-empty)
+//   - Audience (aud claim must contain audience, when audience is non-Empty()
 //
 // The returned map contains every claim in the JWT payload whose value is a
 // string or number. Structured claims (arrays, objects) are skipped — callers

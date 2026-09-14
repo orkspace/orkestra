@@ -49,10 +49,10 @@ func Resolve(input string) (*Ref, error) {
 	}
 
 	// Strip oci:// prefix — user-facing convention only
-	raw := strings.TrimPrefix(input, "oci://")
+	raw := CleanOCIRef(input)
 
 	// Full reference already provided (contains a dot in the host segment)
-	if looksLikeFull(raw) {
+	if LooksLikeFullRef(raw) {
 		return parseRef(raw)
 	}
 
@@ -61,8 +61,7 @@ func Resolve(input string) (*Ref, error) {
 	if base == "" {
 		base = DefaultPatternRegistry
 	}
-	base = strings.TrimPrefix(base, "oci://")
-	base = strings.TrimSuffix(base, "/")
+	base = CleanOCIRef(base)
 
 	return parseRef(base + "/" + raw)
 }
@@ -72,9 +71,9 @@ func looksLikeDigest(s string) bool {
 	return strings.HasPrefix(s, "sha256:") || strings.HasPrefix(s, "sha512:") || strings.HasPrefix(s, "sha384:")
 }
 
-// looksLikeFull returns true when the reference appears to already contain
+// LooksLikeFullRef returns true when the reference appears to already contain
 // a registry hostname (has a dot or colon before the first slash).
-func looksLikeFull(ref string) bool {
+func LooksLikeFullRef(ref string) bool {
 	slashIdx := strings.Index(ref, "/")
 	if slashIdx < 0 {
 		return false
@@ -150,8 +149,8 @@ func (r *Ref) IsCached() bool {
 	if err != nil {
 		return false
 	}
-	for _, sentinel := range []string{FileKatalog, FileMotif} {
-		if _, err := os.Stat(filepath.Join(path, sentinel)); err == nil {
+	for _, file := range []string{FileKatalog, FileMotif} {
+		if _, err := os.Stat(filepath.Join(path, file)); err == nil {
 			return true
 		}
 	}
@@ -160,7 +159,7 @@ func (r *Ref) IsCached() bool {
 
 // CachedDir returns the local cache directory for an OCI artifact if it has
 // been pulled previously. A hit requires katalog.yaml or motif.yaml to be
-// present — whichever sentinel file is found first counts as a complete pull.
+// present — whichever file is found first counts as a complete pull.
 //
 // ociURL must be the bare host+path without the oci:// prefix or tag,
 // e.g. "ghcr.io/orkspace/orkestra-registry/patterns/motifs/postgres".
@@ -179,8 +178,8 @@ func CachedDir(ociURL, version string) (string, bool) {
 	repo := filepath.FromSlash(ociURL[slashIdx+1:])
 	dir := filepath.Join(home, CacheDir, reg, repo, version)
 
-	for _, sentinel := range []string{FileKatalog, FileMotif} {
-		if _, err := os.Stat(filepath.Join(dir, sentinel)); err == nil {
+	for _, file := range []string{FileKatalog, FileMotif} {
+		if _, err := os.Stat(filepath.Join(dir, file)); err == nil {
 			return dir, true
 		}
 	}
@@ -216,7 +215,7 @@ func IsOCIRef(s string) bool {
 	if idx := strings.Index(s, ":"); idx > 1 {
 		return true
 	}
-	return looksLikeFull(s)
+	return LooksLikeFullRef(s)
 }
 
 // ResolveForKind resolves a reference against the correct default registry
@@ -227,8 +226,8 @@ func ResolveForKind(input string, k PatternKind) (*Ref, error) {
 	if input == "" {
 		return nil, fmt.Errorf("empty reference")
 	}
-	raw := strings.TrimPrefix(input, "oci://")
-	if looksLikeFull(raw) {
+	raw := CleanOCIRef(input)
+	if LooksLikeFullRef(raw) {
 		return parseRef(raw)
 	}
 
@@ -245,7 +244,6 @@ func ResolveForKind(input string, k PatternKind) (*Ref, error) {
 			base = DefaultPatternRegistry
 		}
 	}
-	base = strings.TrimPrefix(base, "oci://")
-	base = strings.TrimSuffix(base, "/")
+	base = CleanOCIRef(base)
 	return parseRef(base + "/" + raw)
 }

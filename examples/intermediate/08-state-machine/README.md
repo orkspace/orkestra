@@ -20,7 +20,7 @@ and decides what to do next. The progression is automatic — the operator
 never "remembers" what it did, it only reads what is true right now.
 
 ```
-(empty) ──→ Pending
+(Empty() ──→ Pending
 Pending ──→ create build Job ──→ Running/build
 Running/build → build succeeded ──→ create test Job ──→ Running/test
 Running/test  → test succeeded  ──→ create notify Job ──→ Running/notify

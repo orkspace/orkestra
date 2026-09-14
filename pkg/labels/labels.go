@@ -161,6 +161,17 @@ const (
 	CleanupFinalizer = "orkestra.orkspace.io/cleanup"
 
 	//
+	// AnnotationCrossMetrics stores the raw metrics payload submitted as a JSON-encoded string.
+	// Injected by the Runtime and used by the Gateway so the admission webhook can make it
+	// available as .metrics in validation.rules — enabling metrics-level gating.
+	AnnotationCrossMetrics = "orkestra.orkspace.io/cross-metrics"
+
+	// AnnotationHealth stores the raw health payload submitted as a JSON-encoded string.
+	// Injected by the Runtime and used by the Gateway so the admission webhook can make it
+	//  available as .health in validation.rules —
+	// enabling health-level gating.
+	AnnotationHealth = "orkestra.orkspace.io/health"
+
 	// ────────────────────────────────────────────────────────────────────────────────
 	//   Serve Provenance Annotations
 	// ────────────────────────────────────────────────────────────────────────────────
@@ -190,6 +201,7 @@ const (
 	// enabling intent-level gates that fire on the caller's vocabulary before any
 	// field translation has occurred.
 	AnnotationServeIntent = "orkestra.orkspace.io/serve-intent"
+
 	// AnnotationServeSelectorTarget records the target that was matched by field selector.
 	// Set by the gateway when a full CR is routed via fieldSelector.
 	// Example: "kitchen"

@@ -5,7 +5,7 @@ import (
 	"time"
 
 	orktarget "github.com/orkspace/orkestra/pkg/intent/target"
-	orktmpl "github.com/orkspace/orkestra/pkg/resources/template"
+	orktmpl "github.com/orkspace/orkestra/pkg/template"
 	orktypes "github.com/orkspace/orkestra/pkg/types"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
@@ -38,10 +38,10 @@ func (k *Katalog) EvaluateRequeue(ctx context.Context, crdName string, obj *unst
 	if err != nil {
 		return 0
 	}
-	if !k.Profiles.IsEmpty() {
+	if !k.Profiles.Empty() {
 		resolver = resolver.WithProfiles(k.Profiles)
 	}
-	if !k.Notes.IsEmpty() {
+	if !k.Notes.Empty() {
 		resolver = resolver.WithUserNotes(k.Notes)
 	}
 

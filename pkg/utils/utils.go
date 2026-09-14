@@ -105,7 +105,7 @@ func Reversed[T any](s []T) []T {
 // Exit exits in error with a code
 func Exit(err error) {
 	if err != nil {
-		os.Stderr.WriteString(err.Error() + "\n")
+		os.Stderr.WriteString(FailureMark() + " " + err.Error() + "\n")
 	}
 	os.Exit(1)
 }
@@ -117,4 +117,17 @@ func ValidKubernetesName(name string) error {
 		return fmt.Errorf("invalid name %q: %s", name, strings.Join(errs, "; "))
 	}
 	return nil
+}
+
+// ResolveEnvVar replaces $VAR_NAME or ${VAR_NAME} with its environment variable value.
+func ResolveEnvVar(s string) (string, error) {
+	if !strings.HasPrefix(s, "$") {
+		return s, nil
+	}
+
+	val := os.ExpandEnv(s)
+	if val == "" {
+		return "", fmt.Errorf("env var %q is not set or empty", os.Getenv(s))
+	}
+	return val, nil
 }

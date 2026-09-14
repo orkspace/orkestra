@@ -20,7 +20,7 @@ type ProfileRegistry struct {
 	PodSecurity       []PodSecurityProfileDef       `yaml:"podSecurity,omitempty"        json:"podSecurity,omitempty"`
 }
 
-func (r ProfileRegistry) IsEmpty() bool {
+func (r ProfileRegistry) Empty() bool {
 	return len(r.NetworkPolicies) == 0 &&
 		len(r.ResourceQuotas) == 0 &&
 		len(r.LimitRanges) == 0 &&

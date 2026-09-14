@@ -9,7 +9,7 @@ import (
 	orklabels "github.com/orkspace/orkestra/pkg/labels"
 	"github.com/orkspace/orkestra/pkg/logger"
 	orkcust "github.com/orkspace/orkestra/pkg/resources/customresources"
-	orktmpl "github.com/orkspace/orkestra/pkg/resources/template"
+	orktmpl "github.com/orkspace/orkestra/pkg/template"
 	orktypes "github.com/orkspace/orkestra/pkg/types"
 )
 
@@ -75,7 +75,7 @@ func runCustomResources(
 		// error. We skip gracefully — the retryMissingCRDs loop will log when it
 		// appears and refresh the mapper.
 		if gvk, gvkErr := src.BuildGVK(); gvkErr == nil {
-			if _, mapErr := src.ResolveGVR(kube.Mapper()); mapErr != nil {
+			if _, mapErr := src.ResolveGVR(kube.RESTMapper()); mapErr != nil {
 				logger.FromContext(ctx).Warn().
 					Str("gvk", gvk.String()).
 					Msgf("custom[%d]: CRD not yet available '%s' — skipping until it appears", i, gvk.String())

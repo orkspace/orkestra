@@ -230,7 +230,7 @@ func resolveDefaultIntentFile() string {
 }
 
 func readIntentFile(path string) (map[string]interface{}, error) {
-	data, err := os.ReadFile(path)
+	data, err := readLocal(path)
 	if err != nil {
 		return nil, err
 	}

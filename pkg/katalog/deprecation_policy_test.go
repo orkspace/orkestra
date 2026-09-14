@@ -8,6 +8,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func katalogWithDeprecation(d *orktypes.KatalogDeprecation) *Katalog {
+	if d == nil {
+		return NewEmptyKatalog()
+	}
+	return &Katalog{lifecycle: &orktypes.KatalogLifecycle{Deprecation: d}}
+}
+
 func TestCheckDeprecationPolicy_NilBlock(t *testing.T) {
 	k := katalogWithDeprecation(nil)
 	assert.NoError(t, k.CheckDeprecationPolicy())

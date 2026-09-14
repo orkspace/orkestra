@@ -2,10 +2,7 @@ package types
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
-
-	orkutils "github.com/orkspace/orkestra/pkg/utils"
 )
 
 // ExpandStatusInclude resolves the status.include field by reading the
@@ -20,14 +17,14 @@ func ExpandStatusInclude(s *StatusConfig, baseDir string) error {
 	if !filepath.IsAbs(path) {
 		path = filepath.Join(baseDir, path)
 	}
-	data, err := os.ReadFile(path)
+	data, err := readLocal(path)
 	if err != nil {
 		return fmt.Errorf("reading status.include %q: %w", s.Include, err)
 	}
 	var f struct {
 		Fields []StatusFieldSpec `yaml:"fields"`
 	}
-	if err := orkutils.StrictUnmarshal(data, &f); err != nil {
+	if err := strictUnmarshal(data, &f); err != nil {
 		return fmt.Errorf("parsing status.include %q: %w", s.Include, err)
 	}
 	s.Fields = append(f.Fields, s.Fields...)
@@ -39,6 +36,7 @@ func ExpandStatusInclude(s *StatusConfig, baseDir string) error {
 // referenced file, unmarshaling its "rules:" list, and prepending it to the
 // inline rules. Inline rules append after included ones.
 // The include path is resolved relative to baseDir. Cleared after expansion.
+// Any additional external calls are also expanded if declared
 func ExpandValidationInclude(v *ValidationConfig, baseDir string) error {
 	if v == nil || v.Include == "" {
 		return nil
@@ -47,14 +45,14 @@ func ExpandValidationInclude(v *ValidationConfig, baseDir string) error {
 	if !filepath.IsAbs(path) {
 		path = filepath.Join(baseDir, path)
 	}
-	data, err := os.ReadFile(path)
+	data, err := readLocal(path)
 	if err != nil {
 		return fmt.Errorf("reading validation.include %q: %w", v.Include, err)
 	}
 	var f struct {
 		Rules []ValidationRule `yaml:"rules"`
 	}
-	if err := orkutils.StrictUnmarshal(data, &f); err != nil {
+	if err := strictUnmarshal(data, &f); err != nil {
 		return fmt.Errorf("parsing validation.include %q: %w", v.Include, err)
 	}
 	v.Rules = append(f.Rules, v.Rules...)
@@ -66,6 +64,7 @@ func ExpandValidationInclude(v *ValidationConfig, baseDir string) error {
 // referenced file, unmarshaling its "rules:" list, and prepending it to the
 // inline rules. Inline rules append after included ones.
 // The include path is resolved relative to baseDir. Cleared after expansion.
+// The include path is resolved relative to baseDir. Cleared after expansion.
 func ExpandMutationInclude(mu *MutationConfig, baseDir string) error {
 	if mu == nil || mu.Include == "" {
 		return nil
@@ -74,18 +73,27 @@ func ExpandMutationInclude(mu *MutationConfig, baseDir string) error {
 	if !filepath.IsAbs(path) {
 		path = filepath.Join(baseDir, path)
 	}
-	data, err := os.ReadFile(path)
+	data, err := readLocal(path)
 	if err != nil {
 		return fmt.Errorf("reading mutation.include %q: %w", mu.Include, err)
 	}
 	var f struct {
 		Rules []MutationRule `yaml:"rules"`
 	}
-	if err := orkutils.StrictUnmarshal(data, &f); err != nil {
+	if err := strictUnmarshal(data, &f); err != nil {
 		return fmt.Errorf("parsing mutation.include %q: %w", mu.Include, err)
 	}
 	mu.Rules = append(f.Rules, mu.Rules...)
 	mu.Include = ""
+
+	// Expand external calls
+	if mu.HasExternalCall() {
+		var err error
+		mu.External, err = ExpandExternalCalls(mu.External, baseDir)
+		if err != nil {
+			return fmt.Errorf("admission.mutation.external: %w", err)
+		}
+	}
 	return nil
 }
 
@@ -101,14 +109,14 @@ func ExpandConversionInclude(co *CRDConversion, baseDir string) error {
 	if !filepath.IsAbs(path) {
 		path = filepath.Join(baseDir, path)
 	}
-	data, err := os.ReadFile(path)
+	data, err := readLocal(path)
 	if err != nil {
 		return fmt.Errorf("reading conversion.include %q: %w", co.Include, err)
 	}
 	var f struct {
 		Paths []ConversionPath `yaml:"paths"`
 	}
-	if err := orkutils.StrictUnmarshal(data, &f); err != nil {
+	if err := strictUnmarshal(data, &f); err != nil {
 		return fmt.Errorf("parsing conversion.include %q: %w", co.Include, err)
 	}
 	co.Paths = append(f.Paths, co.Paths...)
@@ -128,14 +136,14 @@ func ExpandNotesInclude(nr *NoteRegistry, baseDir string) error {
 	if !filepath.IsAbs(path) {
 		path = filepath.Join(baseDir, path)
 	}
-	data, err := os.ReadFile(path)
+	data, err := readLocal(path)
 	if err != nil {
 		return fmt.Errorf("reading notes.include %q: %w", nr.Include, err)
 	}
 	var f struct {
 		Functions []UserDefinedNote `yaml:"functions"`
 	}
-	if err := orkutils.StrictUnmarshal(data, &f); err != nil {
+	if err := strictUnmarshal(data, &f); err != nil {
 		return fmt.Errorf("parsing notes.include %q: %w", nr.Include, err)
 	}
 	nr.Functions = append(f.Functions, nr.Functions...)
@@ -155,14 +163,14 @@ func ExpandProfileInclude(r *ProfileRegistry, baseDir string) error {
 	if !filepath.IsAbs(path) {
 		path = filepath.Join(baseDir, path)
 	}
-	data, err := os.ReadFile(path)
+	data, err := readLocal(path)
 	if err != nil {
 		return fmt.Errorf("reading profiles.include %q: %w", r.Include, err)
 	}
 	var f struct {
 		Profiles ProfileRegistry `yaml:"profiles"`
 	}
-	if err := orkutils.StrictUnmarshal(data, &f); err != nil {
+	if err := strictUnmarshal(data, &f); err != nil {
 		return fmt.Errorf("parsing profiles.include %q: %w", r.Include, err)
 	}
 	p := f.Profiles
@@ -181,34 +189,48 @@ func ExpandProfileInclude(r *ProfileRegistry, baseDir string) error {
 	return nil
 }
 
-// ExpandWatchEntries resolves include entries in a []WatchEntry list.
-// An entry with include: set is replaced in-place by the "watch:" list from the
-// referenced file. Entries without include: are kept as-is.
-// The include path is resolved relative to baseDir.
-func ExpandWatchEntries(entries []WatchEntry, baseDir string) ([]WatchEntry, error) {
-	var expanded []WatchEntry
-	for _, entry := range entries {
-		if entry.Include == "" {
-			expanded = append(expanded, entry)
-			continue
-		}
-		path := entry.Include
-		if !filepath.IsAbs(path) {
-			path = filepath.Join(baseDir, path)
-		}
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return nil, fmt.Errorf("reading watch include %q: %w", entry.Include, err)
-		}
-		var f struct {
-			Watch []WatchEntry `yaml:"watch"`
-		}
-		if err := orkutils.StrictUnmarshal(data, &f); err != nil {
-			return nil, fmt.Errorf("parsing watch include %q: %w", entry.Include, err)
-		}
-		expanded = append(expanded, f.Watch...)
+// ExpandObserveInclude resolves the observe.include field by reading the
+// referenced file, unmarshaling its "watch:" and "events:" blocks, and merging
+// them with the inline declarations. Inline event entries override included
+// entries with the same name. The include path is resolved relative to baseDir.
+// Cleared after expansion.
+func ExpandObserveInclude(observe *Observe, baseDir string) error {
+	if observe == nil || observe.Include == "" {
+		return nil
 	}
-	return expanded, nil
+
+	path := observe.Include
+	if !filepath.IsAbs(path) {
+		path = filepath.Join(baseDir, path)
+	}
+
+	data, err := readLocal(path)
+	if err != nil {
+		return fmt.Errorf("reading observe include %q: %w", observe.Include, err)
+	}
+
+	var f struct {
+		Watch  []WatchEntry          `yaml:"watch"`
+		Events map[string]EventEntry `yaml:"events"`
+	}
+	if err := strictUnmarshal(data, &f); err != nil {
+		return fmt.Errorf("parsing observe include %q: %w", observe.Include, err)
+	}
+
+	observe.Watch = append(f.Watch, observe.Watch...)
+
+	merged := make(map[string]*EventEntry, len(f.Events)+len(observe.Events))
+	for name, entry := range f.Events {
+		merged[name] = &entry
+	}
+	for name, entry := range observe.Events {
+		merged[name] = entry
+	}
+	observe.Events = merged
+
+	observe.Include = ""
+
+	return nil
 }
 
 // ExpandReconcilerInclude resolves the reconciler.include field by reading the
@@ -222,14 +244,14 @@ func ExpandReconcilerInclude(r *ReconcilerConfig, baseDir string) error {
 	if !filepath.IsAbs(path) {
 		path = filepath.Join(baseDir, path)
 	}
-	data, err := os.ReadFile(path)
+	data, err := readLocal(path)
 	if err != nil {
 		return fmt.Errorf("reading reconciler.include %q: %w", r.Include, err)
 	}
 	var f struct {
 		Reconciler ReconcilerConfig `yaml:"reconciler"`
 	}
-	if err := orkutils.StrictUnmarshal(data, &f); err != nil {
+	if err := strictUnmarshal(data, &f); err != nil {
 		return fmt.Errorf("parsing reconciler.include %q: %w", r.Include, err)
 	}
 	inc := f.Reconciler
@@ -251,7 +273,7 @@ func ExpandReconcilerInclude(r *ReconcilerConfig, baseDir string) error {
 	if r.Resync.Duration == 0 && inc.Resync.Duration != 0 {
 		r.Resync = inc.Resync
 	}
-	if r.Queue.IsEmpty() && !inc.Queue.IsEmpty() {
+	if r.Queue.Empty() && !inc.Queue.Empty() {
 		r.Queue = inc.Queue
 	}
 	if r.Requeue == nil && inc.Requeue != nil {
@@ -259,36 +281,6 @@ func ExpandReconcilerInclude(r *ReconcilerConfig, baseDir string) error {
 	}
 	r.Include = ""
 	return nil
-}
-
-// ExpandExternalCalls resolves include entries in a []ExternalCallSpec list.
-// An entry with include: set is replaced in-place by the "calls:" list from the
-// referenced file. Entries without include: are kept as-is.
-// The include path is resolved relative to baseDir.
-func ExpandExternalCalls(calls []ExternalCallSpec, baseDir string) ([]ExternalCallSpec, error) {
-	var expanded []ExternalCallSpec
-	for _, call := range calls {
-		if call.Include == "" {
-			expanded = append(expanded, call)
-			continue
-		}
-		path := call.Include
-		if !filepath.IsAbs(path) {
-			path = filepath.Join(baseDir, path)
-		}
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return nil, fmt.Errorf("reading external include %q: %w", call.Include, err)
-		}
-		var f struct {
-			Calls []ExternalCallSpec `yaml:"calls"`
-		}
-		if err := orkutils.StrictUnmarshal(data, &f); err != nil {
-			return nil, fmt.Errorf("parsing external include %q: %w", call.Include, err)
-		}
-		expanded = append(expanded, f.Calls...)
-	}
-	return expanded, nil
 }
 
 // ExpandSimulateOpsIncludes resolves include entries in expect.Ops, expect.Absent,
@@ -331,14 +323,14 @@ func expandOpRules(rules []SimulateOpRule, baseDir string) ([]SimulateOpRule, er
 		if !filepath.IsAbs(path) {
 			path = filepath.Join(baseDir, path)
 		}
-		data, err := os.ReadFile(path)
+		data, err := readLocal(path)
 		if err != nil {
 			return nil, fmt.Errorf("reading ops include %q: %w", rule.Include, err)
 		}
 		var f struct {
 			Ops []SimulateOpRule `yaml:"ops"`
 		}
-		if err := orkutils.StrictUnmarshal(data, &f); err != nil {
+		if err := strictUnmarshal(data, &f); err != nil {
 			return nil, fmt.Errorf("parsing ops include %q: %w", rule.Include, err)
 		}
 		expanded = append(expanded, f.Ops...)
@@ -358,7 +350,7 @@ func ExpandServeInclude(serve *ServeConfig, baseDir string) error {
 	if !filepath.IsAbs(path) {
 		path = filepath.Join(baseDir, path)
 	}
-	data, err := os.ReadFile(path)
+	data, err := readLocal(path)
 	if err != nil {
 		return fmt.Errorf("reading serve.include %q: %w", serve.Include, err)
 	}
@@ -367,7 +359,7 @@ func ExpandServeInclude(serve *ServeConfig, baseDir string) error {
 		Labels      map[string]ServeFieldConfig `yaml:"labels"`
 		Annotations map[string]ServeFieldConfig `yaml:"annotations"`
 	}
-	if err := orkutils.StrictUnmarshal(data, &f); err != nil {
+	if err := strictUnmarshal(data, &f); err != nil {
 		return fmt.Errorf("parsing serve.include %q: %w", serve.Include, err)
 	}
 	merged := make(map[string]ServeFieldConfig, len(f.Fields)+len(serve.Fields))
@@ -384,12 +376,12 @@ func ExpandServeInclude(serve *ServeConfig, baseDir string) error {
 	return nil
 }
 
-// ExpandGatewayAPIAuth resolves include entries in GatewayConfig.API.Auth.
+// ExpandGatewayAPIAuthInclude resolves include entries in GatewayConfig.API.Auth.
 // If auth.Include is set, it reads the referenced file, unmarshals its "tokens:" list,
 // and merges it with the inline tokens. Inline tokens override included tokens
 // with the same name.
 // The include path is resolved relative to baseDir. Cleared after expansion.
-func ExpandGatewayAPIAuth(gw *GatewayConfig, baseDir string) error {
+func ExpandGatewayAPIAuthInclude(gw *GatewayConfig, baseDir string) error {
 	if gw == nil || gw.API == nil {
 		return nil
 	}
@@ -403,7 +395,7 @@ func ExpandGatewayAPIAuth(gw *GatewayConfig, baseDir string) error {
 		path = filepath.Join(baseDir, path)
 	}
 
-	data, err := os.ReadFile(path)
+	data, err := readLocal(path)
 	if err != nil {
 		return fmt.Errorf("reading gateway.api.auth.include %q: %w", auth.Include, err)
 	}
@@ -411,7 +403,7 @@ func ExpandGatewayAPIAuth(gw *GatewayConfig, baseDir string) error {
 	var f struct {
 		Tokens []APIToken `yaml:"tokens"`
 	}
-	if err := orkutils.StrictUnmarshal(data, &f); err != nil {
+	if err := strictUnmarshal(data, &f); err != nil {
 		return fmt.Errorf("parsing gateway.api.auth.include %q: %w", auth.Include, err)
 	}
 
@@ -467,12 +459,12 @@ func ExpandServeTargetIncludes(serve *ServeConfig, baseDir string) error {
 		if !filepath.IsAbs(path) {
 			path = filepath.Join(baseDir, path)
 		}
-		data, err := os.ReadFile(path)
+		data, err := readLocal(path)
 		if err != nil {
 			return fmt.Errorf("reading serve.target[%q].include %q: %w", name, entry.Include, err)
 		}
 		var f ServeTargetConfig
-		if err := orkutils.StrictUnmarshal(data, &f); err != nil {
+		if err := strictUnmarshal(data, &f); err != nil {
 			return fmt.Errorf("parsing serve.target[%q].include %q: %w", name, entry.Include, err)
 		}
 		if len(f.Tokens) > 0 && len(entry.Tokens) == 0 {

@@ -1,11 +1,11 @@
 # CRD Health Reporting — Runtime
 
-## `OrkestraHealth` and `isKonductor`
+## `RuntimeHealth` and `isKonductor`
 
-`OrkestraHealth` is the operator-level health aggregate. It is a single shared instance created in `konstructRuntime` and passed to every handler that serves health-sensitive data. It is separate from the per-CRD `CRDHealth` objects.
+`RuntimeHealth` is the operator-level health aggregate. It is a single shared instance created in `konstructRuntime` and passed to every handler that serves health-sensitive data. It is separate from the per-CRD `CRDHealth` objects.
 
 ```go
-type OrkestraHealth struct {
+type RuntimeHealth struct {
     name        string
     orkReady    atomic.Bool  // runtime process is up and serving
     katReady    atomic.Bool  // all CRDs in the Katalog are online
@@ -85,7 +85,7 @@ The top-level katalog endpoint. Used by the CC background fetch loop.
 
 Per-CRD health endpoint. Used by the CC CRD detail page for state, error counters, and reconcile timestamps.
 
-`isKonductor` here comes from the same `OrkestraHealth` instance as `/katalog`. It is NOT the per-CRD `h.orkHealth` field — that is a separate uninitialised instance attached to `CRDHealth` for other purposes. Both handlers take the global `o *OrkestraHealth` explicitly:
+`isKonductor` here comes from the same `RuntimeHealth` instance as `/katalog`. It is NOT the per-CRD `h.orkHealth` field — that is a separate uninitialised instance attached to `CRDHealth` for other purposes. Both handlers take the global `o *RuntimeHealth` explicitly:
 
 ```go
 func BuildCRDHealthHandler(
@@ -93,7 +93,7 @@ func BuildCRDHealthHandler(
     kfg *konfig.Konfig,
     inf cache.SharedIndexInformer,
     h   *CRDHealth,
-    o   *OrkestraHealth,   // ← global instance from konstructRuntime
+    o   *RuntimeHealth,   // ← global instance from konstructRuntime
 ) http.HandlerFunc
 ```
 
@@ -157,7 +157,7 @@ func BuildCRDInfoHandler(
     kfg *konfig.Konfig,
     inf cache.SharedIndexInformer,
     h   *CRDHealth,
-    o   *OrkestraHealth,   // ← global instance from konstructRuntime
+    o   *RuntimeHealth,   // ← global instance from konstructRuntime
     ...
 ) http.HandlerFunc
 ```

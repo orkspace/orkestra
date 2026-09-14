@@ -7,7 +7,7 @@ metadata:
 
     The reconciler is written in controller-runtime style: it receives a
     reconcile.Request, fetches the WebApp via client.Get, and creates a
-    Deployment via client.Create / client.Patch. kubeclient.ToClient and
+    Deployment via client.Create / client.Patch. orkadapter.ToClient and
     domain.ReconcilerFrom bridge the two APIs at the constructor boundary —
     the reconciler body never changes.
 

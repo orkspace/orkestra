@@ -1,3 +1,80 @@
+## v0.7.17 — Queue behaviour, pre-reconcile gating, admission runtime query
+
+### Breaking: default queue is unlimited
+
+`queue.maxDepth` defaults to `0` (unlimited). Previously an internal default cap was applied. Operators that relied on implicit back-pressure must now declare `queue.maxDepth:` explicitly and add `queue.behaviour:` if needed.
+
+### Breaking: `cross.labels` renamed to `cross.labelSelector`
+
+The YAML field for label-based cross-CRD matching is now `labelSelector`. The old name is rejected at load time.
+
+### Breaking: `cross.source.type` renamed to `cross.source.protocol`
+
+Values: `cr`, `health`, `metrics`, `info`, `events`. The old name is rejected at load time.
+
+### Queue back-pressure with conditional behaviour
+
+Declare what happens when the queue approaches or reaches `maxDepth`:
+
+```yaml
+queue:
+  maxDepth: 500
+  behaviour:
+    onThreshold:
+      value: 80
+      when:
+        - field: "{{ inBusinessHours }}"
+          equals: "false"
+    onLimit:
+      drop: true
+```
+
+`onThreshold` fires at N% of `maxDepth`; `onLimit` fires at 100%. Both support `when:`/`or:` conditions evaluated with the full resolver context — time functions, notes, gate fields. Items are dropped only when conditions pass.
+
+### Pre-reconcile gating
+
+`preReconcile.enqueueGate` and `preReconcile.reconcileGate` conditions now delegate evaluation to `domain.Katalog` at informer time — the konstruktor registers configuration only, no closures. This breaks the import cycle between informer and pkg/katalog and makes gating consistent with queue behaviour evaluation.
+
+### Operational state on the CR
+
+The runtime stamps `.health` and `.metrics` onto each CR after every reconcile. These fields are readable in preReconcile conditions, validation rules, and cross-CRD references — no HTTP call needed:
+
+```yaml
+preReconcile:
+  reconcileGate:
+    when:
+      - field: "{{ .health.status }}"
+        equals: "healthy"
+```
+
+### Event-aware reconcile gating
+
+`eventAware: true` on reconcileGate preserves individual event identity through the workqueue, preventing updates for the same object from being coalesced before reconcile-gate evaluation. Each event retains its own sentinel context. Defaults to `false`; use when event-specific gate evaluation is required.
+
+```yaml
+preReconcile:
+  reconcileGate:
+    eventAware: true
+```
+
+### Resource-level forceConflict
+
+All 20 supported resources can now declaratively set `forceConflict` at the resource level. Resource-level settings override the CRD-level setting, which defaults to the system default of `true`.
+
+### Admission — conditional runtime query
+
+The admission webhook fetches live runtime data (health, metrics, uniqueness) only when a validation or mutation rule actually references it. CRDs with no `.health.*` or `.metrics.*` rules pay zero HTTP cost at admission time.
+
+### Cross-CRD reads (ONCOP path 2b fix)
+
+`readCross` rewritten with a clean two-step model: find informer (CRD-based or label-based), find CR (matchLabels → label → name), HTTP fallback. Fixes ONCOP path 2b where the URL was built but not passed to the HTTP fetch.
+
+### Resolver moved to `pkg/template`
+
+`pkg/resources/template` → `pkg/template`. Any operator code importing the resolver directly must update the import path.
+
+---
+
 ## v0.7.16 — Per-target operatorBox, lifecycle:, controller-runtime compatibility
 
 ### Breaking: `anyOf:` renamed to `or:`
@@ -109,9 +186,39 @@ operatorBox:
 
 `open` (default) passes through when the external call fails. `closed` denies.
 
-### `kubeclient.ToClient` is now cache-backed
+### `observe.events` — Kubernetes Events as reconciliation triggers [EXPERIMENTAL]
 
-`Get` and `List` through `kubeclient.ToClient(kube)` are served from the informer cache for registered types. No change required in existing reconcilers.
+`observe.events` extends the `observe:` block with a second observation mechanism alongside `observe.watch`. Kubernetes `Event` objects can now trigger primary CR reconciliation, with the event's own properties available as resolver context at the `enqueueGate`.
+
+```yaml
+operatorBox:
+  observe:
+    events:
+      dbReady:
+        reason: DatabaseReady
+        type: Normal
+        regarding:
+          kind: Database
+          name: my-database
+        enqueueGate:
+          when:
+            - field: "{{ .events.dbReady.reportingController }}"
+              equals: "database.myorg.io/controller"
+```
+
+The event entry matches on `reason`, `action`, `type`, `reportingController`, `reportingInstance`, `regarding`, and `related`.
+Matched events resolve the primary CR key via `regarding` (default) or broadcast to all managed CRs when `regarding` is absent.
+
+The `enqueueGate` has access to the full event context as `.events.<name>.*` — `reason`, `action`, `type`, `reportingController`,
+`reportingInstance`, `regarding`, `related`. The gate can reason about what the event says, not just that it happened. The same `when:`/`or:` condition machinery applies — no new syntax.
+
+`observe.watch` and `observe.events` are siblings under `pkg/runtime/informer/observe`. Both share the same enqueue path, the
+same gate evaluation, and the same resolver construction. The only difference is what they observe and what context they inject.
+
+This is marked experimental. `ork validate` emits a warning when event entries are declared. The `regarding` / `keyFrom` relationship and
+edge case handling are being settled in follow-up PRs before the experimental flag is removed.
+
+Use when a secondary controller already emits Events and you want to react without polling, without watching the secondary CRD, and without writing a bridge controller.
 
 ---
 

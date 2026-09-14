@@ -5,7 +5,7 @@ package types
 // and to enforce mutual exclusivity with explicit minAvailable/maxUnavailable.
 type PDBProfileEntry struct {
 	Phase        string // "onCreate", "onReconcile", "onDelete"
-	ResourceName string // PDB name template (may be empty)
+	ResourceName string // PDB name template (may be Empty()
 	Profile      string // raw profile name as written in the katalog
 	Mixed        bool   // true when profile is set alongside explicit minAvailable or maxUnavailable
 }

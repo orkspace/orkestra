@@ -73,6 +73,7 @@ spec:
         - motif: ./motifs/postgres/motif.yaml   # → motif.md
           with:
             image: postgres:14
+      forceConflict:
 ```
 
 ## Identity and mode
@@ -134,7 +135,7 @@ dependsOn:
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `shared` | bool | `false` | Use the shared default workqueue instead of a per-CRD queue. |
-| `maxDepth` | int | `100` (`QUEUE_DEPTH` env) | Max items in the queue before new items are dropped. |
+| `maxDepth` | int | `0` (unlimited) | Depth reference for `queue.behaviour:`. `0` means unlimited. Has no effect without a `behaviour:` declaration. |
 | `failureThreshold` | int | `5` (`FAILURE_THRESHOLD` env) | Consecutive reconcile failures before health transitions to degraded. |
 
 ## `labels`
@@ -186,6 +187,11 @@ Only fields exposed by the Kubernetes API server are valid — arbitrary user-de
 → [enrich](15-enrich.md)
 
 ---
+
+## `forceConflict`
+
+ForceConflict, when true, sets Force: true on every server-side apply for the resources created on onCreate/onReconcile CRD, taking ownership of conflicting fields instead of returning a conflict error.
+Default: true.
 
 ## `webhooks`
 

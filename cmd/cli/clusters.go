@@ -9,6 +9,7 @@ import (
 
 	apigateway "github.com/orkspace/orkestra/pkg/gateway/api"
 	"github.com/orkspace/orkestra/pkg/katalog"
+	"github.com/orkspace/orkestra/pkg/katalog/validate"
 	"github.com/orkspace/orkestra/pkg/tools/cluster"
 	orktypes "github.com/orkspace/orkestra/pkg/types"
 	"github.com/spf13/cobra"
@@ -119,7 +120,7 @@ func runClustersValidate(k *katalog.Katalog, full bool) error {
 		}
 	}
 
-	if err := k.ValidateGatewayClusters(); err != nil {
+	if err := validate.ValidateGatewayClusters(k); err != nil {
 		fmt.Printf("  %s %s\n", failureMark(), red(err.Error()))
 		allOK = false
 	}

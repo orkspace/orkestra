@@ -13,9 +13,7 @@ package webhook
 import (
 	"context"
 	"fmt"
-	"os"
 	"reflect"
-	"strings"
 	"time"
 
 	"github.com/orkspace/orkestra/pkg/katalog"
@@ -593,30 +591,9 @@ func readCABundle(certFile string) ([]byte, error) {
 	if certFile == "" {
 		return nil, fmt.Errorf("TLS_CERT is required for webhook registration")
 	}
-	data, err := os.ReadFile(certFile)
+	data, err := readLocal(certFile)
 	if err != nil {
 		return nil, fmt.Errorf("reading %q: %w", certFile, err)
 	}
 	return data, nil
-}
-
-// ── Pointer helpers ───────────────────────────────────────────────────────────
-
-func int32Ptr(i int32) *int32                                                         { return &i }
-func int64Ptr(i int64) *int64                                                         { return &i }
-func matchPolicyPtr(p admissionv1.MatchPolicyType) *admissionv1.MatchPolicyType       { return &p }
-func failurePolicyPtr(p admissionv1.FailurePolicyType) *admissionv1.FailurePolicyType { return &p }
-func reinvocationPolicyPtr(p admissionv1.ReinvocationPolicyType) *admissionv1.ReinvocationPolicyType {
-	return &p
-}
-
-// admissionv1FailurePolicyType converts a string failure policy to the typed form.
-// Unrecognised values default to Ignore.
-func admissionv1FailurePolicyType(policy string) admissionv1.FailurePolicyType {
-	switch strings.ToLower(policy) {
-	case "fail":
-		return admissionv1.Fail
-	default:
-		return admissionv1.Ignore
-	}
 }

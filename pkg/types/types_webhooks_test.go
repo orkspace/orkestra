@@ -18,8 +18,8 @@ func TestGatewayWebhookConfig_IsEmpty(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := tc.cfg.IsEmpty(); got != tc.want {
-				t.Errorf("IsEmpty() = %v, want %v", got, tc.want)
+			if got := tc.cfg.Empty(); got != tc.want {
+				t.Errorf("Empty) = %v, want %v", got, tc.want)
 			}
 		})
 	}

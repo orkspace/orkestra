@@ -511,7 +511,7 @@ kubectl apply -f bundle.yaml
 ## What to know
 
 **No changes to ` + "`" + `Reconcile` + "`" + `, struct fields, or call sites.**
-The injected constructor calls ` + "`" + `kubeclient.ToClient(kube)` + "`" + ` to wrap the interface as
+The injected constructor calls ` + "`" + `orkadapter.ToClient(kube)` + "`" + ` to wrap the interface as
 ` + "`" + `client.Client` + "`" + ` — your existing field and all ` + "`" + `r.client.*` + "`" + ` calls compile unchanged.
 
 **` + "`" + `ctrl.Result{RequeueAfter: X}` + "`" + ` is preserved.**

@@ -97,7 +97,7 @@ func (c *Client) Push(ctx context.Context, ref *Ref, dir string, opts PushOption
 	var descs []ocispec.Descriptor
 	for _, f := range files {
 		path := filepath.Join(dir, f)
-		data, err := os.ReadFile(path)
+		data, err := readLocal(path)
 		if err != nil {
 			return "", fmt.Errorf("reading %s: %w", f, err)
 		}
@@ -324,7 +324,7 @@ func (c *Client) fetchIndex(ctx context.Context, idxRef *Ref) (*PatternIndex, er
 		return nil, err
 	}
 
-	data, err := os.ReadFile(filepath.Join(tmp, "index.json"))
+	data, err := readLocal(filepath.Join(tmp, "index.json"))
 	if err != nil {
 		return nil, fmt.Errorf("reading index blob: %w", err)
 	}

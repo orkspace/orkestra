@@ -1,7 +1,7 @@
 package types
 
-// IsEmpty reports whether this HookTemplates has no resource declarations.
-func (h HookTemplates) IsEmpty() bool {
+// Empty reports whether this HookTemplates has no resource declarations.
+func (h HookTemplates) Empty() bool {
 	return len(h.Deployments) == 0 &&
 		len(h.ReplicaSets) == 0 &&
 		len(h.StatefulSets) == 0 &&

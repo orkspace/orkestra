@@ -42,7 +42,7 @@ cond.Notify.Message                    (condition-level — highest priority)
   └─ katalog.Notification.EffectiveMessage(teamName)
        └─ team.Message                 (team-level default)
             └─ katalog.Notification.Message   (global default)
-                 └─ ""                 (no message — body will be empty)
+                 └─ ""                 (no message — body will be Empty()
 ```
 
 ## Condition key

@@ -29,7 +29,7 @@ KomposeRuntimeKatalog
   ├─ populateAPITypesFromCRDFile (crdfile.go) ← reads CRD YAML, fills APITypes
   └─ EnrichCRDEntry (enrichment.go)           ← sees fully-specified APITypes, skips built-in lookup
   ↓
-ValidateConfig
+Validate
   ├─ setGroupVersionKind                      ← APITypes already set, just copies to GVK fields
   └─ ...
 ```
@@ -67,7 +67,7 @@ before deploying the Orkestra chart. The `crdFile` field is still valid in the K
 |------|------|
 | `pkg/katalog/crdfile.go` | `populateAPITypesFromCRDFile`, `readAPITypesFromCRDFile`, `selectCRDVersion` |
 | `pkg/katalog/parser.go` | calls `populateAPITypesFromCRDFile` in the enrichment loop in `KomposeRuntimeKatalog` |
-| `cmd/cli/run_dev.go` | `applyCRDFilesIfNeeded` — applies CRD files before starting reconcilers (dev only) |
+| `cmd/cli/run_dev_apply.go` | `applyCRDFilesIfNeeded` — applies CRD files before starting reconcilers (dev only) |
 | `pkg/merger/merger.go` | `FirstEntryDir()` — returns the directory of the first entry point for relative path resolution |
 
 → Back to: [README.md](../README.md)

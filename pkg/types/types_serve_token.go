@@ -122,9 +122,9 @@ func (p ServeTokenPermissions) activePerms(class ServeEndpointClass) []string {
 	return p.Permissions.Global
 }
 
-// IsEmpty reports whether no permissions at all are declared.
+// Empty reports whether no permissions at all are declared.
 // A token with empty permissions can authenticate but cannot do anything.
-func (p ServePermissionSet) IsEmpty() bool {
+func (p ServePermissionSet) Empty() bool {
 	return len(p.Global) == 0 && len(p.Schema) == 0 && len(p.Resources) == 0
 }
 

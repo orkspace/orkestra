@@ -2,7 +2,6 @@ package cluster
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -20,7 +19,7 @@ type clustersFile struct {
 // map of cluster name → GatewayClusterConfig. The file format is identical
 // to the gateway.clusters include file used by the katalog.
 func LoadClustersFile(path string) (map[string]orktypes.GatewayClusterConfig, error) {
-	data, err := os.ReadFile(path)
+	data, err := readLocal(path)
 	if err != nil {
 		return nil, fmt.Errorf("reading clusters file: %w", err)
 	}

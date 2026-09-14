@@ -18,7 +18,6 @@ package motif
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -29,10 +28,15 @@ import (
 	"github.com/orkspace/orkestra/pkg/utils"
 )
 
+var (
+	readLocal       = utils.ReadLocal
+	strictUnmarshal = utils.StrictUnmarshal
+)
+
 // Load loads a Motif from a local file path.
 // For full import resolution (registry, OCI, auth), use LoadImport.
 func Load(path string) (*orktypes.Motif, error) {
-	data, err := os.ReadFile(path)
+	data, err := readLocal(path)
 	if err != nil {
 		return nil, fmt.Errorf("reading motif %s: %w", path, err)
 	}
@@ -59,22 +63,22 @@ func LoadImport(imp *orktypes.MotifImport) (*orktypes.Motif, error) {
 	ref := strings.TrimSpace(imp.Motif)
 
 	// File path — relative, absolute, or ends with .yaml/.yml
-	if isFilePath(ref) {
+	if registry.IsFilePath(ref) {
 		return Load(ref)
 	}
 
 	oci := imp.OCI
 
 	// oci:// prefix → always OCI, strip prefix before further parsing.
-	if strings.HasPrefix(ref, "oci://") {
+	if registry.IsOCIRef(ref) {
 		oci = true
-		ref = strings.TrimPrefix(ref, "oci://")
+		ref = registry.CleanOCIRef(ref)
 	}
 
 	// Bare name — no scheme, no dots in the host segment → resolve against
 	// the default motif registry and pull via OCI.
 	// e.g. "postgres" or "postgres:v0.1.0"
-	if !oci && !isGitURL(ref) && !looksLikeFullRef(ref) {
+	if !oci && !isGitURL(ref) && !registry.LooksLikeFullRef(ref) {
 		resolved, err := registry.ResolveForKind(ref, registry.MotifKind)
 		if err != nil {
 			return nil, fmt.Errorf("motif %q: resolving reference: %w", imp.Motif, err)
@@ -98,20 +102,13 @@ func LoadImport(imp *orktypes.MotifImport) (*orktypes.Motif, error) {
 	}
 	defer cleanup()
 
-	data, err := os.ReadFile(filepath.Join(tmpDir, "motif.yaml"))
+	fileName := registry.FileMotif
+	data, err := readLocal(filepath.Join(tmpDir, fileName))
 	if err != nil {
-		return nil, fmt.Errorf("motif %q@%s: motif.yaml not found in artifact: %w", cleanURL, version, err)
+		return nil, fmt.Errorf("motif %q@%s: %s not found in artifact: %w", cleanURL, version, fileName, err)
 	}
 
 	return parse(data)
-}
-
-// isFilePath reports whether ref is a local file reference.
-func isFilePath(ref string) bool {
-	if strings.HasPrefix(ref, "./") || strings.HasPrefix(ref, "/") || strings.HasPrefix(ref, "../") {
-		return true
-	}
-	return strings.HasSuffix(ref, ".yaml") || strings.HasSuffix(ref, ".yml")
 }
 
 // isGitURL reports whether ref is a Git remote URL.
@@ -119,18 +116,6 @@ func isGitURL(ref string) bool {
 	return strings.HasPrefix(ref, "https://") ||
 		strings.HasPrefix(ref, "http://") ||
 		strings.HasPrefix(ref, "git@")
-}
-
-// looksLikeFullRef reports whether ref already contains a registry hostname
-// (has a dot or colon before the first slash, or is localhost).
-// Mirrors the logic in registry.looksLikeFull.
-func looksLikeFullRef(ref string) bool {
-	slashIdx := strings.Index(ref, "/")
-	if slashIdx < 0 {
-		return false
-	}
-	host := ref[:slashIdx]
-	return strings.Contains(host, ".") || strings.Contains(host, ":") || host == "localhost"
 }
 
 // resolveMotifRef returns the (cleanURL, version) pair ready for PullMotifToDir.
@@ -167,7 +152,7 @@ func resolveMotifRef(ref, version string, oci bool) (cleanURL, resolvedVersion s
 
 func parse(data []byte) (*orktypes.Motif, error) {
 	var m orktypes.Motif
-	if err := utils.StrictUnmarshal(data, &m); err != nil {
+	if err := strictUnmarshal(data, &m); err != nil {
 		return nil, fmt.Errorf("parsing motif: %w", err)
 	}
 	if !konfig.IsMotifKind(m.Kind) {

@@ -13,13 +13,11 @@ import (
 	"github.com/orkspace/orkestra/pkg/kubeclient"
 	"github.com/orkspace/orkestra/pkg/labels"
 	"github.com/orkspace/orkestra/pkg/logger"
-	"github.com/orkspace/orkestra/pkg/resources/common"
+	"github.com/orkspace/orkestra/pkg/resources/shared"
 	orktypes "github.com/orkspace/orkestra/pkg/types"
-	"github.com/orkspace/orkestra/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -32,8 +30,8 @@ func Create(ctx context.Context, kube kubeclient.Interface, owner domain.Object,
 		return fmt.Errorf("service.Create: invalid spec: %w", err)
 	}
 
-	namespace := common.ResolveNamespace(owner, spec.Namespace)
-	if err := common.SleepIfNeeded(spec.Sleep); err != nil {
+	namespace := shared.ResolveNamespace(owner, spec.Namespace)
+	if err := shared.SleepIfNeeded(spec.Sleep); err != nil {
 		return err
 	}
 
@@ -72,8 +70,8 @@ func Apply(ctx context.Context, kube kubeclient.Interface, owner domain.Object, 
 		return fmt.Errorf("service.Apply: invalid spec: %w", err)
 	}
 
-	namespace := common.ResolveNamespace(owner, spec.Namespace)
-	if err := common.SleepIfNeeded(spec.Sleep); err != nil {
+	namespace := shared.ResolveNamespace(owner, spec.Namespace)
+	if err := shared.SleepIfNeeded(spec.Sleep); err != nil {
 		return err
 	}
 
@@ -87,7 +85,7 @@ func Apply(ctx context.Context, kube kubeclient.Interface, owner domain.Object, 
 
 	if _, err = kube.Clientset().CoreV1().Services(namespace).Patch(
 		ctx, spec.Name, k8stypes.ApplyPatchType, body,
-		metav1.PatchOptions{FieldManager: konfig.FieldManagerRuntime, Force: utils.BoolPtr(true)},
+		metav1.PatchOptions{FieldManager: konfig.FieldManagerRuntime, Force: shared.ResolveForceConflict(kube, spec.ForceConflict)},
 	); err != nil {
 		return fmt.Errorf("service.Apply: %w", err)
 	}
@@ -108,8 +106,8 @@ func Update(ctx context.Context, kube kubeclient.Interface, owner domain.Object,
 
 // Delete deletes the Service if it exists.
 func Delete(ctx context.Context, kube kubeclient.Interface, owner domain.Object, spec ResolvedServiceSpec) error {
-	namespace := common.ResolveNamespace(owner, spec.Namespace)
-	if err := common.SleepIfNeeded(spec.Sleep); err != nil {
+	namespace := shared.ResolveNamespace(owner, spec.Namespace)
+	if err := shared.SleepIfNeeded(spec.Sleep); err != nil {
 		return err
 	}
 
@@ -159,9 +157,11 @@ func DeleteIfOwned(ctx context.Context, kube kubeclient.Interface,
 // This function assembles the spec and applies defaults.
 func Resolve(src orktypes.ServiceTemplateSource, ownerName string) ResolvedServiceSpec {
 	spec := ResolvedServiceSpec{
-		Name:     src.Name,
-		Labels:   make(map[string]string),
-		Selector: make(map[string]string),
+		Name:          src.Name,
+		Labels:        make(map[string]string),
+		Selector:      make(map[string]string),
+		Sleep:         src.Sleep,
+		ForceConflict: src.ForceConflict,
 	}
 
 	if spec.Name == "" {
@@ -235,35 +235,12 @@ func buildService(owner domain.Object, spec ResolvedServiceSpec, namespace strin
 	// Selector matches pods created by deployments with the same owner
 	spec.Selector["orkestra-owner"] = owner.GetName()
 
-	// For unstructured owners the GVK may not be set on the object itself —
-	// use the unstructured helper to get it
-	// TODO: If there is a better way
-	apiVersion := ""
-	kind := ""
-	if u, ok := owner.(*unstructured.Unstructured); ok {
-		apiVersion = u.GetAPIVersion()
-		kind = u.GetKind()
-	} else {
-		gvk := owner.GetObjectKind().GroupVersionKind()
-		apiVersion = gvk.GroupVersion().String()
-		kind = gvk.Kind
-	}
-
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      spec.Name,
-			Namespace: namespace,
-			Labels:    spec.Labels,
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					APIVersion:         apiVersion,
-					Kind:               kind,
-					Name:               owner.GetName(),
-					UID:                owner.GetUID(),
-					Controller:         utils.BoolPtr(true),
-					BlockOwnerDeletion: utils.BoolPtr(true),
-				},
-			},
+			Name:            spec.Name,
+			Namespace:       namespace,
+			Labels:          spec.Labels,
+			OwnerReferences: shared.ResolveOwnerReferences(owner),
 		},
 		Spec: corev1.ServiceSpec{
 			Type:     svcType,

@@ -24,12 +24,12 @@ Zero changes to your reconciler. `Reconcile`, struct fields, and all call sites 
 ```go
 func NewWebAppReconciler(kube kubeclient.Interface) domain.Reconciler {
     return domain.ReconcilerFrom(&WebAppReconciler{
-        Client: kubeclient.ToClient(kube),
+        Client: orkadapter.ToClient(kube),
     })
 }
 ```
 
-`kubeclient.ToClient` returns a `client.Client` — the same type your struct already holds. `domain.ReconcilerFrom` adapts the `ctrl.Request` signature. Your reconciler compiles and runs inside Orkestra with no other edits.
+`orkadapter.ToClient` returns a `client.Client` — the same type your struct already holds. `domain.ReconcilerFrom` adapts the `ctrl.Request` signature. Your reconciler compiles and runs inside Orkestra with no other edits.
 
 ### `--mode native`
 

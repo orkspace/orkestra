@@ -40,7 +40,7 @@ func TestExpandMotifImports_DoesNotMergeProfiles(t *testing.T) {
 	}
 
 	require.NoError(t, k.expandMotifImports())
-	assert.True(t, k.Profiles.IsEmpty(), "profiles must not be merged from CRD-level imports")
+	assert.True(t, k.Profiles.Empty(), "profiles must not be merged from CRD-level imports")
 
 	// Resources from the motif are still merged into the CRD's onReconcile.
 	entry := k.enabledCRDs["app"]

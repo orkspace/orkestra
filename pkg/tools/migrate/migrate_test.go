@@ -299,8 +299,8 @@ func (r *WebAppReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	if !strings.Contains(out, "func NewWebAppReconciler(kube kubeclient.Interface)") {
 		t.Error("expected ToClient constructor to be injected")
 	}
-	if !strings.Contains(out, "kubeclient.ToClient(kube)") {
-		t.Error("expected kubeclient.ToClient in constructor")
+	if !strings.Contains(out, "orkadapter.ToClient(kube)") {
+		t.Error("expected orkadapter.ToClient in constructor")
 	}
 	if !strings.Contains(out, "domain.ReconcilerFrom") {
 		t.Error("expected domain.ReconcilerFrom in constructor")
@@ -322,6 +322,9 @@ func (r *WebAppReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}
 	if !strings.Contains(out, `"github.com/orkspace/orkestra/pkg/kubeclient"`) {
 		t.Error("expected kubeclient import to be injected")
+	}
+	if !strings.Contains(out, `"github.com/orkspace/orkestra/pkg/kubeclient/orkadapter"`) {
+		t.Error("expected orkadapter import to be injected")
 	}
 
 	// Mode recorded.

@@ -67,14 +67,14 @@ normalize:
 
 ---
 
-### `isEmpty`
+### `Empty`
 
 Return `true` when the value is nil, an empty string, an empty slice, or an empty map.
 
 Keywords: type, empty, nil, check, boolean, absent
 
 ```yaml
-# value: "{{ isEmpty .spec.annotations }}"
+# value: "{{ Empty .spec.annotations }}"
 # {}          → true
 # nil         → true
 # {app: foo}  → false
@@ -246,7 +246,7 @@ This symmetry means you can use `typeOf` in status fields to surface the detecte
 | `typeNumber` | `(v any)` | `bool` |
 | `typeBool` | `(v any)` | `bool` |
 | `typeNull` | `(v any)` | `bool` |
-| `isEmpty` | `(v any)` | `bool` |
+| `Empty` | `(v any)` | `bool` |
 | `len` | `(v any)` | `int` |
 | `toInt` | `(v any)` | `int64` |
 | `toFloat` | `(v any)` | `float64` |

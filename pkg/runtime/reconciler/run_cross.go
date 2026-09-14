@@ -12,17 +12,12 @@ package reconciler
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
-	"time"
-
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
-)
 
-const (
-	callTimeout = 5 * time.Second
+	orktypes "github.com/orkspace/orkestra/pkg/types"
+	"github.com/orkspace/orkestra/pkg/utils/common"
 )
 
 // fetchCrossViaHTTP fetches a CR's detail from an Orkestra CR endpoint.
@@ -30,59 +25,13 @@ const (
 // which is already built and running on every Orkestra instance.
 //
 // Returns nil on any error — callers treat nil as "not found".
-func fetchCrossViaHTTP(ctx context.Context, endpoint, token string) map[string]interface{} {
-	if endpoint == "" {
-		return nil
-	}
-
-	callCtx, cancel := context.WithTimeout(ctx, callTimeout)
-	defer cancel()
-
-	req, err := http.NewRequestWithContext(callCtx, http.MethodGet, endpoint, nil)
-	if err != nil {
-		return nil
-	}
-	if token != "" {
-		req.Header.Set("Authorization", "Bearer "+token)
-	}
-	req.Header.Set("Accept", "application/json")
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil || resp == nil {
-		return nil
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusNotFound {
-		return map[string]interface{}{"found": "false"}
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil
-	}
-
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
-	if err != nil {
-		return nil
-	}
-
-	var result map[string]interface{}
-	if err := json.Unmarshal(body, &result); err != nil {
-		return nil
-	}
-
-	// Ensure "found" is set
-	if _, ok := result["found"]; !ok {
-		if result["name"] != nil {
-			result["found"] = "true"
-		} else {
-			result["found"] = "false"
-		}
-	}
-
+// Delegates to common.FetchCrossViaHTTP
+func fetchCrossViaHTTP(ctx context.Context, cs kubernetes.Interface, source *orktypes.CrossSource) map[string]interface{} {
+	_, result := common.FetchCrossViaHTTP(ctx, cs, source)
 	return result
 }
 
-// ReadCrossFromInformer reads one CR from an informer cache by namespace/name key.
+// ReadCrossFromInformerByName reads one CR from an informer cache by namespace/name key.
 // Zero API server calls — pure in-memory map lookup.
 //
 // key is "namespace/name" for namespaced CRDs or "name" for cluster-scoped.
@@ -91,7 +40,7 @@ func fetchCrossViaHTTP(ctx context.Context, endpoint, token string) map[string]i
 //
 // Returns a consistent map shape regardless of whether the CR was found —
 // callers use .found == "true" to gate their logic.
-func ReadCrossFromInformer(
+func ReadCrossFromInformerByName(
 	indexer cache.Indexer,
 	key string,
 	sourceCrossAccess *bool,
@@ -115,9 +64,6 @@ func ReadCrossFromInformer(
 
 // ReadCrossFromInformerByLabel reads the first CR from an informer cache whose
 // labels contain labelKey=labelValue.
-//
-// The original implementation incorrectly called GetByKey with the label key
-// string. This function correctly iterates indexer.List() and filters.
 //
 // Returns the first match. When multiple CRs share the label, the first
 // returned by List() is used — List() order is not guaranteed. If you need

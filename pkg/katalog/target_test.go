@@ -102,7 +102,7 @@ func TestLookupByTargetOrAlias_PrimaryWinsOverAlias(t *testing.T) {
 		t.Fatal("expected resolution")
 	}
 	if r.Alias != "" {
-		t.Errorf("expected primary target hit (Alias empty), got alias %q", r.Alias)
+		t.Errorf("expected primary target hit (Alias Empty(), got alias %q", r.Alias)
 	}
 	if r.CRD.ServeTarget() != "shared" {
 		t.Errorf("ServeTarget = %q, want %q (primary target winner)", r.CRD.ServeTarget(), "shared")

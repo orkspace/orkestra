@@ -8,7 +8,7 @@ import (
 	"github.com/orkspace/orkestra/domain"
 	"github.com/orkspace/orkestra/pkg/kubeclient"
 	orkdeploy "github.com/orkspace/orkestra/pkg/resources/deployments"
-	orktmpl "github.com/orkspace/orkestra/pkg/resources/template"
+	orktmpl "github.com/orkspace/orkestra/pkg/template"
 )
 
 // BlockchainAppWithTargetsReconciler is the per-target constructor reconciler

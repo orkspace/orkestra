@@ -12,10 +12,12 @@ import (
 )
 
 type QueueRegistry struct {
-	name    string
-	queues  map[string]*Workqueue // keyed by GVK string
-	mu      sync.RWMutex
-	started atomic.Bool
+	name      string
+	queues    map[string]*Workqueue       // keyed by GVK string
+	queueCfg  map[string]domain.Workqueue // keyed by GVK string
+	queueType map[string]string           // keyed by GVK string	-  Future
+	mu        sync.RWMutex
+	started   atomic.Bool
 }
 
 // NewQueueRegistry returns a new queue registry
@@ -24,21 +26,26 @@ type QueueRegistry struct {
 // For returns a registered CRD
 func NewQueueRegistry() *QueueRegistry {
 	return &QueueRegistry{
-		name:   "queue registry",
-		queues: make(map[string]*Workqueue), // Create the map for per CRD registration
+		name:      "queue registry",
+		queues:    make(map[string]*Workqueue),       // Create the map for per CRD registration
+		queueCfg:  make(map[string]domain.Workqueue), // Create the map for per CRD registration
+		queueType: make(map[string]string),           // Create the map for per CRD registration
 	}
 }
 
 // Register registers each CRD with their respective
 // GVK and maximum queue depth
-func (qr *QueueRegistry) Register(gvk string, maxDepth int) *Workqueue {
+func (qr *QueueRegistry) Register(gvk string, q domain.Workqueue) *Workqueue {
 	qr.mu.Lock()
 	defer qr.mu.Unlock()
 
-	wq := NewWorkqueue()
-	qr.queues[gvk] = wq                // Register each CRD to a workqueue
-	wq.maxDepth.Store(int32(maxDepth)) // Set the maximum queue depth for this new queue per CRD
-
+	wq := NewWorkqueue(gvk)
+	qr.queues[gvk] = wq
+	if q != nil {
+		qr.queueCfg[gvk] = q
+		wq.queueCfg = q
+		wq.maxDepth.Store(int32(q.MaxQueueDepth()))
+	}
 	return wq
 }
 
@@ -65,15 +72,15 @@ func (qr *QueueRegistry) Depth(gvk string) int {
 		return 0
 	}
 
-	if wq.Queue == nil {
+	if wq.queue == nil {
 		return 0
 	}
 
 	return wq.Depth()
 }
 
-// ShutdownQueue drains the queue of a given CRD
-func (qr *QueueRegistry) ShutdownQueue(gvkStr string) error {
+// Drain drains the queue of a given CRD
+func (qr *QueueRegistry) Drain(gvkStr string) error {
 	qr.mu.Lock()
 	defer qr.mu.Unlock()
 
@@ -82,7 +89,7 @@ func (qr *QueueRegistry) ShutdownQueue(gvkStr string) error {
 		return fmt.Errorf("queue not found for %s", gvkStr)
 	}
 
-	q.Queue.ShutDown()
+	q.queue.ShutDown()
 	delete(qr.queues, gvkStr)
 	return nil
 }
@@ -94,8 +101,8 @@ func (qr *QueueRegistry) Shutdown(ctx context.Context) {
 	defer qr.mu.Unlock()
 
 	for _, wq := range qr.queues {
-		if wq.Queue != nil {
-			wq.Queue.ShutDown()
+		if wq.queue != nil {
+			wq.queue.ShutDown()
 		}
 	}
 }

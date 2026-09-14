@@ -34,13 +34,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"strings"
 	"sync"
-	"time"
 
 	orktypes "github.com/orkspace/orkestra/pkg/types"
+	"github.com/orkspace/orkestra/pkg/utils/common"
+	"k8s.io/client-go/kubernetes"
 )
 
 // CrossMetricsRegistry holds AutoMetrics for all registered operatorboxes.
@@ -85,46 +84,17 @@ func (r *CrossMetricsRegistry) Get(crd string) *AutoMetrics {
 //     field names as AutoMetrics.AsMap().
 //
 // Returns "" when neither path finds a value.
-func OldResolveCrossMetric(registry *CrossMetricsRegistry, field string, source *orktypes.CrossSource) string {
-	// Expected: cross.<crd>.metrics.<metric>
-	// e.g.     cross.managed-database.metrics.queueDepth
-	if registry == nil && source == nil {
-		return ""
-	}
-
-	stripped := strings.TrimPrefix(field, "cross.")
-	dotIdx := strings.Index(stripped, ".metrics.")
-	if dotIdx < 0 {
-		return ""
-	}
-
-	crd := stripped[:dotIdx]
-	metricName := stripped[dotIdx+len(".metrics."):]
-	metricField := "metrics." + metricName
-
-	// Path 1: in-process registry
-	if registry != nil {
-		if m := registry.Get(crd); m != nil {
-			return m.Get(metricField)
-		}
-	}
-
-	// Path 2: HTTP endpoint fallback (cross-binary)
-	if source != nil && source.Endpoint != "" {
-		return fetchCrossMetricHTTP(source.Endpoint, source.Token, metricName)
-	}
-
-	return ""
-}
-
 func ResolveCrossMetric(
+	cs kubernetes.Interface,
 	registry *CrossMetricsRegistry,
 	field string,
 	source *orktypes.CrossSource,
 ) string {
+	// Expected: cross.<crd>.metrics.<metric>
+	// e.g.     cross.managed-database.metrics.queueDepth
 	// Parse the cross.<crd>.metrics.<field> structure
 	cf := orktypes.ParseCrossField(field)
-	metricsType := orktypes.MetricsType().String()
+	metricsType := orktypes.MetricsProtocol().String()
 	if cf == nil || cf.Category != metricsType {
 		return ""
 	}
@@ -142,52 +112,31 @@ func ResolveCrossMetric(
 	if source != nil {
 		// Raw endpoint takes precedence
 		if source.Endpoint != "" {
-			return fetchCrossMetricHTTP(source.Endpoint, source.Token, cf.Field)
+			return fetchCrossMetricHTTP(cs, source, cf.Field)
 		}
 
 		// ONCOP host-based URL inference
 		if source.Host != "" {
 			url := orktypes.BuildONCOPURL(orktypes.CrossCRDDeclaration{
 				Source:   source,
-				Crd:      cf.CRD,
+				CRD:      cf.CRD,
 				Selector: orktypes.CrossSelector{Namespace: cf.Namespace},
 			})
-			return fetchCrossMetricHTTP(url, source.Token, cf.Field)
+			source.Endpoint = url
+			return fetchCrossMetricHTTP(cs, source, cf.Field)
 		}
 	}
 
 	return ""
 }
 
-const crossMetricHTTPTimeout = 5 * time.Second
-
 // fetchCrossMetricHTTP calls the remote operator's /katalog/{crd} endpoint and
 // extracts the named metric from the "metrics" key in the JSON response.
 // This mirrors how readCross uses source.endpoint for CR observation.
-func fetchCrossMetricHTTP(endpoint, token, metricName string) string {
-	ctx, cancel := context.WithTimeout(context.Background(), crossMetricHTTPTimeout)
-	defer cancel()
+func fetchCrossMetricHTTP(cs kubernetes.Interface, source *orktypes.CrossSource, metricName string) string {
+	body, _ := common.FetchCrossViaHTTP(context.TODO(), cs, source)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
-	if err != nil {
-		return ""
-	}
-	if token != "" {
-		req.Header.Set("Authorization", "Bearer "+token)
-	}
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return ""
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return ""
-	}
-
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
-	if err != nil {
+	if body == nil {
 		return ""
 	}
 

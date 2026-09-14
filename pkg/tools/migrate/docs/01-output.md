@@ -10,7 +10,7 @@ Before removal, `ork migrate` scans `SetupWithManager` and extracts:
 
 - **`For(&pkg.Kind{})`** → `apiTypes.kind`, `object`, `objectList`, `version`, `location`, `alias` in `katalog.yaml`
 - **`Owns(&pkg.Kind{})`** → `constructor.managedResources:` entries (kind + apiVersion for standard k8s types)
-- **`Watches(&pkg.Kind{}, …)`** → `operatorBox.watch:` entries
+- **`Watches(&pkg.Kind{}, …)`** → `operatorBox.observe.watch:` entries
 
 Only `group` and `plural` cannot be determined from Go source — they remain as TODOs.
 
@@ -27,12 +27,12 @@ The method itself is replaced with a comment:
 ```go
 func NewWebAppReconciler(kube kubeclient.Interface) domain.Reconciler {
     return domain.ReconcilerFrom(&WebAppReconciler{
-        client: kubeclient.ToClient(kube),
+        Client: orkadapter.ToClient(kube),
     })
 }
 ```
 
-`kubeclient.ToClient` returns a `client.Client` — the same type your struct field already holds. `domain.ReconcilerFrom` adapts the `ctrl.Request` signature to Orkestra's interface. Your `Reconcile` method body is completely untouched.
+`orkadapter.ToClient` returns a `client.Client` — the same type your struct field already holds. `domain.ReconcilerFrom` adapts the `ctrl.Request` signature to Orkestra's interface. Your `Reconcile` method body is completely untouched.
 
 ### Orkestra imports are injected
 

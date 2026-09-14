@@ -190,6 +190,14 @@ Sleep injects an artificial delay. Accepts extended duration units (s, m, h, d, 
 
 ---
 
+### `forceConflict`
+
+Type: boolean
+
+ForceConflict, when true, sets Force: true when applying this resource, taking ownership of conflicting fields instead of returning a conflict error. Overrides the CRD-level ForceConflict setting.
+
+---
+
 ## Quick reference
 
 | YAML key | Type |
@@ -210,3 +218,4 @@ Sleep injects an artificial delay. Accepts extended duration units (s, m, h, d, 
 | `reconcile` | boolean |
 | `forEach` | object |
 | `sleep` | string |
+| `forceConflict` | boolean |

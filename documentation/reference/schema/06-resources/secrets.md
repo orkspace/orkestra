@@ -224,6 +224,14 @@ Sleep injects an artificial delay into the reconcile of this resource. Useful fo
 
 ---
 
+### `forceConflict`
+
+Type: boolean
+
+ForceConflict, when true, sets Force: true when applying this resource, taking ownership of conflicting fields instead of returning a conflict error. Overrides the CRD-level ForceConflict setting.
+
+---
+
 ## Quick reference
 
 | YAML key | Type |
@@ -245,3 +253,4 @@ Sleep injects an artificial delay into the reconcile of this resource. Useful fo
 | `rotateAfter` | string |
 | `tls` | object |
 | `sleep` | string |
+| `forceConflict` | boolean |

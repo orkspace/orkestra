@@ -23,7 +23,7 @@ Zero changes to your reconciler. `Reconcile`, struct fields, and all call sites 
 ```go
 func NewWebAppReconciler(kube kubeclient.Interface) domain.Reconciler {
     return domain.ReconcilerFrom(&WebAppReconciler{
-        client: kubeclient.ToClient(kube),
+        Client: orkadapter.ToClient(kube),
     })
 }
 ```

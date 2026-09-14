@@ -2,14 +2,12 @@ package simulate
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/orkspace/orkestra/domain"
 	"github.com/orkspace/orkestra/pkg/kubeclient"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -22,17 +20,17 @@ import (
 	"k8s.io/client-go/rest"
 	k8stesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
-	sigs "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // Op is one recorded cluster operation.
 type Op struct {
-	Cycle     int
-	Verb      string // "create", "update", "delete", "get", "patch"
-	Resource  string // "deployments", "services", etc.
-	Namespace string
-	Name      string
-	At        time.Time
+	Cycle       int
+	Verb        string // "create", "update", "delete", "get", "patch"
+	Resource    string // "deployments", "services", etc.
+	Subresource string // "status", "custom", etc.
+	Namespace   string
+	Name        string
+	At          time.Time
 }
 
 // fakeShared holds the mutable, mutex-guarded state shared across all
@@ -58,6 +56,7 @@ type FakeKubeclient struct {
 	eventRecorder kubeclient.EventRecorder
 	storeFor      func(schema.GroupVersionKind) cache.Store
 	indexerFor    func(schema.GroupVersionKind) cache.Indexer
+	forceConflict *bool
 }
 
 // dynamicObjects seeds the fake dynamic client's tracker at construction —
@@ -119,7 +118,7 @@ func NewFakeKubeclient(scheme *runtime.Scheme, dynamicObjects ...runtime.Object)
 
 func (f *FakeKubeclient) Clientset() kubernetes.Interface  { return f.clientset }
 func (f *FakeKubeclient) DynamicClient() dynamic.Interface { return f.dynamic }
-func (f *FakeKubeclient) Mapper() meta.RESTMapper          { return f.mapper }
+func (f *FakeKubeclient) RESTMapper() meta.RESTMapper      { return f.mapper }
 func (f *FakeKubeclient) RestConfig() *rest.Config         { return nil }
 func (f *FakeKubeclient) Scheme() *runtime.Scheme          { return f.scheme }
 
@@ -180,6 +179,13 @@ func (f *FakeKubeclient) WithIndexerFor(fn func(schema.GroupVersionKind) cache.I
 
 func (f *FakeKubeclient) GetIndexerFor() func(schema.GroupVersionKind) cache.Indexer {
 	return f.indexerFor
+}
+
+func (k *FakeKubeclient) ForceConflict() *bool { return new(bool) }
+func (f *FakeKubeclient) WithForceConflict(forceConflict *bool) kubeclient.Interface {
+	cp := *f
+	cp.forceConflict = forceConflict
+	return &cp
 }
 
 // AdvanceCycle increments the cycle counter. Call between simulated reconciles.
@@ -318,68 +324,10 @@ func (f fakescope) String() string           { return string(f) }
 // Compile check — *FakeKubeclient must satisfy kubeclient.Interface.
 var _ kubeclient.Interface = (*FakeKubeclient)(nil)
 
-// CRUD stubs — record operations. Get always returns NotFound so the reconciler
-// takes the Create path on every simulated cycle, producing visible create ops.
-
-func (f *FakeKubeclient) Get(_ context.Context, namespace, name string, into sigs.Object) error {
-	f.shared.mu.Lock()
-	f.shared.ops = append(f.shared.ops, Op{
-		Cycle:     f.shared.currentCycle,
-		Verb:      "get",
-		Resource:  resourceNameFromObject(into),
-		Namespace: namespace,
-		Name:      name,
-		At:        time.Now(),
-	})
-	f.shared.mu.Unlock()
-	return fakeNotFound(name)
-}
-
-func (f *FakeKubeclient) Create(_ context.Context, obj sigs.Object) error {
-	f.shared.mu.Lock()
-	f.shared.ops = append(f.shared.ops, Op{
-		Cycle:     f.shared.currentCycle,
-		Verb:      "create",
-		Resource:  resourceNameFromObject(obj),
-		Namespace: obj.GetNamespace(),
-		Name:      obj.GetName(),
-		At:        time.Now(),
-	})
-	f.shared.mu.Unlock()
-	return nil
-}
-
-func (f *FakeKubeclient) Patch(_ context.Context, obj sigs.Object, _ kubeclient.Patch) error {
-	f.shared.mu.Lock()
-	f.shared.ops = append(f.shared.ops, Op{
-		Cycle:     f.shared.currentCycle,
-		Verb:      "patch",
-		Resource:  resourceNameFromObject(obj),
-		Namespace: obj.GetNamespace(),
-		Name:      obj.GetName(),
-		At:        time.Now(),
-	})
-	f.shared.mu.Unlock()
-	return nil
-}
-
-// fakeNotFound returns an error that satisfies k8s.io/apimachinery/pkg/api/errors.IsNotFound.
-func fakeNotFound(name string) error {
-	return k8serrors.NewNotFound(schema.GroupResource{}, name)
-}
-
-func resourceNameFromObject(obj runtime.Object) string {
-	t := fmt.Sprintf("%T", obj)
-	if idx := strings.LastIndex(t, "."); idx >= 0 {
-		t = t[idx+1:]
-	}
-	return strings.ToLower(t) + "s"
-}
-
 // Patch stubs — record operations but perform no real mutations.
 // The fake dynamic client handles the underlying object storage.
 
-func (f *FakeKubeclient) PatchFinalizers(_ context.Context, obj runtime.Object, finalizers []string) error {
+func (f *FakeKubeclient) PatchFinalizers(_ context.Context, obj runtime.Object, finalizers []string, _ metav1.PatchOptions) error {
 	f.shared.mu.Lock()
 	f.shared.ops = append(f.shared.ops, Op{
 		Cycle:    f.shared.currentCycle,
@@ -392,7 +340,7 @@ func (f *FakeKubeclient) PatchFinalizers(_ context.Context, obj runtime.Object, 
 	return nil
 }
 
-func (f *FakeKubeclient) PatchLabels(_ context.Context, obj runtime.Object, base, desired map[string]string) error {
+func (f *FakeKubeclient) PatchLabels(_ context.Context, obj runtime.Object, base, desired map[string]string, _ metav1.PatchOptions) error {
 	if stringMapsEqual(base, desired) {
 		return nil
 	}
@@ -411,7 +359,7 @@ func (f *FakeKubeclient) PatchLabels(_ context.Context, obj runtime.Object, base
 	return nil
 }
 
-func (f *FakeKubeclient) PatchAnnotations(_ context.Context, obj runtime.Object, annotations map[string]string) error {
+func (f *FakeKubeclient) PatchAnnotations(_ context.Context, obj runtime.Object, annotations map[string]string, _ metav1.PatchOptions) error {
 	f.shared.mu.Lock()
 	f.shared.ops = append(f.shared.ops, Op{
 		Cycle:    f.shared.currentCycle,
@@ -429,12 +377,25 @@ func (f *FakeKubeclient) PatchAnnotations(_ context.Context, obj runtime.Object,
 	return nil
 }
 
-func (f *FakeKubeclient) PatchStatus(_ context.Context, obj domain.Object, _ map[string]interface{}) error {
+func (f *FakeKubeclient) PatchStatus(_ context.Context, obj domain.Object, _ map[string]interface{}, _ metav1.PatchOptions) error {
 	f.shared.mu.Lock()
 	f.shared.ops = append(f.shared.ops, Op{
 		Cycle:    f.shared.currentCycle,
 		Verb:     "patch",
 		Resource: "status",
+		Name:     obj.GetName(),
+		At:       time.Now(),
+	})
+	f.shared.mu.Unlock()
+	return nil
+}
+
+func (f *FakeKubeclient) PatchSpec(_ context.Context, obj domain.Object, _ map[string]interface{}, _ metav1.PatchOptions) error {
+	f.shared.mu.Lock()
+	f.shared.ops = append(f.shared.ops, Op{
+		Cycle:    f.shared.currentCycle,
+		Verb:     "patch",
+		Resource: "spec",
 		Name:     obj.GetName(),
 		At:       time.Now(),
 	})

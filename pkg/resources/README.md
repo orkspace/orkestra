@@ -39,7 +39,7 @@ All functions receive a `kubeclient.KubeClient` and a `domain.Object` (the owner
    then add a field for it to `HookTemplates` in
    `pkg/types/types_hook_templates.go` — that's what actually exposes it
    under `onCreate`/`onReconcile`/`onDelete`.
-3. Add a resolver method in [`pkg/resources/template/resolver.go`](template/resolver.go).
+3. Add a resolver method in [`pkg/template/resolver.go`](template/resolver.go).
 4. Add the runner in `pkg/runtime/reconciler/run_<kind>.go`.
 5. Call the runner from [`pkg/runtime/reconciler/generic.go`](../../pkg/runtime/reconciler/generic.go).
 6. Give the `*TemplateSource` struct and every exported field a Go doc

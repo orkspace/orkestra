@@ -4,7 +4,6 @@ package reconciler
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/orkspace/orkestra/domain"
 	"github.com/orkspace/orkestra/pkg/logger"
@@ -38,7 +37,7 @@ func CheckNamespace(
 
 	// 1. RestrictedNamespaces always win
 	if restricted.IsRestricted(targetNamespace) {
-		pattern := matchedPattern(targetNamespace, restricted)
+		pattern := matchedRestrictedPattern(targetNamespace, restricted)
 
 		logger.FromContext(ctx).Warn().
 			Str("crd", crdName).
@@ -99,10 +98,10 @@ func (r *NamespaceGuardResult) EventMessage(resourceKind, resourceName string) s
 	}
 }
 
-// matchedPattern returns the first restricted pattern that matches.
-func matchedPattern(namespace string, restricted orktypes.RestrictedNamespaces) string {
+// matchedRestrictedPattern returns the first restricted pattern that matches.
+func matchedRestrictedPattern(namespace string, restricted orktypes.RestrictedNamespaces) string {
 	for _, pattern := range restricted {
-		if matchesPattern(namespace, pattern) {
+		if orktypes.MatchesPattern(namespace, pattern) {
 			return pattern
 		}
 	}
@@ -113,33 +112,9 @@ func matchedPattern(namespace string, restricted orktypes.RestrictedNamespaces) 
 // If none match, returns empty string.
 func matchedAllowedPattern(namespace string, allowed orktypes.AllowedNamespaces) string {
 	for _, pattern := range allowed {
-		if matchesPattern(namespace, pattern) {
+		if orktypes.MatchesPattern(namespace, pattern) {
 			return pattern
 		}
 	}
 	return ""
-}
-
-// matchesPattern supports exact, prefix*, and *suffix patterns.
-func matchesPattern(namespace, pattern string) bool {
-	if pattern == namespace {
-		return true
-	}
-	if strings.HasSuffix(pattern, "*") {
-		prefix := strings.TrimSuffix(pattern, "*")
-		return strings.HasPrefix(namespace, prefix)
-	}
-	if strings.HasPrefix(pattern, "*") {
-		suffix := strings.TrimPrefix(pattern, "*")
-		return strings.HasSuffix(namespace, suffix)
-	}
-	return false
-}
-
-// resolveTargetNamespace resolves the namespace for a child resource.
-func resolveTargetNamespace(crNamespace, templateNamespace string) string {
-	if templateNamespace != "" {
-		return templateNamespace
-	}
-	return crNamespace
 }

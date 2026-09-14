@@ -14,7 +14,7 @@ import (
 
 // effectiveBoxAndTarget returns the operatorBox and resolved target name for
 // this reconcile cycle. The target is read from the CR's serve-target annotation
-// (alias resolved > raw target > empty). Falls back to the CRD-level box when
+// (alias resolved > raw target > Empty(). Falls back to the CRD-level box when
 // the CR has no annotation (e.g. direct kubectl apply).
 // The system CleanupFinalizer is always included in the returned box.
 func (r *GenericReconciler[PTR]) effectiveBoxAndTarget(obj PTR) (orktypes.OperatorBoxConfig, string) {

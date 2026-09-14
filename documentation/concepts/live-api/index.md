@@ -76,7 +76,7 @@ The gateway's `/katalog` response carries a `source: "gateway"` field and is key
 
 **Control Center** — reads `/katalog`, `/katalog/{crd}/health`, and `/katalog/{crd}/cr` on a live poll. No kubectl, no kubeconfig.
 
-**ONCOP** — cross-binary operator reads use this API as the transport. `/katalog/{crd}/cr/{ns}/{name}` is the `type: cr` endpoint; `/katalog/{crd}/health` is `type: health`; `/katalog/{crd}` is `type: metrics` and `type: info`.
+**ONCOP** — cross-binary operator reads use this API as the transport. `/katalog/{crd}/cr/{ns}/{name}` is the `protocol: cr` endpoint; `/katalog/{crd}/health` is `protocol: health`; `/katalog/{crd}` is `protocol: metrics` and `protocol: info`.
 
 **Operator autoscaling** — the autoscaler reads `cross.*.metrics.*` from a sibling runtime via this API to scale workers based on another operator's queue depth.
 

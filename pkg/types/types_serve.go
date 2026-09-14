@@ -29,9 +29,9 @@ type ServeConfig struct {
 	Modes *ServeModes `yaml:"modes,omitempty" json:"modes,omitempty"`
 
 	// Include is a path (relative to the katalog file) to a YAML file with a
-	// "fields:" map and/or an "additionalFields:" block (same shape as the
+	// "fields:" map and/or a "labels:" or "annotations:" block (same shape as the
 	// inline equivalents below). Expanded at load time — the result is merged
-	// into Fields and AdditionalFields respectively, with inline entries
+	// into Fields, Labels and Annotations respectively, with inline entries
 	// taking precedence per key.
 	Include string `yaml:"include,omitempty" json:"include,omitempty"`
 
@@ -270,7 +270,7 @@ type ServeFieldConfig struct {
 
 	// Required, when true, marks the field as mandatory in the serve form —
 	// the browser enforces this natively (asterisk on the label, form cannot
-	// be submitted while empty) — and is also enforced server-side: an
+	// be submitted while Empty() — and is also enforced server-side: an
 	// implicit exists validation rule is synthesized automatically at
 	// katalog load time (see CRDEntry.RequiredServeFieldRules), covering every
 	// client of the Gateway API, not just the Control Center form. No matching
@@ -282,14 +282,26 @@ type ServeFieldConfig struct {
 	// Use for maintenance windows or temporarily locked fields.
 	Disabled string `yaml:"disabled,omitempty" json:"disabled,omitempty"`
 
-	// Type is required for AdditionalFields entries (labels/annotations have
-	// no CRD schema to infer type from). Ignored for Fields entries, which
+	// Type is required for labels/annotations entries which have
+	// no CRD schema to infer type from. Ignored for Fields entries, which
 	// always infer type from the CRD's OpenAPI schema.
 	// Supported: string (default), integer, number, boolean, enum.
 	Type string `yaml:"type,omitempty" json:"type,omitempty"`
 
 	// Enum lists valid values when Type == "enum". Required in that case.
 	Enum []string `yaml:"enum,omitempty" json:"enum,omitempty"`
+
+	// Default — set only if the field is absent or empty.
+	// Supports template expressions. This is used to synthesize mutation rules for this field
+	//  Ignored for Fields entries, which always infer default from the CRD's OpenAPI schema.
+	// Used by `ServeFieldMutationRules`
+	Default interface{} `yaml:"default,omitempty"` // accepts int, bool, string from YAML
+
+	// Override — always set, regardless of current value.
+	// Supports template expressions. This is used to synthesize mutation rules for this field
+	// Ignored for Fields entries, which always infer override from the CRD's OpenAPI schema.
+	// Used by `ServeFieldMutationRules`
+	Override interface{} `yaml:"override,omitempty"` // accepts int, bool, string from YAML
 
 	// Path is the dot-notation path in the CRD spec where this field belongs.
 	// Example: "app.repository", "scaling.minReplicas"
@@ -394,6 +406,21 @@ func (f ServeFieldConfig) IsGateOnly() bool {
 // HasSpecPath returns true if the spec path is set.
 func (f ServeFieldConfig) HasSpecPath() bool {
 	return f.Path != ""
+}
+
+// HasDefaultAndOverride reports whether both default and override are defined for this field
+func (f ServeFieldConfig) HasDefaultAndOverride() bool {
+	return f.Override != nil && f.Default != nil
+}
+
+// HasDefault returns true when default is set
+func (f ServeFieldConfig) HasDefault() bool {
+	return f.Default != nil
+}
+
+// HasOverride returns true when 0verride is set
+func (f ServeFieldConfig) HasOverride() bool {
+	return f.Override != nil
 }
 
 // HasTokenRestrictions reports whether any per-token access rules are declared.

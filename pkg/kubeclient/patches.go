@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/orkspace/orkestra/domain"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -19,6 +20,7 @@ func (k *Kubeclient) PatchFinalizers(
 	ctx context.Context,
 	obj runtime.Object,
 	finalizers []string,
+	opts metav1.PatchOptions,
 ) error {
 	mapping, err := k.gvrFor(obj)
 	if err != nil {
@@ -46,11 +48,11 @@ func (k *Kubeclient) PatchFinalizers(
 
 	if namespace == "" {
 		_, err = k.dynamic.Resource(mapping.Resource).Patch(
-			ctx, name, types.MergePatchType, body, metav1.PatchOptions{},
+			ctx, name, types.MergePatchType, body, opts,
 		)
 	} else {
 		_, err = k.dynamic.Resource(mapping.Resource).Namespace(namespace).Patch(
-			ctx, name, types.MergePatchType, body, metav1.PatchOptions{},
+			ctx, name, types.MergePatchType, body, opts,
 		)
 	}
 
@@ -69,6 +71,7 @@ func (k *Kubeclient) PatchLabels(
 	ctx context.Context,
 	obj runtime.Object,
 	base, desired map[string]string,
+	opts metav1.PatchOptions,
 ) error {
 	mapping, err := k.gvrFor(obj)
 	if err != nil {
@@ -107,11 +110,11 @@ func (k *Kubeclient) PatchLabels(
 
 	if ns == "" {
 		_, err = k.dynamic.Resource(mapping.Resource).Patch(
-			ctx, name, types.MergePatchType, body, metav1.PatchOptions{},
+			ctx, name, types.MergePatchType, body, opts,
 		)
 	} else {
 		_, err = k.dynamic.Resource(mapping.Resource).Namespace(ns).Patch(
-			ctx, name, types.MergePatchType, body, metav1.PatchOptions{},
+			ctx, name, types.MergePatchType, body, opts,
 		)
 	}
 
@@ -131,6 +134,7 @@ func (k *Kubeclient) PatchAnnotations(
 	ctx context.Context,
 	obj runtime.Object,
 	annotations map[string]string,
+	opts metav1.PatchOptions,
 ) error {
 	mapping, err := k.gvrFor(obj)
 	if err != nil {
@@ -158,13 +162,34 @@ func (k *Kubeclient) PatchAnnotations(
 
 	if ns == "" {
 		_, err = k.dynamic.Resource(mapping.Resource).Patch(
-			ctx, name, types.MergePatchType, body, metav1.PatchOptions{},
+			ctx, name, types.MergePatchType, body, opts,
 		)
 	} else {
 		_, err = k.dynamic.Resource(mapping.Resource).Namespace(ns).Patch(
-			ctx, name, types.MergePatchType, body, metav1.PatchOptions{},
+			ctx, name, types.MergePatchType, body, opts,
 		)
 	}
 
+	return err
+}
+
+func (k *Kubeclient) PatchSpec(
+	ctx context.Context,
+	obj domain.Object,
+	specFields map[string]interface{},
+	opts metav1.PatchOptions,
+) error {
+	mapping, err := k.gvrFor(obj)
+	if err != nil {
+		return err
+	}
+
+	patch := map[string]interface{}{"spec": specFields}
+	patchBytes, _ := json.Marshal(patch)
+
+	_, err = k.dynamic.
+		Resource(mapping.Resource).
+		Namespace(obj.GetNamespace()).
+		Patch(ctx, obj.GetName(), types.MergePatchType, patchBytes, opts)
 	return err
 }

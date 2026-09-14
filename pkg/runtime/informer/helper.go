@@ -6,110 +6,23 @@ import (
 	"strings"
 
 	"errors"
+
 	"github.com/orkspace/orkestra/domain"
 
 	"github.com/orkspace/orkestra/pkg/logger"
 	"github.com/orkspace/orkestra/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/tools/cache"
 )
 
-// handleEvent resolves the GVK from the scheme and routes the event
-// to the correct per-CRD queue. Falls back to the default queue if
-// no per-CRD queue is registered for this GVK.
-func (f *Factory) handleEvent(obj interface{}) {
-	// Block until factory is ready — List/Watch have started
-	<-f.ready
-
-	gvk, err := f.gvkFromObject(obj)
-	if err != nil {
-		return
-	}
-
-	gvkStr := gvk.String()
-
-	// ── Tier 2: Pre-enqueue namespace filter ─────────────────────────────
-	// Check namespace restriction BEFORE the item enters the queue.
-	// Items that fail this check are dropped — they do no work and create
-	// no queue pressure. The reconciler check (Tier 3) remains as a safety
-	// net for race conditions during startup.
-	namespace := extractNamespace(obj)
-	if !f.namespaceAllowed(gvkStr, namespace) {
-		logger.Debug().
-			Str("gvk", gvkStr).
-			Str("namespace", namespace).
-			Msg("informer: event dropped — namespace not allowed")
-		return
-	}
-
-	// ── Tier 2b: Pre-enqueue condition filter ────────────────────────────
-	// Evaluate operatorBox.preReconcile.filter conditions before enqueue.
-	// Objects that fail the filter are dropped — they never enter the queue.
-	if !f.enqueueAllowed(gvkStr, obj) {
-		return
-	}
-
-	// Route to per-CRD queue if registered, otherwise fall back to default
-	wq, ok := f.queueRegistry.For(gvkStr)
-	if !ok {
-		logger.Warn().
-			Str("gvk", gvkStr).
-			Msg("no per-CRD queue registered — falling back to default queue")
-		f.defaultWq.Enqueue(obj, gvkStr)
-		return
-	}
-
-	wq.Enqueue(obj, gvkStr)
-}
-
-// handleUpdateEvent routes an update event for oldObj→newObj to the correct queue.
-// When a sentinel-aware update filter is registered for the GVK, it is evaluated
-// first — both oldObj and newObj are available here for sentinel computation.
-// If the filter passes, EnqueueWithSentinels carries the sentinel map through.
-// When no update filter is registered, falls through to the standard enqueue path.
-func (f *Factory) handleUpdateEvent(gvkStr string, oldObj, newObj interface{}) {
-	<-f.ready
-
-	namespace := extractNamespace(newObj)
-	if !f.namespaceAllowed(gvkStr, namespace) {
-		logger.Debug().
-			Str("gvk", gvkStr).
-			Str("namespace", namespace).
-			Msg("informer: update dropped — namespace not allowed")
-		return
-	}
-
-	allowed, sentinels, hasUpdateFilter := f.updateEnqueueAllowed(gvkStr, oldObj, newObj)
-	if hasUpdateFilter {
-		if !allowed {
-			return
-		}
-		wq, ok := f.queueRegistry.For(gvkStr)
-		if !ok {
-			logger.Warn().Str("gvk", gvkStr).Msg("no per-CRD queue — falling back to default queue")
-			f.defaultWq.EnqueueWithSentinels(newObj, gvkStr, sentinels)
-			return
-		}
-		wq.EnqueueWithSentinels(newObj, gvkStr, sentinels)
-		return
-	}
-
-	// No update filter — standard path (same as handleEvent).
-	if !f.enqueueAllowed(gvkStr, newObj) {
-		return
-	}
-	wq, ok := f.queueRegistry.For(gvkStr)
-	if !ok {
-		logger.Warn().Str("gvk", gvkStr).Msg("no per-CRD queue — falling back to default queue")
-		f.defaultWq.Enqueue(newObj, gvkStr)
-		return
-	}
-	wq.Enqueue(newObj, gvkStr)
-}
+// common
+var (
+	gvkFromObj = utils.GvkFromObject
+	crdExists  = utils.CheckCRDExists
+	merge      = utils.Merge
+)
 
 // newListWatch returns a ListWatch for the given object type.
 // Both List and Watch block on f.ready so they never run before Start().
@@ -124,10 +37,10 @@ func (f *Factory) newListWatch(obj runtime.Object, opts Options) *cache.ListWatc
 			<-f.ready
 
 			if opts.LabelSelector != "" {
-				utils.Merge(&options.LabelSelector, opts.LabelSelector, ",")
+				merge(&options.LabelSelector, opts.LabelSelector, ",")
 			}
 			if opts.FieldSelector != "" {
-				utils.Merge(&options.FieldSelector, opts.FieldSelector, ",")
+				merge(&options.FieldSelector, opts.FieldSelector, ",")
 			}
 
 			client, err := f.clientProvider.For(obj)
@@ -146,10 +59,10 @@ func (f *Factory) newListWatch(obj runtime.Object, opts Options) *cache.ListWatc
 			<-f.ready
 
 			if opts.LabelSelector != "" {
-				utils.Merge(&options.LabelSelector, opts.LabelSelector, ",")
+				merge(&options.LabelSelector, opts.LabelSelector, ",")
 			}
 			if opts.FieldSelector != "" {
-				utils.Merge(&options.FieldSelector, opts.FieldSelector, ",")
+				merge(&options.FieldSelector, opts.FieldSelector, ",")
 			}
 
 			client, err := f.clientProvider.For(obj)
@@ -268,42 +181,6 @@ func (f *Factory) IsReady() bool {
 	default:
 		return false
 	}
-}
-
-func (f *Factory) gvkFromObject(obj interface{}) (*schema.GroupVersionKind, error) {
-	runtimeObj, ok := obj.(runtime.Object)
-	if !ok {
-		logger.Error().Str("type", fmt.Sprintf("%T", obj)).Msg("object is not a runtime.Object — event dropped")
-		return nil, fmt.Errorf("object is not a runtime.Object: %T", obj)
-	}
-
-	// Resolve GVK from scheme — cached objects have TypeMeta stripped,
-	// GetObjectKind().GroupVersionKind() returns empty.
-	gvks, _, err := f.scheme.ObjectKinds(runtimeObj)
-	if err != nil || len(gvks) == 0 {
-		logger.Error().Err(err).Str("type", fmt.Sprintf("%T", obj)).Msg("failed to resolve GVK — event dropped")
-		return nil, fmt.Errorf("failed to resolve GVK for %T — event dropped", obj)
-	}
-
-	return &gvks[0], nil
-}
-
-// Check if a CRD exists
-func (f *Factory) crdExists(gvk *schema.GroupVersionKind) bool {
-	disco, err := discovery.NewDiscoveryClientForConfig(f.restConfig)
-	if err != nil {
-		return false
-	}
-	resources, err := disco.ServerResourcesForGroupVersion(gvk.GroupVersion().String())
-	if err != nil {
-		return false
-	}
-	for _, r := range resources.APIResources {
-		if r.Kind == gvk.Kind {
-			return true
-		}
-	}
-	return false
 }
 
 // Registered CRDs

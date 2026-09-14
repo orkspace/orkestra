@@ -11,6 +11,15 @@ import (
 	"strings"
 
 	orktypes "github.com/orkspace/orkestra/pkg/types"
+	"github.com/orkspace/orkestra/pkg/utils"
+)
+
+var (
+	readLocal        = utils.ReadLocal
+	strictUnmarshal  = utils.StrictUnmarshal
+	loadFile         = utils.LoadFile
+	loadFileWithAuth = utils.LoadFileWithAuth
+	resolveEnvVar    = utils.ResolveEnvVar
 )
 
 // mergeKatalogSecurity merges two KatalogSecurity values.
@@ -80,19 +89,6 @@ func checkDuplicate(seen map[string]string, name, source string) error {
 		)
 	}
 	return nil
-}
-
-// resolveEnvVar replaces $VAR_NAME with its environment variable value.
-func resolveEnvVar(s string) (string, error) {
-	if !strings.HasPrefix(s, "$") {
-		return s, nil
-	}
-	varName := strings.TrimPrefix(s, "$")
-	val := os.Getenv(varName)
-	if val == "" {
-		return "", fmt.Errorf("env var %q is not set or empty", varName)
-	}
-	return val, nil
 }
 
 // writeTempFile writes data to a temp file and returns the path.

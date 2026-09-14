@@ -18,7 +18,7 @@ pkg/resources/
         types.go                — ResolvedIngressSpec (new file)
         ingress.go              — Create, Update, Delete, DeleteIfOwned, Resolve (new file)
 
-pkg/resources/template/
+pkg/template/
     resolver.go                 — add ResolveIngressTemplate method
 
 pkg/runtime/runners/
@@ -254,16 +254,7 @@ func buildIngress(owner domain.Object, spec ResolvedIngressSpec, ns string) *net
             Namespace:   ns,
             Labels:      spec.Labels,
             Annotations: spec.Annotations,
-            OwnerReferences: []metav1.OwnerReference{
-                {
-                    APIVersion:         owner.GetObjectKind().GroupVersionKind().GroupVersion().String(),
-                    Kind:               owner.GetObjectKind().GroupVersionKind().Kind,
-                    Name:               owner.GetName(),
-                    UID:                owner.GetUID(),
-                    Controller:         utils.BoolPtr(true),
-                    BlockOwnerDeletion: utils.BoolPtr(true),
-                },
-            },
+			OwnerReferences: common.ResolveOwnerReferences(owner),
         },
         Spec: networkingv1.IngressSpec{
             Rules: []networkingv1.IngressRule{
@@ -309,7 +300,7 @@ func buildIngress(owner domain.Object, spec ResolvedIngressSpec, ns string) *net
 
 ## Step 4 — Add ResolveIngressTemplate to the resolver
 
-In `pkg/resources/template/resolver.go`, add:
+In `pkg/template/resolver.go`, add:
 
 ```go
 // ResolveIngressTemplate evaluates all template expressions in an IngressTemplateSource.
@@ -356,7 +347,7 @@ import (
     "github.com/orkspace/orkestra/pkg/kubeclient"
     "github.com/orkspace/orkestra/pkg/logger"
     orkingress "github.com/orkspace/orkestra/pkg/resources/ingresses"
-    orktmpl "github.com/orkspace/orkestra/pkg/resources/template"
+    orktmpl "github.com/orkspace/orkestra/pkg/template"
     orktypes "github.com/orkspace/orkestra/pkg/types"
 )
 
@@ -507,7 +498,7 @@ A clean build is the acceptance criterion. No new tests are required for the run
 - [ ] `pkg/types/katalog_spec_hooks.go` — `Ingresses []IngressTemplateSource` field on `HookTemplates`
 - [ ] `pkg/resources/ingresses/types.go` — `ResolvedIngressSpec`
 - [ ] `pkg/resources/ingresses/ingress.go` — `Create`, `Update`, `DeleteIfOwned`, `Resolve`
-- [ ] `pkg/resources/template/resolver.go` — `ResolveIngressTemplate`
+- [ ] `pkg/template/resolver.go` — `ResolveIngressTemplate`
 - [ ] `pkg/runtime/runners/ingresses.go` — `RunIngresses` with activeNames pre-pass
 - [ ] `pkg/runtime/reconciler/run_foreach.go` — `expandForEachIngresses`
 - [ ] `pkg/runtime/reconciler/run_template_reconcile.go` — call `runners.RunIngresses` in `runResourceGroup`

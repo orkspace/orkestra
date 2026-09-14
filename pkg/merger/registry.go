@@ -87,7 +87,7 @@ func (m *Merger) loadRegistrySource(src orktypes.RegistrySource) (map[string]ork
 	sourceFile := filepath.Join(tmpDir, src.SourceFile())
 	sourcePath := fmt.Sprintf("registry:%s@%s/%s", cleanURL, version, src.SourceFile())
 
-	data, err := os.ReadFile(sourceFile)
+	data, err := readLocal(sourceFile)
 	if err != nil {
 		return nil, fmt.Errorf("registry %q@%s: reading %s: %w",
 			cleanURL, version, src.SourceFile(), err)
@@ -243,7 +243,7 @@ func copyPatternFilesFromCache(cacheDir, tmpDir string) error {
 		if e.IsDir() {
 			continue
 		}
-		data, err := os.ReadFile(filepath.Join(cacheDir, e.Name()))
+		data, err := readLocal(filepath.Join(cacheDir, e.Name()))
 		if err != nil {
 			return fmt.Errorf("reading cached file %s: %w", e.Name(), err)
 		}
@@ -380,7 +380,7 @@ func pullGenericGitPattern(url, version, tmpDir string, auth *utils.FileAuth) er
 	}
 
 	for _, filename := range knownPatternFiles {
-		data, err := os.ReadFile(filepath.Join(cloneDir, filename))
+		data, err := readLocal(filepath.Join(cloneDir, filename))
 		if err != nil {
 			continue
 		}
@@ -424,7 +424,7 @@ func (m *Merger) fetchMotifFromGenericGit(url, version, tmpDir string, auth *uti
 		return err
 	}
 
-	data, err := os.ReadFile(filepath.Join(cloneDir, "motif.yaml"))
+	data, err := readLocal(filepath.Join(cloneDir, "motif.yaml"))
 	if err != nil {
 		return fmt.Errorf("motif.yaml not found in repository %s@%s", url, version)
 	}

@@ -82,7 +82,7 @@ func TestWriteClusterCredentials_RoundTrip(t *testing.T) {
 		t.Fatalf("WriteClusterCredentials: %v", err)
 	}
 
-	data, err := os.ReadFile(path)
+	data, err := readLocal(path)
 	if err != nil {
 		t.Fatalf("reading output file: %v", err)
 	}

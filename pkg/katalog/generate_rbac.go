@@ -3,6 +3,7 @@ package katalog
 import (
 	"strings"
 
+	"github.com/orkspace/orkestra/domain"
 	"github.com/orkspace/orkestra/pkg/children"
 	orktypes "github.com/orkspace/orkestra/pkg/types"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -133,6 +134,15 @@ func (k *Katalog) GenerateRBACRules() []rbacv1.PolicyRule {
 				ResourceNames: []string{crd.APITypes.Plural + "." + crd.APITypes.Group},
 			})
 		}
+
+		// Cross Declarations with secret references
+		if crd.HasCrossSecretRef() {
+			rules = append(rules, rbacv1.PolicyRule{
+				APIGroups: []string{},
+				Resources: []string{"secrets"},
+				Verbs:     []string{"get"},
+			})
+		}
 	}
 
 	// ───────────────────────────────────────────────
@@ -259,17 +269,10 @@ func (k *Katalog) HasExternalSecretRefs() bool {
 		if crd.Mutation != nil {
 			calls = append(calls, crd.Mutation.External...)
 		}
-		if hasSecretRef(calls) {
-			return true
-		}
-	}
-	return false
-}
-
-func hasSecretRef(calls []orktypes.ExternalCallSpec) bool {
-	for _, c := range calls {
-		if c.Auth != nil && c.Auth.SecretRef != nil {
-			return true
+		for _, call := range calls {
+			if call.HasSecretRef() {
+				return true
+			}
 		}
 	}
 	return false
@@ -633,7 +636,7 @@ func (k *Katalog) GenerateGatewayClusterRBACRules() (map[string][]rbacv1.PolicyR
 //   - Custom resources can be fully specified without guessing.
 //   - Built‑ins remain simple (kind‑only).
 //   - RBAC generation remains deterministic and zero‑footprint safe.
-func (k *Katalog) ResolveGVR(r orktypes.ManagedResource) (schema.GroupVersionResource, bool) {
+func (k *Katalog) ResolveGVR(r domain.ManagedResource) (schema.GroupVersionResource, bool) {
 	// ───────────────────────────────────────────────
 	// 1. Full explicit GVR: group + version + plural
 	// ───────────────────────────────────────────────
@@ -704,7 +707,7 @@ func (k *Katalog) ResolveGVR(r orktypes.ManagedResource) (schema.GroupVersionRes
 // secrets, namespaces, webhook configurations) — use GenerateRuntimeRBACRules /
 // GenerateGatewayRBACRules for those.
 func (k *Katalog) GeneratePerCRDRBACRules() map[string][]rbacv1.PolicyRule {
-	result := make(map[string][]rbacv1.PolicyRule, len(k.enabledCRDs))
+	result := make(map[string][]rbacv1.PolicyRule, k.Len())
 
 	for name, crd := range k.Enabled() {
 		var rules []rbacv1.PolicyRule

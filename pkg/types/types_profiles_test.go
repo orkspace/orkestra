@@ -8,10 +8,10 @@ import (
 )
 
 func TestProfileRegistry_IsEmpty(t *testing.T) {
-	assert.True(t, ProfileRegistry{}.IsEmpty())
+	assert.True(t, ProfileRegistry{}.Empty())
 	assert.False(t, ProfileRegistry{
 		NetworkPolicies: []NetworkPolicyProfileDef{{Name: "x"}},
-	}.IsEmpty())
+	}.Empty())
 }
 
 func TestProfileRegistry_LookupNetworkPolicy(t *testing.T) {
@@ -131,7 +131,7 @@ func TestProfileRegistry_Merge_SameNameDifferentClass_Allowed(t *testing.T) {
 	assert.Len(t, merged.HPA, 1)
 }
 
-// ── IsEmpty: each class ───────────────────────────────────────────────────────
+// ── Empty: each class ───────────────────────────────────────────────────────
 
 func TestProfileRegistry_IsEmpty_EachClass(t *testing.T) {
 	cases := []struct {
@@ -146,7 +146,7 @@ func TestProfileRegistry_IsEmpty_EachClass(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.False(t, tc.reg.IsEmpty())
+			assert.False(t, tc.reg.Empty())
 		})
 	}
 }

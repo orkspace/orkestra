@@ -11,10 +11,9 @@ import (
 	"github.com/orkspace/orkestra/pkg/kubeclient"
 	orklabels "github.com/orkspace/orkestra/pkg/labels"
 	"github.com/orkspace/orkestra/pkg/logger"
-	"github.com/orkspace/orkestra/pkg/resources/common"
-	orktmpl "github.com/orkspace/orkestra/pkg/resources/template"
+	"github.com/orkspace/orkestra/pkg/resources/shared"
+	orktmpl "github.com/orkspace/orkestra/pkg/template"
 	orktypes "github.com/orkspace/orkestra/pkg/types"
-	"github.com/orkspace/orkestra/pkg/utils"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -70,6 +69,11 @@ type ResolvedCustomResourceSpec struct {
 	// Useful for autoscale testing, latency simulation, and chaos engineering.
 	// Accepts extended duration units (s, m, h, d, w, mo, y).
 	Sleep string `json:"sleep,omitempty" yaml:"sleep,omitempty"`
+
+	// ForceConflict, when true, sets Force: true when applying this resource,
+	// taking ownership of conflicting fields instead of returning a conflict error.
+	// Overrides the CRD-level ForceConflict setting.
+	ForceConflict *bool
 }
 
 // Create creates the custom resource described by spec if it does not already exist.
@@ -81,8 +85,8 @@ func Create(ctx context.Context, kube kubeclient.Interface, owner domain.Object,
 
 	name := spec.Metadata.Name
 	// Resolve namespace (owner may provide defaulting)
-	namespace := common.ResolveNamespace(owner, spec.Metadata.Namespace)
-	if err := common.SleepIfNeeded(spec.Sleep); err != nil {
+	namespace := shared.ResolveNamespace(owner, spec.Metadata.Namespace)
+	if err := shared.SleepIfNeeded(spec.Sleep); err != nil {
 		return err
 	}
 
@@ -93,7 +97,7 @@ func Create(ctx context.Context, kube kubeclient.Interface, owner domain.Object,
 	}
 
 	// Resolve GVR via the registry's RESTMapper (kubeclient exposes Mapper())
-	mapper := kube.Mapper()
+	mapper := kube.RESTMapper()
 	mapping, err := mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
 	if err != nil {
 		return fmt.Errorf("custom.Create: resolving GVR for %s: %w", gvk.String(), err)
@@ -152,8 +156,8 @@ func Update(ctx context.Context, kube kubeclient.Interface, owner domain.Object,
 	}
 	name := spec.Metadata.Name
 
-	namespace := common.ResolveNamespace(owner, spec.Metadata.Namespace)
-	if err := common.SleepIfNeeded(spec.Sleep); err != nil {
+	namespace := shared.ResolveNamespace(owner, spec.Metadata.Namespace)
+	if err := shared.SleepIfNeeded(spec.Sleep); err != nil {
 		return err
 	}
 
@@ -162,7 +166,7 @@ func Update(ctx context.Context, kube kubeclient.Interface, owner domain.Object,
 		return fmt.Errorf("custom.Update: invalid GVK: %w", err)
 	}
 
-	mapper := kube.Mapper()
+	mapper := kube.RESTMapper()
 	mapping, err := mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
 	if err != nil {
 		return fmt.Errorf("custom.Update: resolving GVR for %s: %w", gvk.String(), err)
@@ -280,7 +284,7 @@ func DeleteIfOwned(ctx context.Context, kube kubeclient.Interface, owner domain.
 		return fmt.Errorf("custom.DeleteIfOwned: invalid GVK: %w", err)
 	}
 
-	mapper := kube.Mapper()
+	mapper := kube.RESTMapper()
 	mapping, err := mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
 	if err != nil {
 		return fmt.Errorf("custom.DeleteIfOwned: resolving GVR for %s: %w", gvk.String(), err)
@@ -369,14 +373,7 @@ func buildUnstructured(spec ResolvedCustomResourceSpec, owner domain.Object, gvk
 	ownerIsNamespaced := owner.GetNamespace() != ""
 	sameNamespace := !ownerIsNamespaced || namespace == "" || namespace == owner.GetNamespace()
 	if !ownerGVK.Empty() && sameNamespace {
-		u.SetOwnerReferences([]metav1.OwnerReference{{
-			APIVersion:         ownerGVK.GroupVersion().String(),
-			Kind:               ownerGVK.Kind,
-			Name:               owner.GetName(),
-			UID:                owner.GetUID(),
-			Controller:         utils.BoolPtr(true),
-			BlockOwnerDeletion: utils.BoolPtr(true),
-		}})
+		u.SetOwnerReferences(shared.ResolveOwnerReferences(owner))
 	}
 
 	// Other top-level fields (non-core) from the spec declaration.
@@ -423,15 +420,16 @@ func buildGVK(apiVersion, kind string) (schema.GroupVersionKind, error) {
 // Template expressions must already be evaluated by template.Resolver before calling.
 func Resolve(src orktypes.CustomResourceTemplateSource, ownerName string) ResolvedCustomResourceSpec {
 	spec := ResolvedCustomResourceSpec{
-		APIVersion: src.APIVersion,
-		Kind:       src.Kind,
-		Metadata:   src.Metadata,
-		Spec:       src.Spec,
-		Status:     src.Status,
-		Other:      src.Other,
-		HasStatus:  src.HasStatus,
-		Reconcile:  src.Reconcile,
-		Sleep:      src.Sleep,
+		APIVersion:    src.APIVersion,
+		Kind:          src.Kind,
+		Metadata:      src.Metadata,
+		Spec:          src.Spec,
+		Status:        src.Status,
+		Other:         src.Other,
+		HasStatus:     src.HasStatus,
+		Reconcile:     src.Reconcile,
+		Sleep:         src.Sleep,
+		ForceConflict: src.ForceConflict,
 	}
 
 	if spec.Metadata.Name == "" {

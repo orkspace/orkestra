@@ -10,7 +10,7 @@ import (
 	"github.com/orkspace/orkestra/pkg/kubeclient"
 	"github.com/orkspace/orkestra/pkg/logger"
 	orkingress "github.com/orkspace/orkestra/pkg/resources/ingresses"
-	orktmpl "github.com/orkspace/orkestra/pkg/resources/template"
+	orktmpl "github.com/orkspace/orkestra/pkg/template"
 	orktypes "github.com/orkspace/orkestra/pkg/types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -103,7 +103,7 @@ func RunIngresses(
 // ensureIngressTLSSecret creates a kubernetes.io/tls Secret for the Ingress if
 // it does not already exist. Idempotent — safe to call on every reconcile.
 //
-// CN  = first declared host (or Ingress name when Hosts is empty).
+// CN  = first declared host (or Ingress name when Hosts is Empty().
 // SANs = all declared hosts.
 func ensureIngressTLSSecret(
 	ctx context.Context,

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	orktmpl "github.com/orkspace/orkestra/pkg/resources/template"
+	orktmpl "github.com/orkspace/orkestra/pkg/template"
 	orktypes "github.com/orkspace/orkestra/pkg/types"
 	// "github.com/orkspace/orkestra/pkg/utils"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"

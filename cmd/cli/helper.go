@@ -50,6 +50,8 @@ var (
 	isRunningInCluster  = utils.IsRunningInCluster
 	writeFileAndFormat  = utils.WriteFileAndFormat
 	splitCommaSeparated = utils.SplitCommaSeparated
+	readLocal           = utils.ReadLocal
+	strictUnmarshal     = utils.StrictUnmarshal
 )
 
 // sortedKeys returns a sorted slice of all keys from the given map.
@@ -205,13 +207,13 @@ func printTemplateSummary(k *katalog.Katalog, crds map[string]orktypes.CRDEntry,
 		fmt.Printf("%smode: %s\n", indent, mode)
 
 		// onCreate resources
-		if crd.OperatorBox.OnCreate != nil && !crd.OperatorBox.OnCreate.IsEmpty() {
+		if crd.OperatorBox.OnCreate != nil && !crd.OperatorBox.OnCreate.Empty() {
 			fmt.Printf("%s%s  %s\n", indent, cyan("onCreate:"),
 				summarizeHookTemplates(crd.OperatorBox.OnCreate))
 		}
 
 		// onReconcile resources
-		if crd.OperatorBox.OnReconcile != nil && !crd.OperatorBox.OnReconcile.IsEmpty() {
+		if crd.OperatorBox.OnReconcile != nil && !crd.OperatorBox.OnReconcile.Empty() {
 			fmt.Printf("%s%s  %s\n", indent, cyan("onReconcile:"),
 				summarizeHookTemplates(crd.OperatorBox.OnReconcile))
 		}
@@ -405,14 +407,14 @@ func printCRDDetail(crd orktypes.CRDEntry, g *katalog.DependencyGraph) {
 	}
 
 	// ── OperatorBox.OnCreate ──────────────────────────────────────────────────
-	if crd.OperatorBox.OnCreate != nil && !crd.OperatorBox.OnCreate.IsEmpty() {
+	if crd.OperatorBox.OnCreate != nil && !crd.OperatorBox.OnCreate.Empty() {
 		fmt.Printf("  %s\n", cyan(bold("onCreate")))
 		printHookTemplateDetail("    ", crd.OperatorBox.OnCreate)
 		fmt.Println()
 	}
 
 	// ── OperatorBox.OnReconcile ───────────────────────────────────────────────
-	if crd.OperatorBox.OnReconcile != nil && !crd.OperatorBox.OnReconcile.IsEmpty() {
+	if crd.OperatorBox.OnReconcile != nil && !crd.OperatorBox.OnReconcile.Empty() {
 		fmt.Printf("  %s\n", cyan(bold("onReconcile")))
 		printHookTemplateDetail("    ", crd.OperatorBox.OnReconcile)
 		fmt.Println()

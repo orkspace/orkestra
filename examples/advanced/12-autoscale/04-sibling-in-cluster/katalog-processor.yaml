@@ -41,7 +41,7 @@ spec:
               namespace: default
             source:
               host: "http://localhost:8080"
-              type: cr
+              protocol: cr
 
               # Or replace host and type with endpoint
               # endpoint: "http://localhost:8080/katalog/loader/cr/default/my-loader"
@@ -51,7 +51,7 @@ spec:
           - crd: loader
             source:
               host: "http://localhost:8080"
-              type: health
+              protocol: health
               cacheFor: 30s
 
               # Or replace host and type with endpoint
@@ -61,7 +61,7 @@ spec:
           - crd: loader
             source:
               host: "http://localhost:8080"
-              type: metrics
+              protocol: metrics
               cacheFor: 30s
             as: loaderCRDInfo
 

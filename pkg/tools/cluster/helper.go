@@ -12,6 +12,13 @@ import (
 	"github.com/orkspace/orkestra/pkg/utils"
 )
 
+var (
+	readLocal    = utils.ReadLocal
+	startSpinner = utils.StartSpinner
+	warningMark  = utils.WarningMark
+	infoMark     = utils.InfoMark
+)
+
 // DeploymentHealthChecker handles health checks for any deployment
 type DeploymentHealthChecker struct {
 	Name      string

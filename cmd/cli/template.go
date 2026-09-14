@@ -9,6 +9,7 @@ import (
 	"sort"
 
 	"github.com/orkspace/orkestra/pkg/katalog"
+	"github.com/orkspace/orkestra/pkg/katalog/pipeline"
 	orktypes "github.com/orkspace/orkestra/pkg/types"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
@@ -70,7 +71,7 @@ Examples:
 			}
 			k = &raw
 		} else {
-			k, err = katalog.BuildExpanded(kfg, merged.m)
+			k, err = pipeline.BuildExpanded(kfg, merged.m)
 			if err != nil {
 				return fmt.Errorf("validation: %w", err)
 			}

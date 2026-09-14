@@ -61,6 +61,24 @@ func (l Labels) String() string {
 	return strings.Join(parts, ",")
 }
 
+func (l Labels) Contains(lbl map[string]string) bool {
+	if l.Empty() {
+		return false
+	}
+	for kl, vl := range l {
+		for lblKey, lblVaal := range lbl {
+			if kl == lblKey && vl == lblVaal {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (l Labels) Empty() bool {
+	return len(l) == 0
+}
+
 // ResourceRequirements mirrors Kubernetes resource requests and limits.
 // Values are static Kubernetes quantity strings — template expressions
 // are not supported here.

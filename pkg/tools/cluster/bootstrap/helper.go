@@ -6,9 +6,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/orkspace/orkestra/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
+
+var readLocal = utils.ReadLocal
 
 func waitForToken(ctx context.Context, cs kubernetes.Interface, ns, name string, log func(string)) (string, error) {
 	for i := 0; i < 10; i++ {

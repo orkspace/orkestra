@@ -69,7 +69,7 @@ Keywords: map, collection, get, key, access, lookup
 
 ### `mapKeys`
 
-Return all keys of a map as `[]string`. Returns an empty slice for non-maps.
+Return all keys of a map as sorted `[]string`. Returns an empty slice for non-maps.
 
 Keywords: map, collection, keys, slice, iterate, list
 

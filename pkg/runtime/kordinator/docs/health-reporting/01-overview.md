@@ -26,7 +26,7 @@ With HTTP keep-alive (Go's default), the CC's HTTP client reuses the first TCP c
 
 ## The solution: `isKonductor`
 
-The konductor pod sets an atomic flag on `OrkestraHealth` at the start of `Kordinate()`. Every runtime HTTP response includes this flag. The CC uses it to decide whether the response came from an authoritative source.
+The konductor pod sets an atomic flag on `RuntimeHealth` at the start of `Kordinate()`. Every runtime HTTP response includes this flag. The CC uses it to decide whether the response came from an authoritative source.
 
 ```
 Kordinate() called on winning pod

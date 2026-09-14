@@ -239,7 +239,7 @@ func (ws *WebhookServer) mutationHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	resp.Patch = patch
-	resp.PatchType = ptrString(jsonPatchType)
+	resp.PatchType = stringPtr(jsonPatchType)
 
 	duration := time.Since(start)
 	mutStats.RecordMutationApplied(duration)
@@ -311,12 +311,4 @@ func buildJSONPatch(changes []fieldChange) ([]byte, error) {
 		ops = append(ops, JSONPatchOp{Op: op, Path: ptr, Value: change.TypedValue})
 	}
 	return json.Marshal(ops)
-}
-
-type fieldChange struct {
-	Field      string
-	OldValue   string
-	NewValue   string      // for logging only
-	TypedValue interface{} // for JSON patch (preserves type)
-	ChangeType string
 }

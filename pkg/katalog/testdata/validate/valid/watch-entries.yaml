@@ -3,7 +3,7 @@ kind: Katalog
 metadata:
   name: watch-entries
   version: 0.1.0
-  description: Valid operatorBox.watch and preReconcile.sentinels.
+  description: Valid operatorBox.observe.watch and preReconcile.sentinels.
 spec:
   crds:
     widget:

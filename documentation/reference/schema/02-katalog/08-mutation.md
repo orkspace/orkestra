@@ -81,6 +81,28 @@ mutation:
           equals: production
 ```
 
+### Default and Override fields are enforced automatically
+
+`default:` and `override:` on a `serve.fields`, `serve.labels`, or `serve.annotations` entry aren't just form hints — at katalog load time, each one synthesizes an implicit mutation rule. This enforcement applies to every client — the Control Center form, `curl`, a CI pipeline, a custom UI, `kubectl apply` — not only the one that renders the form.
+
+- **`default:`** synthesizes a mutation rule that sets the field to the declared value when the caller does not submit it.
+- **`override:`** synthesizes a mutation rule that always sets the field to the declared value, regardless of what the caller submitted.
+
+For `serve.fields`, only `override:` is honored — spec fields carry their defaults from the CRD schema. For `serve.labels` and `serve.annotations`, both `default:` and `override:` synthesize a rule.
+
+```yaml
+serve:
+  fields:
+    environment:
+      label: "Environment"
+      override: production           # always set — caller cannot change it
+  labels:
+    team:
+      label: "Team"
+      default: platform              # set when caller omits it
+# → synthesizes mutation rules for both; no hand-written mutation.rules entry needed
+```
+
 ## `mutation.external`
 
 External HTTP calls can be declared directly under `mutation:`. They fire before any mutation rule is applied, and their results are available in `default:` and `override:` template expressions as `.external.<name>.*`.

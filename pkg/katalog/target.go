@@ -19,7 +19,7 @@ type CRDLookupResult struct {
 //	crd := kat.LookupByKind("App").Entry()
 //	if crd == nil { ... }
 func (r *CRDLookupResult) Entry() *orktypes.CRDEntry {
-	if r == nil {
+	if r == nil || r.CRD == nil {
 		return nil
 	}
 	return r.CRD
@@ -74,7 +74,7 @@ func (k *Katalog) AvailableTargets() []string {
 	if k == nil {
 		return nil
 	}
-	seen := make(map[string]struct{}, len(k.enabledCRDs)*2)
+	seen := make(map[string]struct{}, k.Len()*2)
 	for _, crd := range k.enabledCRDs {
 		if crd.HasServeTarget() {
 			seen[crd.ServeTarget()] = struct{}{}
@@ -99,7 +99,7 @@ func (k *Katalog) ServeCatalog() []*orktypes.CRDEntry {
 	if k == nil {
 		return nil
 	}
-	catalog := make([]*orktypes.CRDEntry, 0, len(k.enabledCRDs))
+	catalog := make([]*orktypes.CRDEntry, 0, k.Len())
 	for _, crd := range k.enabledCRDs {
 		if crd.HasServeTarget() {
 			catalog = append(catalog, &crd)

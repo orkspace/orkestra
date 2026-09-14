@@ -278,18 +278,3 @@ func (ws *WebhookServer) watchSingleConversionCRD(ctx context.Context, trigger c
 		}
 	}
 }
-
-// conversionCRDNames returns the names of all CRDs that declare
-// conversion.updateCRD: true. Used to start targeted watchers.
-func (ws *WebhookServer) conversionCRDNames() []string {
-	if ws.katalog == nil {
-		return nil
-	}
-	var names []string
-	for _, crd := range ws.katalog.EnabledCRDs() {
-		if crd.Conversion != nil && crd.UpdateCRDCaBundle() {
-			names = append(names, crd.APITypes.Plural+"."+crd.APITypes.Group)
-		}
-	}
-	return names
-}

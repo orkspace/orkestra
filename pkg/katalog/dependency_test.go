@@ -169,29 +169,6 @@ func TestDependencyGraph_Validate_NoError(t *testing.T) {
 	}
 }
 
-// ── Cycle detection ───────────────────────────────────────────────────────────
-
-func TestDetectCycles_TwoNodeCycle(t *testing.T) {
-	k := &Katalog{enabledCRDs: crdMap(dep("a", "b"), dep("b", "a"))}
-	if err := k.detectDependencyCycles(); err == nil {
-		t.Error("expected cycle detection error for a ↔ b cycle")
-	}
-}
-
-func TestDetectCycles_ThreeNodeCycle(t *testing.T) {
-	k := &Katalog{enabledCRDs: crdMap(dep("a", "c"), dep("b", "a"), dep("c", "b"))}
-	if err := k.detectDependencyCycles(); err == nil {
-		t.Error("expected cycle detection error for a → c → b → a cycle")
-	}
-}
-
-func TestDetectCycles_NoCycle(t *testing.T) {
-	k := &Katalog{enabledCRDs: crdMap(dep("a"), dep("b", "a"), dep("c", "b"))}
-	if err := k.detectDependencyCycles(); err != nil {
-		t.Errorf("expected no error for acyclic graph, got %v", err)
-	}
-}
-
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 func assertBefore(t *testing.T, order []string, before, after string) {

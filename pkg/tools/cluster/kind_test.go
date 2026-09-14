@@ -16,7 +16,7 @@ func TestWriteKindConfig_ControlPlaneOnly(t *testing.T) {
 	}
 	defer os.Remove(path)
 
-	data, _ := os.ReadFile(path)
+	data, _ := readLocal(path)
 	content := string(data)
 
 	if !strings.Contains(content, "role: control-plane") {
@@ -35,7 +35,7 @@ func TestWriteKindConfig_WithWorkers(t *testing.T) {
 		}
 		defer os.Remove(path)
 
-		data, _ := os.ReadFile(path)
+		data, _ := readLocal(path)
 		content := string(data)
 
 		got := strings.Count(content, "role: worker")
@@ -55,7 +55,7 @@ func TestWriteKindConfig_ValidYAMLHeader(t *testing.T) {
 	}
 	defer os.Remove(path)
 
-	data, _ := os.ReadFile(path)
+	data, _ := readLocal(path)
 	content := string(data)
 
 	if !strings.Contains(content, "kind: Cluster") {
@@ -159,7 +159,7 @@ func TestWriteKindConfig_NegativeWorkers(t *testing.T) {
 	}
 	defer os.Remove(path)
 
-	data, _ := os.ReadFile(path)
+	data, _ := readLocal(path)
 	if strings.Contains(string(data), "role: worker") {
 		t.Error("negative workers should produce no worker nodes")
 	}

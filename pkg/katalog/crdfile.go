@@ -2,7 +2,6 @@ package katalog
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -66,7 +65,7 @@ type crdFileHeader struct {
 
 // readAPITypesFromCRDFile reads a CRD YAML file and extracts APITypes.
 func readAPITypesFromCRDFile(path string) (*orktypes.APITypes, error) {
-	data, err := os.ReadFile(path)
+	data, err := readLocal(path)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read file: %w", err)
 	}
@@ -110,7 +109,7 @@ func readAPITypesFromCRDFile(path string) (*orktypes.APITypes, error) {
 // rewritten YAML. The result is safe to embed in a bundle ConfigMap — the
 // Orkestra runtime receives concrete apiTypes and never needs to read the file.
 func ResolveCRDFiles(path string) ([]byte, error) {
-	data, err := os.ReadFile(path)
+	data, err := readLocal(path)
 	if err != nil {
 		return nil, fmt.Errorf("reading %s: %w", path, err)
 	}

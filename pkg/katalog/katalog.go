@@ -4,11 +4,8 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/orkspace/orkestra/pkg/konfig"
 	"github.com/orkspace/orkestra/pkg/logger"
-	"github.com/orkspace/orkestra/pkg/merger"
 	ork_runtime "github.com/orkspace/orkestra/pkg/typeregistry"
-	orktypes "github.com/orkspace/orkestra/pkg/types"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -20,52 +17,6 @@ import (
 // -----------------------------------------------------------------------------
 // Entry point
 // -----------------------------------------------------------------------------
-
-// NewKatalog returns a list of CRD data
-func NewKatalog(kfg *konfig.Konfig, m *merger.Merger) *Katalog {
-	katalog := &Katalog{}
-	katalog.konfig = kfg
-
-	paths := katalog.konfig.Katalog().Paths()
-
-	// Register runtime objects
-	ork_runtime.RegisterRuntimeObjects()
-
-	// Build CRDs
-	entries, err := katalog.KomposeRuntimeKatalog(kfg, m, paths...)
-	if err != nil {
-		exit(err)
-	}
-
-	if len(entries) == 0 && !katalog.IsStandaloneGateway() {
-		exit(fmt.Errorf("validation error: katalog empty"))
-	}
-
-	// Guard: if ObjectRegistry is empty, user forgot to run ork generate
-	for _, crd := range entries {
-		if len(orktypes.ObjectRegistry) == 0 && !crd.IsDynamic() {
-			exit(fmt.Errorf(
-				"ObjectRegistry is empty — run 'ork generate registry --file <my-katalog.yaml>' first",
-			))
-		}
-	}
-
-	kat, err := katalog.ValidateConfig(kfg)
-	if err != nil {
-		exit(err)
-	}
-
-	if err := kat.CheckDeprecationPolicy(); err != nil {
-		exit(err)
-	}
-
-	kat, err = kat.updateResourceMapAndReturn()
-	if err != nil {
-		exit(err)
-	}
-
-	return kat
-}
 
 // NewSchemeRegistry returns a new scheme
 func NewSchemeRegistry(k *Katalog) (*runtime.Scheme, error) {
@@ -101,11 +52,12 @@ func NewSchemeRegistry(k *Katalog) (*runtime.Scheme, error) {
 }
 
 // Helpers
-// Update resource map
-func (k *Katalog) updateResourceMapAndReturn() (*Katalog, error) {
+// UpdateResourceMapAndReturn maps each enabled CRD's dynamic object type into
+// the package-level resourceTypeMap for O(1) GVK reverse-lookups, then returns k.
+func (k *Katalog) UpdateResourceMapAndReturn() (*Katalog, error) {
 	// Map the type of the object
 	for _, c := range k.enabledCRDs {
-		if len(k.enabledCRDs) == 0 {
+		if k.EnabledCRDsEmpty() {
 			return nil, fmt.Errorf("no enabled CRDs found")
 		}
 

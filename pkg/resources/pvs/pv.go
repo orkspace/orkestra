@@ -11,7 +11,7 @@ import (
 	"github.com/orkspace/orkestra/pkg/kubeclient"
 	"github.com/orkspace/orkestra/pkg/labels"
 	"github.com/orkspace/orkestra/pkg/logger"
-	"github.com/orkspace/orkestra/pkg/resources/common"
+	"github.com/orkspace/orkestra/pkg/resources/shared"
 	orktypes "github.com/orkspace/orkestra/pkg/types"
 	"github.com/orkspace/orkestra/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
@@ -24,7 +24,7 @@ import (
 // Create creates a PersistentVolume if it does not already exist.
 // PVs are cluster-scoped — owner references are set as labels only.
 func Create(ctx context.Context, kube kubeclient.Interface, owner domain.Object, spec ResolvedPVSpec) error {
-	if err := common.SleepIfNeeded(spec.Sleep); err != nil {
+	if err := shared.SleepIfNeeded(spec.Sleep); err != nil {
 		return err
 	}
 	_, err := kube.Clientset().CoreV1().PersistentVolumes().Get(ctx, spec.Name, metav1.GetOptions{})
@@ -49,7 +49,7 @@ func Create(ctx context.Context, kube kubeclient.Interface, owner domain.Object,
 // Apply creates or updates a PersistentVolume using Server-Side Apply.
 // PVs are cluster-scoped — no namespace arg. Sends only fields Orkestra owns.
 func Apply(ctx context.Context, kube kubeclient.Interface, owner domain.Object, spec ResolvedPVSpec) error {
-	if err := common.SleepIfNeeded(spec.Sleep); err != nil {
+	if err := shared.SleepIfNeeded(spec.Sleep); err != nil {
 		return err
 	}
 
@@ -63,7 +63,7 @@ func Apply(ctx context.Context, kube kubeclient.Interface, owner domain.Object, 
 
 	if _, err = kube.Clientset().CoreV1().PersistentVolumes().Patch(
 		ctx, spec.Name, k8stypes.ApplyPatchType, body,
-		metav1.PatchOptions{FieldManager: konfig.FieldManagerRuntime, Force: utils.BoolPtr(true)},
+		metav1.PatchOptions{FieldManager: konfig.FieldManagerRuntime, Force: shared.ResolveForceConflict(kube, spec.ForceConflict)},
 	); err != nil {
 		return fmt.Errorf("pv.Apply: %w", err)
 	}
@@ -122,6 +122,7 @@ func Resolve(src orktypes.PVTemplateSource, ownerName string) ResolvedPVSpec {
 		CSIVolumeHandle:  src.CSIVolumeHandle,
 		Labels:           make(map[string]string),
 		Sleep:            src.Sleep,
+		ForceConflict:    src.ForceConflict,
 	}
 
 	if len(spec.AccessModes) == 0 {

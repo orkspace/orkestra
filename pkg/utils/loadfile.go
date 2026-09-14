@@ -69,7 +69,7 @@ func LoadFileWithAuthRefresh(path string, auth *FileAuth, refresh bool) ([]byte,
 		return data, nil
 	}
 
-	return readLocal(path)
+	return ReadLocal(path)
 }
 
 // fetchRemote downloads a file over HTTP or HTTPS.
@@ -175,8 +175,8 @@ func applyAuth(req *http.Request, auth *FileAuth) error {
 	return nil
 }
 
-// readLocal reads a file from the local filesystem.
-func readLocal(path string) ([]byte, error) {
+// ReadLocal reads a file from the local filesystem.
+func ReadLocal(path string) ([]byte, error) {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		return nil, fmt.Errorf("file %q does not exist", path)
 	}

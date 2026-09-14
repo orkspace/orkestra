@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/orkspace/orkestra/pkg/katalog"
+	"github.com/orkspace/orkestra/pkg/katalog/pipeline"
 	"github.com/orkspace/orkestra/pkg/konfig"
 	"github.com/orkspace/orkestra/pkg/merger"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -90,7 +91,7 @@ func loadUniqueTestKatalog(t *testing.T) *katalog.Katalog {
 	if err := m.Merge(); err != nil {
 		t.Fatalf("merging katalog: %v", err)
 	}
-	kat, err := katalog.BuildExpanded(konfig.NewDefaultKonfig(), m)
+	kat, err := pipeline.BuildExpanded(konfig.NewDefaultKonfig(), m)
 	if err != nil {
 		t.Fatalf("building katalog: %v", err)
 	}

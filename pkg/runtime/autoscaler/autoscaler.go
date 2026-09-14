@@ -20,6 +20,7 @@ import (
 	"github.com/orkspace/orkestra/pkg/logger"
 	"github.com/orkspace/orkestra/pkg/metrics"
 	orktypes "github.com/orkspace/orkestra/pkg/types"
+	"k8s.io/client-go/kubernetes"
 )
 
 // AutoscaleTarget is implemented by the operatorbox runtime components that
@@ -38,6 +39,7 @@ type AutoscaleTarget interface {
 
 // Autoscaler evaluates conditions and applies/restores overrides for one operatorbox.
 type Autoscaler struct {
+	cs         kubernetes.Interface
 	crdKind    string
 	spec       *orktypes.AutoscaleSpec
 	baseline   orktypes.AutoscaleBaseline
@@ -55,6 +57,7 @@ type Autoscaler struct {
 // for autoscale conditions that reference cross.<crd>.metrics.* without an
 // explicit source: block on the condition itself.
 func NewAutoscaler(
+	cs kubernetes.Interface,
 	crdKind string,
 	spec *orktypes.AutoscaleSpec,
 	baseline orktypes.AutoscaleBaseline,
@@ -63,6 +66,7 @@ func NewAutoscaler(
 	crossDecls []orktypes.CrossCRDDeclaration,
 ) *Autoscaler {
 	return &Autoscaler{
+		cs:         cs,
 		crdKind:    crdKind,
 		spec:       spec,
 		baseline:   baseline,
@@ -165,7 +169,7 @@ func (a *Autoscaler) buildConditionData() map[string]interface{} {
 			if src == nil {
 				src = a.crossSourceFor(cond.Field)
 			}
-			val := ResolveCrossMetric(GlobalCrossMetricsRegistry, cond.Field, src)
+			val := ResolveCrossMetric(a.cs, GlobalCrossMetricsRegistry, cond.Field, src)
 			if val != "" {
 				injectCrossMetricValue(data, cond.Field, val)
 			}
@@ -243,14 +247,14 @@ func (a *Autoscaler) crossSourceFor(field string) *orktypes.CrossSource {
 		// Field paths use the alias when one is declared (e.g. cross.paymentSystem.*),
 		// but some operators use the raw crd name in their field path (e.g. cross.loader.*).
 		// Check both so either style resolves correctly.
-		crdMatch := strings.EqualFold(decl.Crd, cf.CRD)
+		crdMatch := strings.EqualFold(decl.CRD, cf.CRD)
 		aliasMatch := decl.As != "" && strings.EqualFold(decl.As, cf.CRD)
 		if !crdMatch && !aliasMatch {
 			continue
 		}
 		// Only use sources that can resolve metrics: a raw endpoint (any shape)
 		// or an ONCOP host entry typed as metrics.
-		if decl.Source.Endpoint != "" || decl.Source.Type == orktypes.ONCOPMetrics {
+		if decl.Source.Endpoint != "" || decl.Source.Protocol == orktypes.ONCOPMetrics {
 			return decl.Source
 		}
 	}

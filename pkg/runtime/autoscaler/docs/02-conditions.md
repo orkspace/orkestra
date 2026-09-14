@@ -20,7 +20,7 @@ operatorBox:
 
 **`or` is OR, `when` is AND.**
 
-Full condition expression: `(or passes OR or is empty) AND (all when entries pass OR when is empty)`.
+Full condition expression: `(or passes OR or is Empty() AND (all when entries pass OR when is Empty()`.
 
 ## or — time window
 

@@ -7,7 +7,6 @@ import (
 
 	"github.com/orkspace/orkestra/pkg/konfig"
 	orktypes "github.com/orkspace/orkestra/pkg/types"
-	"github.com/orkspace/orkestra/pkg/utils"
 )
 
 // parseKatalogDoc parses a single YAML document and returns a KatalogFile
@@ -39,7 +38,7 @@ func parseKatalogDoc(doc []byte, source string) (*orktypes.KatalogFile, error) {
 	}
 
 	var katalog orktypes.KatalogFile
-	if err := utils.StrictUnmarshal(doc, &katalog); err != nil {
+	if err := strictUnmarshal(doc, &katalog); err != nil {
 		return nil, fmt.Errorf("parsing %q: %w", source, err)
 	}
 

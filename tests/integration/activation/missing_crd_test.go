@@ -8,11 +8,11 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/orkspace/orkestra/pkg/runtime/kordinator"
+	"github.com/orkspace/orkestra/pkg/runtime/kordinator/vitals"
 )
 
 func TestCRDActivation_InitialState_NotHealthy(t *testing.T) {
-	h := kordinator.NewCRDHealth("website")
+	h := vitals.NewCRDHealth("website")
 	if h.IsHealthy() {
 		t.Error("must start unhealthy")
 	}
@@ -25,7 +25,7 @@ func TestCRDActivation_InitialState_NotHealthy(t *testing.T) {
 }
 
 func TestCRDActivation_CRDAppearsInCluster(t *testing.T) {
-	h := kordinator.NewCRDHealth("website")
+	h := vitals.NewCRDHealth("website")
 	h.SetCRDExists(false)
 	if h.CRDExists() {
 		t.Error("should be absent after SetCRDExists(false)")
@@ -47,7 +47,7 @@ func TestCRDActivation_CRDAppearsInCluster(t *testing.T) {
 }
 
 func TestCRDActivation_CRDDeletedAfterStartup(t *testing.T) {
-	h := kordinator.NewCRDHealth("website")
+	h := vitals.NewCRDHealth("website")
 	h.SetStarted()
 	h.RecordSuccess()
 	h.SetCRDExists(true)
@@ -64,7 +64,7 @@ func TestCRDActivation_CRDDeletedAfterStartup(t *testing.T) {
 }
 
 func TestCRDActivation_CRDReappearsAfterDeletion(t *testing.T) {
-	h := kordinator.NewCRDHealth("website")
+	h := vitals.NewCRDHealth("website")
 	h.SetStarted()
 	h.RecordSuccess()
 	h.SetCRDExists(true)
@@ -85,7 +85,7 @@ func TestCRDActivation_CRDReappearsAfterDeletion(t *testing.T) {
 }
 
 func TestCRDActivation_StartupFailureDoesNotIncrementReconciles(t *testing.T) {
-	h := kordinator.NewCRDHealth("website")
+	h := vitals.NewCRDHealth("website")
 	h.RecordStartupFailure(fmt.Errorf("crd not ready"), 3)
 	h.RecordStartupFailure(fmt.Errorf("crd not ready"), 3)
 

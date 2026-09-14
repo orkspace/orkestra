@@ -72,22 +72,24 @@ notes:
       expression: '{{ and weekday (timeInWindow "09:00" "18:00") }}'
 
 profiles:
-  - name: gated-reconcile
-    spec:
-      preReconcile:
-        reconcileGate:
-          when:
-            - field: '{{ inBusinessHours }}'
-              equals: "true"
+  reconciler:
+    - name: api-service
+      description: Balanced for a standard web service operator
+      workers: 4
+      resync: 30s
+      queue:
+        maxDepth: 200
 
 crds:
   app-eu:
-    profile: gated-reconcile
+    reconciler:
+      profile: api-service
   app-us:
-    profile: gated-reconcile
+  reconciler:
+      profile: api-service
 ```
 
-The business-hours logic is declared once as a note. The gate structure is declared once as a profile. Both CRDs get identical behaviour from one source of truth.
+The business-hours logic is declared once as a note. The api-service structure is declared once as a profile. Both CRDs get identical behaviour from one source of truth.
 
 ---
 

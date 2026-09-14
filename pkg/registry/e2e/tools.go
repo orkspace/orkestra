@@ -7,7 +7,6 @@ import (
 
 	"github.com/orkspace/orkestra/pkg/tools/cluster"
 	orktypes "github.com/orkspace/orkestra/pkg/types"
-	orkutils "github.com/orkspace/orkestra/pkg/utils"
 )
 
 // ensureTools checks which external tools are required by the E2E spec and
@@ -96,7 +95,7 @@ func ensureTool(name string) error {
 		return nil
 	}
 
-	s := orkutils.StartSpinner(fmt.Sprintf("Installing %s (required by e2e.yaml)...", name))
+	s := startSpinner(fmt.Sprintf("Installing %s (required by e2e.yaml)...", name))
 
 	if err := installTool(name); err != nil {
 		s.Failure()

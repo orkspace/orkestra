@@ -32,8 +32,9 @@ import (
 	"github.com/orkspace/orkestra/pkg/kubeclient"
 	"github.com/orkspace/orkestra/pkg/labels"
 	"github.com/orkspace/orkestra/pkg/logger"
-	orktmpl "github.com/orkspace/orkestra/pkg/resources/template"
+	orktmpl "github.com/orkspace/orkestra/pkg/template"
 	orktypes "github.com/orkspace/orkestra/pkg/types"
+	"github.com/orkspace/orkestra/pkg/utils/common"
 )
 
 // ApplyResponse is returned for every POST /api/v1/apply request.
@@ -152,7 +153,7 @@ func applyHandler(
 	kat *katalog.Katalog,
 ) http.HandlerFunc {
 	var notes orktypes.NoteRegistry
-	if !kat.IsEmpty() {
+	if !kat.Empty() {
 		notes = kat.UserNotes()
 	}
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -721,16 +722,7 @@ func InjectProvenanceAnnotations(obj *unstructured.Unstructured, target, alias, 
 // annotation so the admission webhook can bind it as .request in validation
 // rules, enabling intent-level gates before field translation.
 func InjectServeIntentAnnotation(obj *unstructured.Unstructured, raw map[string]interface{}) {
-	b, err := json.Marshal(raw)
-	if err != nil {
-		return
-	}
-	ann := obj.GetAnnotations()
-	if ann == nil {
-		ann = make(map[string]string, 1)
-	}
-	ann[labels.AnnotationServeIntent] = string(b)
-	obj.SetAnnotations(ann)
+	common.InjectAnnotationToObject(obj, raw, labels.AnnotationServeIntent)
 }
 
 // InjectFieldSelectorAnnotations adds the field selector target and selectors to the CR.

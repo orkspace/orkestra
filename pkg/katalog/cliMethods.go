@@ -165,7 +165,7 @@ func (k *Katalog) Explain(name string) (string, error) {
 
 // Graph returns a map of CRD name → dependency names.
 func (k *Katalog) Graph() map[string][]string {
-	graph := make(map[string][]string, len(k.enabledCRDs))
+	graph := make(map[string][]string, k.Len())
 	for name, crd := range k.enabledCRDs {
 		graph[name] = crd.DependsOn.Names()
 	}
@@ -191,7 +191,7 @@ func (k *Katalog) Controllers() []string {
 
 // CRDNames returns the names of all enabled CRDs.
 func (k *Katalog) CRDNames() []string {
-	names := make([]string, 0, len(k.enabledCRDs))
+	names := make([]string, 0, k.Len())
 	for name := range k.enabledCRDs {
 		names = append(names, name)
 	}

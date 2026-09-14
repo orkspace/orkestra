@@ -14,7 +14,7 @@ type QueueRegistry struct {
 }
 ```
 
-`mu` guards the `queues` map. Reads use `RLock`; writes (Register, ShutdownQueue)
+`mu` guards the `queues` map. Reads use `RLock`; writes (Register, Drain)
 use `Lock`.
 
 ## Registration
@@ -22,16 +22,20 @@ use `Lock`.
 Each CRD is registered before the kordinator starts workers:
 
 ```go
-func (qr *QueueRegistry) Register(gvk string, maxDepth int) *Workqueue {
+func (qr *QueueRegistry) Register(gvk string, q domain.Workqueue) *Workqueue {
     wq := NewWorkqueue()
     qr.queues[gvk] = wq
-    wq.maxDepth.Store(int32(maxDepth))
+    if q != nil {
+        wq.queueCfg = q
+        wq.maxDepth.Store(int32(q.MaxQueueDepth()))
+    }
     return wq
 }
 ```
 
 `Register` is called in `konstructRuntime` during the Katalog loading step,
-one call per CRD with `queue.maxDepth` from the Katalog. The returned
+one call per CRD with the CRD's `QueueConfig()`. `maxDepth` is read from the
+config and stored as an atomic for lock-free enqueue checks. The returned
 `*Workqueue` is passed to the informer's event handler so informer events go
 directly into the right queue.
 

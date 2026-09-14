@@ -9,6 +9,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/orkspace/orkestra/pkg/katalog/validate"
 	orktypes "github.com/orkspace/orkestra/pkg/types"
 	"github.com/spf13/cobra"
 )
@@ -60,7 +61,7 @@ With --full, shows a detailed breakdown of the Serve configuration.`,
 
 		full, _ := cmd.Flags().GetBool("full")
 
-		if err := k.ValidateServe(); err != nil {
+		if err := validate.ValidateServe(k); err != nil {
 			return err
 		}
 
@@ -165,7 +166,7 @@ var serveFieldsCmd = &cobra.Command{
 	Short: "List Serve fields with their paths and types",
 	Long: `List Serve fields in a Katalog with their paths and types.
 
-This shows fields declared in serve.fields and serve.additionalFields
+This shows fields declared in serve.fields, serve.labels and serve.annotations
 across all Serve-enabled CRDs.
 
 With --target, --kind, or --name, shows fields for a specific CRD.`,

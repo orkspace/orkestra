@@ -8,7 +8,7 @@ import (
 	orktarget "github.com/orkspace/orkestra/pkg/intent/target"
 	"github.com/orkspace/orkestra/pkg/kubeclient"
 	"github.com/orkspace/orkestra/pkg/logger"
-	orktmpl "github.com/orkspace/orkestra/pkg/resources/template"
+	orktmpl "github.com/orkspace/orkestra/pkg/template"
 	orktypes "github.com/orkspace/orkestra/pkg/types"
 	"github.com/orkspace/orkestra/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

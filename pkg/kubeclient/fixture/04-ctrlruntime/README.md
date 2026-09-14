@@ -9,12 +9,12 @@ Two adapter calls at the constructor boundary wire it into Orkestra:
 ```go
 func NewWebAppReconciler(kube kubeclient.Interface) domain.Reconciler {
     return domain.ReconcilerFrom(&WebAppReconciler{
-        client: kubeclient.ToClient(kube),
+        Client: orkadapter.ToClient(kube),
     })
 }
 ```
 
-- `kubeclient.ToClient(kube)` — wraps Orkestra's `kubeclient.Interface` as a
+- `orkadapter.ToClient(kube)` — wraps Orkestra's `kubeclient.Interface` as a
   `sigs.k8s.io/controller-runtime/pkg/client.Client`
 - `domain.ReconcilerFrom(r)` — wraps the `ctrl.Request` reconciler signature
   as a `domain.Reconciler` so Orkestra's operatorBox can call it

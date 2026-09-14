@@ -190,7 +190,7 @@ func getLineFromData(data []byte, lineNum int) string {
 // FormatYAMLFile reads path, parses into a yaml.Node and writes it back
 // with consistent indentation and preserved comments/order.
 func FormatYAMLFile(path string) error {
-	data, err := os.ReadFile(path)
+	data, err := ReadLocal(path)
 	if err != nil {
 		return fmt.Errorf("read %s: %w", path, err)
 	}

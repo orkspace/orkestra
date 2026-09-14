@@ -9,20 +9,18 @@ import (
 	"github.com/orkspace/orkestra/pkg/kubeclient"
 	"github.com/orkspace/orkestra/pkg/labels"
 	"github.com/orkspace/orkestra/pkg/logger"
-	"github.com/orkspace/orkestra/pkg/resources/common"
+	"github.com/orkspace/orkestra/pkg/resources/shared"
 	orktypes "github.com/orkspace/orkestra/pkg/types"
-	"github.com/orkspace/orkestra/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 // Create creates a PVC owned by the CR if it does not already exist.
 func Create(ctx context.Context, kube kubeclient.Interface, owner domain.Object, spec ResolvedPVCSpec) error {
-	namespace := common.ResolveNamespace(owner, spec.Namespace)
-	if err := common.SleepIfNeeded(spec.Sleep); err != nil {
+	namespace := shared.ResolveNamespace(owner, spec.Namespace)
+	if err := shared.SleepIfNeeded(spec.Sleep); err != nil {
 		return err
 	}
 
@@ -48,8 +46,8 @@ func Create(ctx context.Context, kube kubeclient.Interface, owner domain.Object,
 // Update reconciles a PVC. PVC spec is largely immutable after creation;
 // only labels are patched on drift.
 func Update(ctx context.Context, kube kubeclient.Interface, owner domain.Object, spec ResolvedPVCSpec) error {
-	namespace := common.ResolveNamespace(owner, spec.Namespace)
-	if err := common.SleepIfNeeded(spec.Sleep); err != nil {
+	namespace := shared.ResolveNamespace(owner, spec.Namespace)
+	if err := shared.SleepIfNeeded(spec.Sleep); err != nil {
 		return err
 	}
 
@@ -87,8 +85,8 @@ func Update(ctx context.Context, kube kubeclient.Interface, owner domain.Object,
 
 // Delete deletes the PVC if it exists.
 func Delete(ctx context.Context, kube kubeclient.Interface, owner domain.Object, spec ResolvedPVCSpec) error {
-	namespace := common.ResolveNamespace(owner, spec.Namespace)
-	if err := common.SleepIfNeeded(spec.Sleep); err != nil {
+	namespace := shared.ResolveNamespace(owner, spec.Namespace)
+	if err := shared.SleepIfNeeded(spec.Sleep); err != nil {
 		return err
 	}
 
@@ -130,6 +128,7 @@ func Resolve(src orktypes.PVCTemplateSource, ownerName string) ResolvedPVCSpec {
 		VolumeName:       src.VolumeName,
 		Labels:           make(map[string]string),
 		Sleep:            src.Sleep,
+		ForceConflict:    src.ForceConflict,
 	}
 
 	if len(spec.AccessModes) == 0 {
@@ -150,16 +149,6 @@ func Resolve(src orktypes.PVCTemplateSource, ownerName string) ResolvedPVCSpec {
 
 func buildPVC(owner domain.Object, spec ResolvedPVCSpec, ns string) *corev1.PersistentVolumeClaim {
 	spec.Labels = labels.StampOrkestraLabels(spec.Labels, owner.GetName(), owner.GetAnnotations())
-	apiVersion := ""
-	kind := ""
-	if u, ok := owner.(*unstructured.Unstructured); ok {
-		apiVersion = u.GetAPIVersion()
-		kind = u.GetKind()
-	} else {
-		gvk := owner.GetObjectKind().GroupVersionKind()
-		apiVersion = gvk.GroupVersion().String()
-		kind = gvk.Kind
-	}
 
 	storageQty := resource.MustParse(spec.Storage)
 
@@ -175,19 +164,10 @@ func buildPVC(owner domain.Object, spec ResolvedPVCSpec, ns string) *corev1.Pers
 
 	pvc := &corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      spec.Name,
-			Namespace: ns,
-			Labels:    spec.Labels,
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					APIVersion:         apiVersion,
-					Kind:               kind,
-					Name:               owner.GetName(),
-					UID:                owner.GetUID(),
-					Controller:         utils.BoolPtr(true),
-					BlockOwnerDeletion: utils.BoolPtr(true),
-				},
-			},
+			Name:            spec.Name,
+			Namespace:       ns,
+			Labels:          spec.Labels,
+			OwnerReferences: shared.ResolveOwnerReferences(owner),
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
 			AccessModes: accessModes,

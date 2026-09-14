@@ -5,7 +5,7 @@ metadata:
   author: orkspace
   version: 0.1.0
   description: >
-    Living fixture for operatorBox.watch. A WatchProbe CR watches a shared
+    Living fixture for operatorBox.observe.watch. A WatchProbe CR watches a shared
     ConfigMap it does not own. When the ConfigMap changes, the WatchProbe is
     re-enqueued and reconciles — no ownerReference required. Key resolution
     uses keyFrom.name (singleton pattern).

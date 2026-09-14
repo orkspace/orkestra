@@ -36,7 +36,7 @@ When you need full control of the reconcile loop — or you are migrating an exi
 
 ```go
 func NewAppReconciler(kube kubeclient.Interface) domain.Reconciler {
-    return &AppReconciler{client: kubeclient.ToClient(kube)}
+    return &AppReconciler{Client: orkadapter.ToClient(kube)}
 }
 ```
 
@@ -61,6 +61,7 @@ Regardless of which model you use, Orkestra manages:
 - One workqueue per CRD — items are deduplicated, rate-limited on error, and re-enqueued on a timer when `requeue:` is declared
 - A configurable worker pool — concurrency is set via `reconciler.workers:` and can be adjusted at runtime with `autoscale:`
 - Health tracking — each CRD moves through `pending → started → healthy → degraded` as it processes items
+- Operational state on the CR — after every reconcile the runtime stamps `.health` and `.metrics` onto each CR, making live operator state readable from the CR itself without an HTTP call
 - Startup sequencing — CRDs with `dependsOn:` declarations start in dependency order, not all at once
 
 ---
@@ -94,3 +95,6 @@ When your Katalog declares `serve.target:` entries, CRs routed through the gatew
 - [Requeue](03-requeue.md) — per-object scheduled requeue after a successful reconcile
 - [resync vs requeue](04-resync-vs-requeue.md) — when to use each and how they compose
 - [Kordinator](05-kordinator.md) — startup sequencing, worker management, health
+- [Queue behaviour](06-queue-behaviour.md) — controlled back-pressure at the queue boundary: `onLimit`, `onThreshold`, and two-tier conditional evaluation
+- [Operational state on the CR](07-operational-state.md) — the runtime stamps live health and metrics onto each CR; readable in conditions, validation rules, and cross-CRD references
+- [Event-Aware Reconciliation](08-event-aware-reonciliation.md) —  the reconciliation that follows the event

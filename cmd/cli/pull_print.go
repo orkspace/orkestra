@@ -28,7 +28,7 @@ func detectCacheType(cacheDir string) (bool, bool, string) {
 
 // readMotif reads and unmarshals a motif file. Returns nil and error on failure.
 func readMotif(path string) (*orktypes.Motif, error) {
-	data, err := os.ReadFile(path)
+	data, err := readLocal(path)
 	if err != nil {
 		return nil, err
 	}

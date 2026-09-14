@@ -34,7 +34,7 @@ operatorBox:
         namespace: loader-system
       source:
         host: "http://loader-runtime.loader-system:8080"
-        type: cr
+        protocol: cr
         cacheFor: 10s
       as: loader
 ```
@@ -51,11 +51,11 @@ The source of the data — informer cache or ONCOP HTTP — is transparent to th
 
 ---
 
-## ONCOP types
+## ONCOP protocols
 
 Five observation surfaces, each mapping to a stable endpoint:
 
-| Type | What you get | URL shape |
+| Protocol | What you get | URL shape |
 |---|---|---|
 | `cr` | Full CR: status, spec, children, metrics | `/katalog/<crd>/cr/<ns>/<name>` |
 | `health` | Operator health state and last error | `/katalog/<crd>/health` |
@@ -63,18 +63,18 @@ Five observation surfaces, each mapping to a stable endpoint:
 | `info` | CRD info: list, metrics, children | `/katalog/<crd>` |
 | `events` | CR-scoped event stream | `/katalog/<crd>/cr/<ns>/<name>/events` |
 
-Default type is `cr`.
+Default protocol is `cr`.
 
 ---
 
 ## URL inference — no hard-coded URLs
 
-Given a `cross:` declaration with `source.host`, ONCOP constructs the URL from `type + crd + selector`. You never write the URL:
+Given a `cross:` declaration with `source.host`, ONCOP constructs the URL from `protocol + crd + selector`. You never write the URL:
 
 ```yaml
 source:
   host: "http://loader-runtime:8080"
-  type: cr
+  protocol: cr
 crd: loader
 selector:
   name: my-loader
@@ -148,7 +148,7 @@ Every ONCOP source caches its result. Default: `30s`. Set `cacheFor:` to control
 ```yaml
 source:
   host: "http://loader-runtime:8080"
-  type: health
+  protocol: health
   cacheFor: 5s   # fast health checks
 ```
 

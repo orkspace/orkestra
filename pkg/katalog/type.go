@@ -91,7 +91,7 @@ func (k *Katalog) EnabledCRDs() map[string]orktypes.CRDEntry {
 // ListEnabledCRDs returns a slice of all enabled CRD entries.
 // Use this for iteration when the map key is not needed.
 func (k *Katalog) ListEnabledCRDs() []orktypes.CRDEntry {
-	entries := make([]orktypes.CRDEntry, 0, len(k.enabledCRDs))
+	entries := make([]orktypes.CRDEntry, 0, k.Len())
 	for _, crd := range k.enabledCRDs {
 		entries = append(entries, crd)
 	}
@@ -101,7 +101,7 @@ func (k *Katalog) ListEnabledCRDs() []orktypes.CRDEntry {
 // ListEnabledCRDPointers returns a slice of pointers to all enabled CRD entries.
 // Use this when you need to modify CRD entries or avoid copying.
 func (k *Katalog) ListEnabledCRDPointers() []*orktypes.CRDEntry {
-	entries := make([]*orktypes.CRDEntry, 0, len(k.enabledCRDs))
+	entries := make([]*orktypes.CRDEntry, 0, k.Len())
 	for _, crd := range k.enabledCRDs {
 		crdCopy := crd
 		entries = append(entries, &crdCopy)
@@ -111,7 +111,7 @@ func (k *Katalog) ListEnabledCRDPointers() []*orktypes.CRDEntry {
 
 // EnabledCRDsList returns a slice of all enabled CRD entries.
 func (k *Katalog) EnabledCRDsList() []orktypes.CRDEntry {
-	entries := make([]orktypes.CRDEntry, 0, len(k.enabledCRDs))
+	entries := make([]orktypes.CRDEntry, 0, k.Len())
 	for _, crd := range k.enabledCRDs {
 		entries = append(entries, crd)
 	}
@@ -144,9 +144,25 @@ func (k *Katalog) UserProfiles() orktypes.ProfileRegistry {
 	return k.Profiles
 }
 
-// IsEmpty reports true when the katalog is nil.
-func (k *Katalog) IsEmpty() bool {
+// Empty reports true when the katalog is nil.
+func (k *Katalog) Empty() bool {
 	return k == nil
+}
+
+// EnabledCRDsEmpty reports true when enabled crds is 0.
+func (k *Katalog) EnabledCRDsEmpty() bool {
+	return len(k.enabledCRDs) == 0
+}
+
+// Len returns the number of enabled CRDs in this katalog
+func (k *Katalog) Len() int {
+	return len(k.enabledCRDs)
+}
+
+// SetKonfig sets the konfig on the Katalog. Called by pipeline.NewKatalog
+// before KomposeRuntimeKatalog so that konfig-dependent methods work correctly.
+func (k *Katalog) SetKonfig(kfg *konfig.Konfig) {
+	k.konfig = kfg
 }
 
 // WithCRDFiles returns the names of CRDs that declared a crdFile.

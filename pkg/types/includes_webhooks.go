@@ -2,10 +2,7 @@ package types
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
-
-	orkutils "github.com/orkspace/orkestra/pkg/utils"
 )
 
 // ExpandGatewayWebhookIncludes resolves gateway.webhooks includes at both levels:
@@ -49,7 +46,7 @@ func ExpandGatewayWebhookIncludes(gw *GatewayConfig, baseDir string) error {
 	if !filepath.IsAbs(path) {
 		path = filepath.Join(baseDir, path)
 	}
-	data, err := os.ReadFile(path)
+	data, err := readLocal(path)
 	if err != nil {
 		return fmt.Errorf("reading webhooks.include %q: %w", cfg.Include, err)
 	}
@@ -57,7 +54,7 @@ func ExpandGatewayWebhookIncludes(gw *GatewayConfig, baseDir string) error {
 	var f struct {
 		Webhooks GatewayWebhookConfig `yaml:"webhooks"`
 	}
-	if err := orkutils.StrictUnmarshal(data, &f); err != nil {
+	if err := strictUnmarshal(data, &f); err != nil {
 		return fmt.Errorf("parsing webhooks.include %q: %w", cfg.Include, err)
 	}
 
@@ -96,14 +93,14 @@ func expandGitHubIncludes(entries []GitWebhookConfig, baseDir string) ([]GitWebh
 		if !filepath.IsAbs(path) {
 			path = filepath.Join(baseDir, path)
 		}
-		data, err := os.ReadFile(path)
+		data, err := readLocal(path)
 		if err != nil {
 			return nil, fmt.Errorf("reading github include %q: %w", entry.Include, err)
 		}
 		var f struct {
 			GitHub []GitWebhookConfig `yaml:"github"`
 		}
-		if err := orkutils.StrictUnmarshal(data, &f); err != nil {
+		if err := strictUnmarshal(data, &f); err != nil {
 			return nil, fmt.Errorf("parsing github include %q: %w", entry.Include, err)
 		}
 		expanded = append(expanded, f.GitHub...)
@@ -122,14 +119,14 @@ func expandGitLabIncludes(entries []GitWebhookConfig, baseDir string) ([]GitWebh
 		if !filepath.IsAbs(path) {
 			path = filepath.Join(baseDir, path)
 		}
-		data, err := os.ReadFile(path)
+		data, err := readLocal(path)
 		if err != nil {
 			return nil, fmt.Errorf("reading gitlab include %q: %w", entry.Include, err)
 		}
 		var f struct {
 			GitLab []GitWebhookConfig `yaml:"gitlab"`
 		}
-		if err := orkutils.StrictUnmarshal(data, &f); err != nil {
+		if err := strictUnmarshal(data, &f); err != nil {
 			return nil, fmt.Errorf("parsing gitlab include %q: %w", entry.Include, err)
 		}
 		expanded = append(expanded, f.GitLab...)
@@ -148,14 +145,14 @@ func expandSlackWebhookIncludes(entries []SlackWebhookConfig, baseDir string) ([
 		if !filepath.IsAbs(path) {
 			path = filepath.Join(baseDir, path)
 		}
-		data, err := os.ReadFile(path)
+		data, err := readLocal(path)
 		if err != nil {
 			return nil, fmt.Errorf("reading slack include %q: %w", entry.Include, err)
 		}
 		var f struct {
 			Slack []SlackWebhookConfig `yaml:"slack"`
 		}
-		if err := orkutils.StrictUnmarshal(data, &f); err != nil {
+		if err := strictUnmarshal(data, &f); err != nil {
 			return nil, fmt.Errorf("parsing slack include %q: %w", entry.Include, err)
 		}
 		expanded = append(expanded, f.Slack...)
@@ -174,14 +171,14 @@ func expandGenericWebhookIncludes(entries []GenericWebhookConfig, baseDir string
 		if !filepath.IsAbs(path) {
 			path = filepath.Join(baseDir, path)
 		}
-		data, err := os.ReadFile(path)
+		data, err := readLocal(path)
 		if err != nil {
 			return nil, fmt.Errorf("reading generic include %q: %w", entry.Include, err)
 		}
 		var f struct {
 			Generic []GenericWebhookConfig `yaml:"generic"`
 		}
-		if err := orkutils.StrictUnmarshal(data, &f); err != nil {
+		if err := strictUnmarshal(data, &f); err != nil {
 			return nil, fmt.Errorf("parsing generic include %q: %w", entry.Include, err)
 		}
 		expanded = append(expanded, f.Generic...)

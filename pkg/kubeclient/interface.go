@@ -5,13 +5,13 @@ import (
 
 	"github.com/orkspace/orkestra/domain"
 	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
-	sigs "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // EventRecorder is a minimal interface for recording Kubernetes events.
@@ -27,7 +27,7 @@ type EventRecorder interface {
 type Interface interface {
 	Clientset() kubernetes.Interface
 	DynamicClient() dynamic.Interface
-	Mapper() meta.RESTMapper
+	RESTMapper() meta.RESTMapper
 	RestConfig() *rest.Config
 	Scheme() *runtime.Scheme
 
@@ -78,22 +78,49 @@ type Interface interface {
 	// themselves using their own resolver.
 	ScopedFor(eval func(string) (string, bool)) Interface
 
-	// CRUD — typed object operations for constructor reconcilers.
-	// Accepts sigs.k8s.io/controller-runtime/pkg/client.Object so reconcilers
-	// migrated from controller-runtime compile without changes to their call sites.
-	// GVR is derived from the Go type via the scheme and mapper; callers do not
-	// need to specify it explicitly.
-	Get(ctx context.Context, namespace, name string, into sigs.Object) error
-	Create(ctx context.Context, obj sigs.Object) error
-	Patch(ctx context.Context, obj sigs.Object, patch Patch) error
+	// CRUD
+	// List(ctx context.Context, obj domain.ObjectList, opts ...metav1.ListOptions) error
+
+	// Get retrieves an object from the cluster by namespace and name into the provided domain.Object.
+	Get(ctx context.Context, key domain.ObjectKey, into domain.Object, opts metav1.GetOptions) error
+
+	// Create creates a new object in the cluster using the provided domain.Object.
+	Create(ctx context.Context, obj domain.Object, opts metav1.CreateOptions) error
+
+	// Update updates an existing object in the cluster with the provided domain.Object.
+	Update(ctx context.Context, obj domain.Object, opts metav1.UpdateOptions) error
+
+	// Patch applies a partial modification to an existing object using the provided Patch.
+	Patch(ctx context.Context, obj domain.Object, patch Patch, opts metav1.PatchOptions) error
+
+	// Delete removes an object from the cluster using the provided domain.Object.
+	Delete(ctx context.Context, obj domain.Object, opts metav1.DeleteOptions) error
+
+	// DeleteAllOf removes all objects matching the given list options using the provided domain.Object.
+	DeleteAllOf(ctx context.Context, obj domain.Object, deleteOpts metav1.DeleteOptions, listOpts metav1.ListOptions) error
+
+	// Apply performs a server-side apply operation using the provided ApplyConfiguration.
+	Apply(ctx context.Context, obj runtime.ApplyConfiguration, opts metav1.ApplyOptions) error
+
+	// IsObjectNamespaced reports whether the object's resource is namespace-scoped.
+	IsObjectNamespaced(obj runtime.Object) (bool, error)
+
+	// GroupVersionKindFor resolves the object's GVK from the kubeclient scheme.
+	GroupVersionKindFor(obj runtime.Object) (schema.GroupVersionKind, error)
 
 	// Patch helpers — used by the generic reconciler for finalizer, label,
 	// annotation, and status updates. Implementations must be idempotent.
-	PatchFinalizers(ctx context.Context, obj runtime.Object, finalizers []string) error
-	PatchLabels(ctx context.Context, obj runtime.Object, base, desired map[string]string) error
-	PatchAnnotations(ctx context.Context, obj runtime.Object, annotations map[string]string) error
-	PatchStatus(ctx context.Context, obj domain.Object, statusFields map[string]interface{}) error
-}
+	PatchFinalizers(ctx context.Context, obj runtime.Object, finalizers []string, opts metav1.PatchOptions) error
+	PatchLabels(ctx context.Context, obj runtime.Object, base, desired map[string]string, opts metav1.PatchOptions) error
+	PatchAnnotations(ctx context.Context, obj runtime.Object, annotations map[string]string, opts metav1.PatchOptions) error
+	PatchStatus(ctx context.Context, obj domain.Object, statusFields map[string]interface{}, opts metav1.PatchOptions) error
+	PatchSpec(ctx context.Context, obj domain.Object, specFields map[string]interface{}, opts metav1.PatchOptions) error
 
-// Compile check — *Kubeclient must satisfy this.
-var _ Interface = (*Kubeclient)(nil)
+	// Non-Infrastructure methods
+
+	// WithForceConflict returns a copy of this Interface with the CRD-level
+	// force-conflict attached. Called at construction time.
+	WithForceConflict(forceConflict *bool) Interface
+	// ForceConflict returns the CRD-level force-conflict setting.
+	ForceConflict() *bool
+}

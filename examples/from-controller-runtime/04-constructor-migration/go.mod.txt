@@ -3,7 +3,7 @@ module github.com/orkspace/from-controller-runtime-demo
 go 1.26.3
 
 require (
-	github.com/orkspace/orkestra v0.7.16
+	github.com/orkspace/orkestra v0.7.17
 	k8s.io/api v0.36.1
 	k8s.io/apimachinery v0.36.1
 	k8s.io/client-go v0.36.1

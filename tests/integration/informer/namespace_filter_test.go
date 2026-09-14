@@ -37,14 +37,12 @@ var (
 // handling for unstructured objects: when the object's Kind is set,
 // scheme.ObjectKinds returns the GVK from the object itself.
 func newTestFactory(reg *queue.QueueRegistry, defaultWq *queue.Workqueue) *informerpkg.Factory {
-	return informerpkg.SharedInformerFactory(
-		nil, // clientProvider — not used by the ForListerWatcher path
-		testCfg,
-		reg,
-		defaultWq,
-		runtime.NewScheme(),
-		konfig.NewDefaultKonfig(),
-	)
+	return informerpkg.SharedInformerFactory(testCfg, informerpkg.FactoryOptions{
+		QueueRegistry: reg,
+		DefaultWq:     defaultWq,
+		Scheme:        runtime.NewScheme(),
+		Konfig:        konfig.NewDefaultKonfig(),
+	})
 }
 
 // probeExampleObj returns an *unstructured.Unstructured with the Probe GVK set.
@@ -119,12 +117,12 @@ func clusterScopedLW(ctx context.Context) *cache.ListWatch {
 func drainQueue(wq *queue.Workqueue) []queue.QueueItem {
 	var items []queue.QueueItem
 	for wq.Depth() > 0 {
-		item, shutdown := wq.Queue.Get()
+		item, shutdown := wq.Queue().Get()
 		if shutdown {
 			break
 		}
 		items = append(items, item)
-		wq.Queue.Done(item)
+		wq.Queue().Done(item)
 	}
 	return items
 }
@@ -149,13 +147,13 @@ func TestNamespaceFilter_AllowedEventsReachQueue(t *testing.T) {
 	defer cancel()
 
 	reg := queue.NewQueueRegistry()
-	defaultWq := queue.NewWorkqueue()
+	defaultWq := queue.NewWorkqueue("default")
 	factory := newTestFactory(reg, defaultWq)
 
 	probeGVKStr := probeGVK.String()
 
 	// Register per-CRD queue and namespace filter before starting
-	wq := reg.Register(probeGVKStr, 0)
+	wq := reg.Register(probeGVKStr, nil)
 	factory.RegisterNamespaceFilter(probeGVKStr, &informerpkg.NamespaceFilter{
 		AllowedNamespaces: []string{"filter-allowed"},
 	})
@@ -203,12 +201,12 @@ func TestNamespaceFilter_BlockedEventsNeverReachQueue(t *testing.T) {
 	defer cancel()
 
 	reg := queue.NewQueueRegistry()
-	defaultWq := queue.NewWorkqueue()
+	defaultWq := queue.NewWorkqueue("default")
 	factory := newTestFactory(reg, defaultWq)
 
 	probeGVKStr := probeGVK.String()
 
-	wq := reg.Register(probeGVKStr, 0)
+	wq := reg.Register(probeGVKStr, nil)
 	factory.RegisterNamespaceFilter(probeGVKStr, &informerpkg.NamespaceFilter{
 		// Only "filter-allowed2" is permitted — "filter-blocked" must be dropped.
 		AllowedNamespaces: []string{"filter-allowed2"},
@@ -246,12 +244,12 @@ func TestNamespaceFilter_MixedNamespacesOnlyAllowedReachQueue(t *testing.T) {
 	defer cancel()
 
 	reg := queue.NewQueueRegistry()
-	defaultWq := queue.NewWorkqueue()
+	defaultWq := queue.NewWorkqueue("default")
 	factory := newTestFactory(reg, defaultWq)
 
 	probeGVKStr := probeGVK.String()
 
-	wq := reg.Register(probeGVKStr, 0)
+	wq := reg.Register(probeGVKStr, nil)
 	factory.RegisterNamespaceFilter(probeGVKStr, &informerpkg.NamespaceFilter{
 		AllowedNamespaces: []string{"mix-allowed"},
 	})

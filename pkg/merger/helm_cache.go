@@ -142,7 +142,7 @@ func helmCopyDir(src, dst string) error {
 		if info.IsDir() {
 			return os.MkdirAll(target, 0o755)
 		}
-		data, err := os.ReadFile(path)
+		data, err := readLocal(path)
 		if err != nil {
 			return err
 		}

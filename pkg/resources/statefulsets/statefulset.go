@@ -13,22 +13,20 @@ import (
 	"github.com/orkspace/orkestra/pkg/labels"
 	"github.com/orkspace/orkestra/pkg/logger"
 	"github.com/orkspace/orkestra/pkg/profiles"
-	"github.com/orkspace/orkestra/pkg/resources/common"
+	"github.com/orkspace/orkestra/pkg/resources/shared"
 	orktypes "github.com/orkspace/orkestra/pkg/types"
-	"github.com/orkspace/orkestra/pkg/utils"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 )
 
 // Create creates a StatefulSet owned by the CR if it does not already exist.
 func Create(ctx context.Context, kube kubeclient.Interface, owner domain.Object, spec ResolvedStatefulSetSpec) error {
-	namespace := common.ResolveNamespace(owner, spec.Namespace)
-	if err := common.SleepIfNeeded(spec.Sleep); err != nil {
+	namespace := shared.ResolveNamespace(owner, spec.Namespace)
+	if err := shared.SleepIfNeeded(spec.Sleep); err != nil {
 		return err
 	}
 
@@ -61,8 +59,8 @@ func Create(ctx context.Context, kube kubeclient.Interface, owner domain.Object,
 // Apply creates or updates a StatefulSet using Server-Side Apply.
 // Sends only the fields Orkestra owns; k8s-injected defaults are invisible.
 func Apply(ctx context.Context, kube kubeclient.Interface, owner domain.Object, spec ResolvedStatefulSetSpec) error {
-	namespace := common.ResolveNamespace(owner, spec.Namespace)
-	if err := common.SleepIfNeeded(spec.Sleep); err != nil {
+	namespace := shared.ResolveNamespace(owner, spec.Namespace)
+	if err := shared.SleepIfNeeded(spec.Sleep); err != nil {
 		return err
 	}
 
@@ -76,7 +74,7 @@ func Apply(ctx context.Context, kube kubeclient.Interface, owner domain.Object, 
 
 	if _, err = kube.Clientset().AppsV1().StatefulSets(namespace).Patch(
 		ctx, spec.Name, k8stypes.ApplyPatchType, body,
-		metav1.PatchOptions{FieldManager: konfig.FieldManagerRuntime, Force: utils.BoolPtr(true)},
+		metav1.PatchOptions{FieldManager: konfig.FieldManagerRuntime, Force: shared.ResolveForceConflict(kube, spec.ForceConflict)},
 	); err != nil {
 		return fmt.Errorf("statefulset.Apply: %w", err)
 	}
@@ -97,8 +95,8 @@ func Update(ctx context.Context, kube kubeclient.Interface, owner domain.Object,
 
 // Delete deletes the StatefulSet if it exists.
 func Delete(ctx context.Context, kube kubeclient.Interface, owner domain.Object, spec ResolvedStatefulSetSpec) error {
-	namespace := common.ResolveNamespace(owner, spec.Namespace)
-	if err := common.SleepIfNeeded(spec.Sleep); err != nil {
+	namespace := shared.ResolveNamespace(owner, spec.Namespace)
+	if err := shared.SleepIfNeeded(spec.Sleep); err != nil {
 		return err
 	}
 
@@ -135,20 +133,21 @@ func Resolve(src orktypes.StatefulSetTemplateSource, ownerName string, reg orkty
 		Namespace:       src.Namespace,
 		Image:           src.Image,
 		ServiceName:     src.ServiceName,
-		Replicas:        common.ParseReplicas(src.Replicas),
+		Replicas:        shared.ParseReplicas(src.Replicas),
 		HasAutoscale:    src.Autoscale != nil,
 		Labels:          make(map[string]string),
 		Annotations:     make(map[string]string),
 		Env:             src.Env,
 		EnvFrom:         src.EnvFrom,
-		Resources:       common.ResolveResources(src.Resources, reg),
+		Resources:       shared.ResolveResources(src.Resources, reg),
 		Probes:          src.Probes,
 		Profiles:        reg,
-		SecurityContext: common.ResolveContainerSecurityContext(src.SecurityContext, reg),
-		PodSecurity:     common.ResolvePodSecurityContext(src.PodSecurity, reg),
+		SecurityContext: shared.ResolveContainerSecurityContext(src.SecurityContext, reg),
+		PodSecurity:     shared.ResolvePodSecurityContext(src.PodSecurity, reg),
 		Volumes:         src.Volumes,
 		VolumeMounts:    src.VolumeMounts,
 		Sleep:           src.Sleep,
+		ForceConflict:   src.ForceConflict,
 	}
 
 	for _, vct := range src.VolumeClaimTemplates {
@@ -181,7 +180,7 @@ func Resolve(src orktypes.StatefulSetTemplateSource, ownerName string, reg orkty
 	if p, err := strconv.ParseInt(src.Port, 10, 32); err == nil {
 		spec.Port = int32(p)
 	}
-	spec.Protocol = common.ParseProtocol(src.Protocol)
+	spec.Protocol = shared.ParseProtocol(src.Protocol)
 
 	for k, v := range src.Labels {
 		spec.Labels[k] = v
@@ -232,16 +231,6 @@ func resolveAccessModes(modes []string) []corev1.PersistentVolumeAccessMode {
 
 func buildStatefulSet(owner domain.Object, spec ResolvedStatefulSetSpec, ns string) *appsv1.StatefulSet {
 	spec.Labels = labels.StampOrkestraLabels(spec.Labels, owner.GetName(), owner.GetAnnotations())
-	apiVersion := ""
-	kind := ""
-	if u, ok := owner.(*unstructured.Unstructured); ok {
-		apiVersion = u.GetAPIVersion()
-		kind = u.GetKind()
-	} else {
-		gvk := owner.GetObjectKind().GroupVersionKind()
-		apiVersion = gvk.GroupVersion().String()
-		kind = gvk.Kind
-	}
 
 	replicas := spec.Replicas
 	container := corev1.Container{
@@ -254,10 +243,10 @@ func buildStatefulSet(owner domain.Object, spec ResolvedStatefulSetSpec, ns stri
 	}
 
 	if spec.Resources != nil {
-		container.Resources = common.BuildResourceRequirements(spec.Resources)
+		container.Resources = shared.BuildResourceRequirements(spec.Resources)
 	}
 
-	common.ApplyProbes(&container, spec.Probes, spec.Port, spec.Profiles)
+	shared.ApplyProbes(&container, spec.Probes, spec.Port, spec.Profiles)
 
 	for _, ev := range spec.Env {
 		kev := corev1.EnvVar{Name: ev.Name}
@@ -283,26 +272,17 @@ func buildStatefulSet(owner domain.Object, spec ResolvedStatefulSetSpec, ns stri
 		container.Env = append(container.Env, kev)
 	}
 
-	envFrom, extraEnv := common.ExpandEnvFrom(spec.EnvFrom)
+	envFrom, extraEnv := shared.ExpandEnvFrom(spec.EnvFrom)
 	container.EnvFrom = envFrom
 	container.Env = append(container.Env, extraEnv...)
 
 	sts := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        spec.Name,
-			Namespace:   ns,
-			Labels:      spec.Labels,
-			Annotations: spec.Annotations,
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					APIVersion:         apiVersion,
-					Kind:               kind,
-					Name:               owner.GetName(),
-					UID:                owner.GetUID(),
-					Controller:         utils.BoolPtr(true),
-					BlockOwnerDeletion: utils.BoolPtr(true),
-				},
-			},
+			Name:            spec.Name,
+			Namespace:       ns,
+			Labels:          spec.Labels,
+			Annotations:     spec.Annotations,
+			OwnerReferences: shared.ResolveOwnerReferences(owner),
 		},
 		Spec: appsv1.StatefulSetSpec{
 			Replicas:    &replicas,
@@ -317,7 +297,7 @@ func buildStatefulSet(owner domain.Object, spec ResolvedStatefulSetSpec, ns stri
 					Labels: spec.Labels,
 				},
 				Spec: corev1.PodSpec{
-					ImagePullSecrets:   common.ToPullSecrets(spec.ImagePullSecrets),
+					ImagePullSecrets:   shared.ToPullSecrets(spec.ImagePullSecrets),
 					ServiceAccountName: spec.ServiceAccountName,
 					NodeSelector:       spec.NodeSelector,
 					Containers:         []corev1.Container{container},
@@ -330,7 +310,7 @@ func buildStatefulSet(owner domain.Object, spec ResolvedStatefulSetSpec, ns stri
 			},
 			UpdateStrategy: func() appsv1.StatefulSetUpdateStrategy {
 				if spec.RollingUpdate != nil {
-					return common.BuildStatefulSetUpdateStrategy(spec.RollingUpdate)
+					return shared.BuildStatefulSetUpdateStrategy(spec.RollingUpdate)
 				}
 				return appsv1.StatefulSetUpdateStrategy{Type: appsv1.OnDeleteStatefulSetStrategyType}
 			}(),
@@ -339,7 +319,7 @@ func buildStatefulSet(owner domain.Object, spec ResolvedStatefulSetSpec, ns stri
 	}
 
 	// Security
-	common.ApplySecurityContext(&sts.Spec.Template.Spec.Containers[0], &sts.Spec.Template.Spec, spec.SecurityContext, spec.PodSecurity)
+	shared.ApplySecurityContext(&sts.Spec.Template.Spec.Containers[0], &sts.Spec.Template.Spec, spec.SecurityContext, spec.PodSecurity)
 
 	for _, vct := range spec.VolumeClaimTemplates {
 		storageQty := resource.MustParse(vct.StorageSize)
@@ -371,10 +351,10 @@ func buildStatefulSet(owner domain.Object, spec ResolvedStatefulSetSpec, ns stri
 	}
 
 	// Volumes / VolumeMounts (generic, in addition to VolumeClaimTemplates)
-	if vols := common.BuildVolumes(spec.Volumes); len(vols) > 0 {
+	if vols := shared.BuildVolumes(spec.Volumes); len(vols) > 0 {
 		sts.Spec.Template.Spec.Volumes = vols
 	}
-	if mounts := common.BuildVolumeMounts(spec.VolumeMounts); len(mounts) > 0 {
+	if mounts := shared.BuildVolumeMounts(spec.VolumeMounts); len(mounts) > 0 {
 		sts.Spec.Template.Spec.Containers[0].VolumeMounts = append(
 			sts.Spec.Template.Spec.Containers[0].VolumeMounts, mounts...,
 		)

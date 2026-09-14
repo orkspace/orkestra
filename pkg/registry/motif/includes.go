@@ -23,14 +23,14 @@ func expandIncludes(m *orktypes.Motif, dir string) error {
 		if err := orktypes.ExpandMutationInclude(m.Admission.Mutation, dir); err != nil {
 			return err
 		}
-		if m.Admission.Validation != nil {
+		if m.Admission.HasValidationExternal() {
 			var err error
 			m.Admission.Validation.External, err = orktypes.ExpandExternalCalls(m.Admission.Validation.External, dir)
 			if err != nil {
 				return fmt.Errorf("admission.validation.external: %w", err)
 			}
 		}
-		if m.Admission.Mutation != nil {
+		if m.Admission.HasMutationExternal() {
 			var err error
 			m.Admission.Mutation.External, err = orktypes.ExpandExternalCalls(m.Admission.Mutation.External, dir)
 			if err != nil {

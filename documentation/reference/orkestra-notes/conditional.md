@@ -49,7 +49,7 @@ Conditional notes express branching logic inside a single template expression, r
 # default
 # value: "{{ default .spec.replicas 2 }}"
 # spec.replicas absent  → 2
-# spec.replicas=0       → 2   (zero is empty)
+# spec.replicas=0       → 2   (zero is Empty()
 # spec.replicas=5       → 5
 
 # value: "{{ default .spec.logLevel \"info\" }}"

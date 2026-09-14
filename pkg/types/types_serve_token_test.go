@@ -101,8 +101,8 @@ func TestTokenAllowed_PermissionClasses(t *testing.T) {
 }
 
 func TestServePermissionSetIsEmpty(t *testing.T) {
-	assert.True(t, types.ServePermissionSet{}.IsEmpty())
-	assert.False(t, types.ServePermissionSet{Global: []string{"get"}}.IsEmpty())
-	assert.False(t, types.ServePermissionSet{Schema: []string{"get"}}.IsEmpty())
-	assert.False(t, types.ServePermissionSet{Resources: []string{"get"}}.IsEmpty())
+	assert.True(t, types.ServePermissionSet{}.Empty())
+	assert.False(t, types.ServePermissionSet{Global: []string{"get"}}.Empty())
+	assert.False(t, types.ServePermissionSet{Schema: []string{"get"}}.Empty())
+	assert.False(t, types.ServePermissionSet{Resources: []string{"get"}}.Empty())
 }

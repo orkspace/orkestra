@@ -38,7 +38,7 @@ in every Katalog expression.
 				return fmt.Errorf("loading katalog: %w", err)
 			}
 			reg := m.ToNotes()
-			if reg.IsEmpty() {
+			if reg.Empty() {
 				fmt.Println("No user-defined notes declared in this Katalog.")
 				return nil
 			}

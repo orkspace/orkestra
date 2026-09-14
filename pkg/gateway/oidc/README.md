@@ -31,7 +31,7 @@ In order:
 4. Verifies the cryptographic signature
 5. Checks `exp` — rejects expired tokens
 6. Checks `iss` — must equal `issuerURL` exactly
-7. Checks `aud` — must contain `audience` (skipped when `audience` is empty)
+7. Checks `aud` — must contain `audience` (skipped when `audience` is Empty()
 8. Returns all scalar claims as `map[string]string`
 
 A failure at any step returns a non-nil error. The gateway maps OIDC errors to the same 401 response as a static token mismatch.

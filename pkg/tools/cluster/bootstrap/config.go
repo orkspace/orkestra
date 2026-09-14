@@ -3,7 +3,6 @@ package bootstrap
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -45,7 +44,7 @@ type ConfigFile struct {
 // LoadConfig reads a YAML or JSON cluster config file and applies defaults.
 // It does not validate required fields — call ValidateConfig for that.
 func LoadConfig(path string) (*ConfigFile, error) {
-	data, err := os.ReadFile(path)
+	data, err := readLocal(path)
 	if err != nil {
 		return nil, fmt.Errorf("reading bootstrap config: %w", err)
 	}

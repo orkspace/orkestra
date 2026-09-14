@@ -1,11 +1,7 @@
 // pkg/types/admission.go
 package types
 
-import (
-	"encoding/json"
-
-	"github.com/orkspace/orkestra/pkg/labels"
-)
+import "strings"
 
 // ── Validation and Mutation ────────────────────────────────────────────────
 //
@@ -94,6 +90,20 @@ func (a *Admission) HasValidationRules() bool {
 		return false
 	}
 	return len(a.Validation.Rules) > 0
+}
+
+func (a *Admission) HasMutationExternal() bool {
+	if a.Mutation == nil {
+		return false
+	}
+	return len(a.Mutation.External) > 0
+}
+
+func (a *Admission) HasValidationExternal() bool {
+	if a.Validation == nil {
+		return false
+	}
+	return len(a.Validation.External) > 0
 }
 
 // ── ValidationRule ────────────────────────────────────────────────────────
@@ -196,9 +206,9 @@ type ValidationRule struct {
 	// at the admission boundary, not during reconcile.
 	Fires *FiresConfig `yaml:"fires,omitempty" json:"fires,omitempty"`
 
-	// Link names the serve.fields or serve.additionalFields (labels/annotations)
+	// Link names the serve.fields or serve.labels and serve.annotations
 	// key this rule concerns, for UI highlighting. Only needed when Field
-	// isn't already a plain, self-describing path — additionalFields
+	// isn't already a plain, self-describing path — serve.labels and serve.annotations
 	// entries always resolve through getLabel/getAnnotation template
 	// expressions (or a notes: function built on one), and a hand-written
 	// rule on a spec field can do the same (e.g. wrapping it in a format
@@ -209,7 +219,7 @@ type ValidationRule struct {
 	// rendered for that serve entry, no guessing at the expression required.
 	//
 	// Link is a plain literal string, not a template expression — it's the
-	// exact serve.fields / serve.additionalFields key itself, never resolved
+	// exact serve.fields / serve.labels and serve.annotations key itself, never resolved
 	// against the CR the way Field/Value/Message can be.
 	//
 	// Validated at katalog-load time: must match a key declared in
@@ -218,7 +228,7 @@ type ValidationRule struct {
 	// "spec.<name>" is an error, though — at that point Field already is a
 	// clean display name on its own, so the link is always redundant.
 	//
-	// Automatically set by the required/enum rules serve.additionalFields
+	// Automatically set by the required/enum rules serve.labels and serve.annotations
 	// entries synthesize. Hand-written rules that target the same field
 	// (e.g. multiple focused checks split across separate rules instead of
 	// one compound expression) should set it too, so every rule touching
@@ -232,6 +242,49 @@ type ValidationRule struct {
 	//	      message: "team must be a valid DNS subdomain"
 	//	      action: deny
 	Link string `yaml:"link,omitempty" json:"link,omitempty"`
+}
+
+// IsEmptyAssertions reports whether this rule has at either a valid operator or shorthand defined
+func (r ValidationRule) IsEmptyAssertions() bool {
+	return r.Operator == "" && r.ShorthandsEmpty()
+}
+
+func (r ValidationRule) ShorthandsEmpty() bool {
+	switch {
+	case r.Equals == "" && r.NotEquals == "" && r.GreaterThan == "" && r.LessThan == "" && r.GreaterThanOrEqual == "" && r.LessThanOrEqual == "" &&
+		r.Between == "" && r.NotBetween == "" && r.Contains == "" && r.NotContains == "" && r.In == "" && r.NotIn == "" && r.Prefix == "" && r.NotPrefix == "" &&
+		r.Suffix == "" && r.NotSuffix == "", r.Min == "" && r.Max == "" && r.Regex == "":
+		return true
+	}
+	return false
+}
+
+// ValidationRuleFor returns the first matching mutation rule for a given field
+func ValidationRuleFor(rules []ValidationRule, field string) ValidationRule {
+	if rules == nil && field != "" {
+		return ValidationRule{}
+	}
+	for _, rule := range rules {
+		if rule.Field == field {
+			return rule
+		}
+	}
+	return ValidationRule{}
+}
+
+// ValidationRulesFor returns the all matching mutation rules for a given field
+func ValidationRulesFor(rules []ValidationRule, field string) []ValidationRule {
+	if rules == nil && field != "" {
+		return []ValidationRule{}
+	}
+
+	result := []ValidationRule{}
+	for _, rule := range rules {
+		if rule.Field == field {
+			result = append(result, rule)
+		}
+	}
+	return result
 }
 
 // ValidationConfig holds all validation rules for a CRD.
@@ -259,6 +312,14 @@ func (c *ValidationConfig) AdmissionExternal() []ExternalCallSpec {
 		return nil
 	}
 	return c.External
+}
+
+// HasExternalCall reports whether there is any external call in the config
+func (c *ValidationConfig) HasExternalCall() bool {
+	if c == nil {
+		return false
+	}
+	return len(c.External) > 0
 }
 
 // ReconcileExternal returns only calls that fire at reconcile time.
@@ -301,6 +362,69 @@ func (c *ValidationConfig) HasWarnRules() bool {
 		}
 	}
 	return false
+}
+
+// HasAnyRules reports whether any validation rule is configured
+func (c *ValidationConfig) HasAnyRules() bool {
+	if c == nil {
+		return false
+	}
+	return len(c.Rules) > 0
+}
+
+// HasUniqueRule reports whether any rule uses operator: unique.
+func (c *ValidationConfig) HasUniqueRule() bool {
+	if c == nil {
+		return false
+	}
+	for _, r := range c.Rules {
+		if r.Operator == ConditionUnique {
+			return true
+		}
+	}
+	return false
+}
+
+// HasHealthField reports whether any rule's field expression references .health,
+// including through a user-defined note whose expression body references .health.
+func (c *ValidationConfig) HasHealthField(nr NoteRegistry) bool {
+	if c == nil {
+		return false
+	}
+	for _, r := range c.Rules {
+		if fieldHasPrefix(r.Field, ".health.") {
+			return true
+		}
+		if IsNoteRef(r.Field) && nr.ContainsInExpression(NoteRefName(r.Field), ".health.") {
+			return true
+		}
+	}
+	return false
+}
+
+// HasMetricsField reports whether any rule's field expression references .metrics,
+// including through a user-defined note whose expression body references .metrics.
+func (c *ValidationConfig) HasMetricsField(nr NoteRegistry) bool {
+	if c == nil {
+		return false
+	}
+	for _, r := range c.Rules {
+		if fieldHasPrefix(r.Field, ".metrics.") {
+			return true
+		}
+		if IsNoteRef(r.Field) && nr.ContainsInExpression(NoteRefName(r.Field), ".metrics.") {
+			return true
+		}
+	}
+	return false
+}
+
+// fieldHasPrefix strips a leading {{ and trims space before checking the prefix,
+// so both ".health.status" and "{{ .health.status }}" are handled uniformly.
+func fieldHasPrefix(field, prefix string) bool {
+	s := strings.TrimPrefix(field, "{{")
+	s = strings.TrimSpace(s)
+	return strings.HasPrefix(s, prefix)
 }
 
 // ── MutationRule ──────────────────────────────────────────────────────────
@@ -382,12 +506,112 @@ type MutationConfig struct {
 	MutateFirst bool `yaml:"mutateFirst,omitempty" json:"mutateFirst,omitempty"`
 }
 
+// MutationChangeType describes the kind of mutation change for on mutation rule
+// Currently supported - one of: override and default
+type MutationChangeType string
+
+const (
+	OverrideMutationChangeType MutationChangeType = "override"
+	DefaultMutationChangeType  MutationChangeType = "default"
+	UnknownMutationChangeType  MutationChangeType = "unknown"
+)
+
+func (t MutationChangeType) String() string {
+	return string(t)
+}
+
+// ChangeType returns the change type for this rule
+func (r MutationRule) ChangeType() MutationChangeType {
+	if r.Override != nil {
+		return OverrideMutationChangeType
+	}
+	if r.Default != nil {
+		return DefaultMutationChangeType
+	}
+	return UnknownMutationChangeType
+}
+
+// IsOverrideChangeType reports whether this rule is an override change type
+func (r MutationRule) IsOverrideChangeType() bool {
+	if r.Override != nil {
+		return true
+	}
+	return false
+}
+
+// IsDefaultChangeType reports whether this rule is a default change type
+func (r MutationRule) IsDefaultChangeType() bool {
+	if !r.IsOverrideChangeType() && r.Default != nil {
+		return true
+	}
+	return false
+}
+
+// IsValidChangeType reports true when at least default or override is defined
+func (r MutationRule) IsValidChangeType() bool {
+	switch r.ChangeType() {
+	case OverrideMutationChangeType, DefaultMutationChangeType:
+		return true
+	default:
+		return false
+	}
+}
+
+// HasDefaultAndOverride reports whether both default and override are defined for this rule
+func (r MutationRule) HasDefaultAndOverride() bool {
+	return r.Override != nil && r.Default != nil
+}
+
+// MutationRuleFor returns the first matching mutation rule for a given field
+func MutationRuleFor(rules []MutationRule, field string) MutationRule {
+	if rules == nil && field != "" {
+		return MutationRule{}
+	}
+	for _, rule := range rules {
+		if rule.Field == field {
+			return rule
+		}
+	}
+	return MutationRule{}
+}
+
+// MutationRulesFor returns the all matching mutation rules for a given field
+func MutationRulesFor(rules []MutationRule, field string) []MutationRule {
+	if rules == nil && field != "" {
+		return []MutationRule{}
+	}
+
+	result := []MutationRule{}
+	for _, rule := range rules {
+		if rule.Field == field {
+			result = append(result, rule)
+		}
+	}
+	return result
+}
+
+// HasAnyRules reports whether any mutation rule is configured
+func (c *MutationConfig) HasAnyRules() bool {
+	if c == nil {
+		return false
+	}
+	return len(c.Rules) > 0
+}
+
 // AdmissionExternal returns all external calls — every entry fires at admission time.
 func (c *MutationConfig) AdmissionExternal() []ExternalCallSpec {
 	if c == nil {
 		return nil
 	}
 	return c.External
+}
+
+// HasExternalCall reports whether there is any external call in the config
+func (c *MutationConfig) HasExternalCall() bool {
+	if c == nil {
+		return false
+	}
+	return len(c.External) > 0
 }
 
 // ReconcileExternal returns only calls that fire at reconcile time.
@@ -405,6 +629,60 @@ func (c *MutationConfig) ReconcileExternal() []ExternalCallSpec {
 	return out
 }
 
+// HasUniqueRule reports whether any rule uses operator: unique.
+// Always false for mutation — unique is a validation-only operator.
+func (c *MutationConfig) HasUniqueRule() bool {
+	return false
+}
+
+// HasHealthField reports whether any rule's field, default, or override expression
+// references .health, including through a user-defined note whose expression body
+// references .health.
+func (c *MutationConfig) HasHealthField(nr NoteRegistry) bool {
+	if c == nil {
+		return false
+	}
+	for _, r := range c.Rules {
+		if fieldHasPrefix(r.Field, ".health.") {
+			return true
+		}
+		if IsNoteRef(r.Field) && nr.ContainsInExpression(NoteRefName(r.Field), ".health.") {
+			return true
+		}
+		if s, ok := r.Default.(string); ok && fieldHasPrefix(s, ".health.") {
+			return true
+		}
+		if s, ok := r.Override.(string); ok && fieldHasPrefix(s, ".health.") {
+			return true
+		}
+	}
+	return false
+}
+
+// HasMetricsField reports whether any rule's field, default, or override expression
+// references .metrics, including through a user-defined note whose expression body
+// references .metrics.
+func (c *MutationConfig) HasMetricsField(nr NoteRegistry) bool {
+	if c == nil {
+		return false
+	}
+	for _, r := range c.Rules {
+		if fieldHasPrefix(r.Field, ".metrics.") {
+			return true
+		}
+		if IsNoteRef(r.Field) && nr.ContainsInExpression(NoteRefName(r.Field), ".metrics.") {
+			return true
+		}
+		if s, ok := r.Default.(string); ok && fieldHasPrefix(s, ".metrics.") {
+			return true
+		}
+		if s, ok := r.Override.(string); ok && fieldHasPrefix(s, ".metrics.") {
+			return true
+		}
+	}
+	return false
+}
+
 // ── AdmissionWebhookConfig ────────────────────────────────────────────────
 
 // AdmissionWebhookConfig is the per-CRD admission webhook control block.
@@ -412,14 +690,15 @@ func (c *MutationConfig) ReconcileExternal() []ExternalCallSpec {
 //
 // Example:
 //
-//   - name: website
-//     webhooks:
-//     validation: true   # intercept at admission — ValidatingWebhookConfiguration
-//     mutation: true     # intercept at admission — MutatingWebhookConfiguration
+//	website:
+//	  webhooks:
+//	  	validation: true   # intercept at admission — ValidatingWebhookConfiguration
+//	  	mutation: true     # intercept at admission — MutatingWebhookConfiguration
 //
-// Both default to true when ENABLE_ADMISSION_WEBHOOK=true and the corresponding
-// validation/mutation block has rules declared. Set to false to opt a specific
-// CRD out of admission interception while keeping its reconcile-time enforcement.
+// Both default to true when `security.webhooks` or ENABLE_ADMISSION_WEBHOOK=true
+// and the corresponding validation/mutation block has rules declared.
+// Set to false to opt a specific CRD out of admission interception
+// while keeping its reconcile-time enforcement.
 type AdmissionWebhookConfig struct {
 	// Validation — include this CRD in the ValidatingWebhookConfiguration.
 	// Default: true when validation rules are declared.
@@ -459,29 +738,4 @@ func (w *AdmissionWebhookConfig) EffectiveOperations() []string {
 		return []string{"CREATE", "UPDATE"}
 	}
 	return w.Operations
-}
-
-// ServeIntentFromObject extracts the raw intent payload from the
-// orkestra.orkspace.io/serve-intent annotation on a CR object map.
-// Returns nil when the annotation is absent or unparseable.
-// Used by both the webhook and the reconciler to inject .request into
-// the resolver so validation rules can reference intent-vocabulary fields.
-func ServeIntentFromObject(obj map[string]interface{}) map[string]interface{} {
-	meta, ok := obj["metadata"].(map[string]interface{})
-	if !ok {
-		return nil
-	}
-	annotations, ok := meta["annotations"].(map[string]interface{})
-	if !ok {
-		return nil
-	}
-	intentJSON, ok := annotations[labels.AnnotationServeIntent].(string)
-	if !ok || intentJSON == "" {
-		return nil
-	}
-	var intent map[string]interface{}
-	if err := json.Unmarshal([]byte(intentJSON), &intent); err != nil {
-		return nil
-	}
-	return intent
 }

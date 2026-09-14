@@ -43,7 +43,7 @@ func DetectKind(dir string) (PatternKind, *PatternSpec, error) {
 	candidates := []string{FileKatalog, FileMotif}
 	for _, name := range candidates {
 		path := filepath.Join(dir, name)
-		data, err := os.ReadFile(path)
+		data, err := readLocal(path)
 		if err != nil {
 			continue
 		}
@@ -101,7 +101,7 @@ func ValidatePatternDirectory(dir string) (PatternKind, *PatternSpec, []string, 
 // Works for both Katalog (katalog.yaml) and Motif (motif.yaml).
 func LoadPatternMeta(dir string, spec *PatternSpec) (*PatternMeta, error) {
 	path := filepath.Join(dir, spec.PrimaryFile)
-	data, err := os.ReadFile(path)
+	data, err := readLocal(path)
 	if err != nil {
 		return nil, fmt.Errorf("reading %s: %w", spec.PrimaryFile, err)
 	}

@@ -37,7 +37,7 @@ func (a AllowedNamespaces) IsAllowed(namespace string) bool {
 	}
 
 	for _, pattern := range a {
-		if matchesPattern(namespace, pattern) {
+		if MatchesPattern(namespace, pattern) {
 			return true
 		}
 	}

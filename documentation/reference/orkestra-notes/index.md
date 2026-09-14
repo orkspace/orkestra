@@ -76,7 +76,7 @@ ork notes show jobSucceeded
 | String | `toLower` `toUpper` `trimSpace` `trim` `trimPrefix` `trimSuffix` `hasPrefix` `hasSuffix` `contains` `replace` `split` `join` `repeat` `camelToKebab` `truncate` |
 | Math | `add` `sub` `mul` `div` `mod` `min` `max` `clamp` `abs` |
 | Conditional | `ternary` `boolTernary` `boolDefault` `coalesce` `default` `empty` `notEmpty` |
-| Type | `toInt` `toFloat` `toBool` `toString` `typeOf` `typeMap` `typeList` `typeString` `typeNumber` `typeBool` `typeNull` `len` `isEmpty` `isScalar` `isComposite` |
+| Type | `toInt` `toFloat` `toBool` `toString` `typeOf` `typeMap` `typeList` `typeString` `typeNumber` `typeBool` `typeNull` `len` `Empty` `isScalar` `isComposite` |
 | Data | `toBase64` `fromBase64` `toJSON` `sha256sum` `slugify` `truncateName` |
 | Random | `randomAlphanumeric` `randomHex` `randomBase64` |
 | Time | `timeAgo` `timeSince` `timeFormat` `isExpired` `durationSeconds` `durationAdd` `durationValid` |

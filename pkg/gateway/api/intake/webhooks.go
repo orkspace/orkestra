@@ -57,7 +57,7 @@ func Load(
 	kube kubeclient.Interface,
 	ownNamespace string,
 ) (*Set, error) {
-	if cfg.IsEmpty() {
+	if cfg.Empty() {
 		return &Set{}, nil
 	}
 

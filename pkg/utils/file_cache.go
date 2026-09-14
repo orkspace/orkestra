@@ -32,7 +32,7 @@ func CachedFileBytes(url string) ([]byte, bool) {
 	if err != nil {
 		return nil, false
 	}
-	data, err := os.ReadFile(path)
+	data, err := ReadLocal(path)
 	if err != nil {
 		return nil, false
 	}

@@ -65,7 +65,7 @@ func copyDir(src, dst string) error {
 		if info.IsDir() {
 			return os.MkdirAll(target, 0755)
 		}
-		data, err := os.ReadFile(path)
+		data, err := readLocal(path)
 		if err != nil {
 			return err
 		}
@@ -76,7 +76,7 @@ func copyDir(src, dst string) error {
 // validateCRDFile checks that path is a valid YAML file with the required
 // CustomResourceDefinition fields: apiVersion, kind, spec.group, spec.names.kind.
 func validateCRDFile(path string) error {
-	data, err := os.ReadFile(path)
+	data, err := readLocal(path)
 	if err != nil {
 		return err
 	}

@@ -13,7 +13,6 @@ package bootstrap
 import (
 	"context"
 	"fmt"
-	"os"
 
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/client-go/kubernetes"
@@ -122,7 +121,7 @@ func connectTarget(kubectx string) (kubernetes.Interface, string, []byte, error)
 
 	caData := cfg.TLSClientConfig.CAData
 	if len(caData) == 0 && cfg.TLSClientConfig.CAFile != "" {
-		caData, err = os.ReadFile(cfg.TLSClientConfig.CAFile)
+		caData, err = readLocal(cfg.TLSClientConfig.CAFile)
 		if err != nil {
 			return nil, "", nil, fmt.Errorf("reading CA file: %w", err)
 		}

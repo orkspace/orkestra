@@ -1,0 +1,18 @@
+# Normalize all text files to LF on commit
+* text=auto eol=lf
+
+# Explicitly binary — never touch
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.otf binary
+*.pdf binary
+*.zip binary
+*.gz binary
+*.tar binary

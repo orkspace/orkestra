@@ -109,13 +109,12 @@ if !f.namespaceAllowed(gvkStr, namespace) {
 
 ```go
 func extractNamespace(obj interface{}) string {
-    if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
-        obj = tombstone.Obj
-    }
-    if rObj, ok := obj.(runtime.Object); ok {
-        if accessor, err := meta.Accessor(rObj); err == nil {
-            return accessor.GetNamespace()
-        }
+	rObj, ok := domain.ToObject(obj)
+
+	if ok {
+		if accessor, err := meta.Accessor(rObj); err == nil {
+			return accessor.GetNamespace()
+		}
     }
     return ""
 }

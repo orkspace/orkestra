@@ -11,8 +11,8 @@ import (
 	"github.com/orkspace/orkestra/pkg/katalog"
 	"github.com/orkspace/orkestra/pkg/kubeclient"
 	"github.com/orkspace/orkestra/pkg/logger"
-	orktmpl "github.com/orkspace/orkestra/pkg/resources/template"
 	"github.com/orkspace/orkestra/pkg/secrets"
+	orktmpl "github.com/orkspace/orkestra/pkg/template"
 	orktypes "github.com/orkspace/orkestra/pkg/types"
 )
 

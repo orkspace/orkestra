@@ -31,7 +31,24 @@ const (
 	DeletionStarted Sentinel = "deletionStarted"
 	// FinalizersChanged is true when the finalizer list differs between old and new.
 	FinalizersChanged Sentinel = "finalizersChanged"
+
+	// New Sentinels attempts to make available every method in metav1.Object
+	// May not all be useful today, but still available
+	NameChanged                       Sentinel = "nameChanged"
+	NamespaceChanged                  Sentinel = "namespaceChanged"
+	GenerateNameChanged               Sentinel = "generateNameChanged"
+	UIDChanged                        Sentinel = "uidChanged"
+	ResourceVersionChanged            Sentinel = "resourceVersionChanged"
+	CreationTimestampChanged          Sentinel = "creationTimestampChanged"
+	DeletionGracePeriodSecondsChanged Sentinel = "deletionGracePeriodSecondsChanged"
+	OwnerReferenceChanged             Sentinel = "ownerReferenceChanged"
+	ManagedFieldsChanged              Sentinel = "managedFieldsChanged"
 )
+
+// String stringifies a sentinel
+func (s Sentinel) String() string {
+	return string(s)
+}
 
 // ValidSentinels returns all known sentinel names in declaration order.
 func ValidSentinels() []string {
@@ -41,17 +58,41 @@ func ValidSentinels() []string {
 		string(AnnotationsChanged),
 		string(DeletionStarted),
 		string(FinalizersChanged),
+		string(NameChanged),
+		string(NamespaceChanged),
+		string(GenerateNameChanged),
+		string(UIDChanged),
+		string(ResourceVersionChanged),
+		string(CreationTimestampChanged),
+		string(DeletionGracePeriodSecondsChanged),
+		string(OwnerReferenceChanged),
+		string(ManagedFieldsChanged),
 	}
 }
 
 // IsValid reports whether s is a known sentinel name.
 func IsValid(s string) bool {
-	switch Sentinel(s) {
-	case GenerationChanged, LabelsChanged, AnnotationsChanged,
-		DeletionStarted, FinalizersChanged:
-		return true
+	for _, sent := range ValidSentinels() {
+		if sent == s {
+			return true
+		}
 	}
 	return false
+}
+
+// IsAllValid reports whether s are all known sentinel names.
+// returns bool and a list of unknown sentinels
+func IsAllValid(s []string) (bool, []string) {
+	var unknown []string
+	for _, sent := range s {
+		if !IsValid(sent) {
+			unknown = append(unknown, sent)
+		}
+	}
+	if len(unknown) > 0 {
+		return false, unknown
+	}
+	return true, nil
 }
 
 // Compute returns the sentinel values for the declared names by comparing
@@ -81,14 +122,36 @@ func computeOne(name string, old, new metav1.Object) string {
 		return boolStr(old.GetDeletionTimestamp() == nil && new.GetDeletionTimestamp() != nil)
 	case FinalizersChanged:
 		return boolStr(!reflect.DeepEqual(old.GetFinalizers(), new.GetFinalizers()))
+	case NameChanged:
+		return boolStr(old.GetName() != new.GetName())
+	case NamespaceChanged:
+		return boolStr(old.GetNamespace() != new.GetNamespace())
+	case GenerateNameChanged:
+		return boolStr(old.GetGenerateName() != new.GetGenerateName())
+	case UIDChanged:
+		return boolStr(old.GetUID() != new.GetUID())
+	case ResourceVersionChanged:
+		return boolStr(old.GetResourceVersion() != new.GetResourceVersion())
+	case CreationTimestampChanged:
+		return boolStr(old.GetCreationTimestamp() != new.GetCreationTimestamp())
+	case DeletionGracePeriodSecondsChanged:
+		return boolStr(!reflect.DeepEqual(old.GetDeletionGracePeriodSeconds(), new.GetDeletionGracePeriodSeconds()))
+	case OwnerReferenceChanged:
+		return boolStr(!reflect.DeepEqual(old.GetOwnerReferences(), new.GetOwnerReferences()))
+	case ManagedFieldsChanged:
+		return boolStr(!reflect.DeepEqual(old.GetManagedFields(), new.GetManagedFields()))
 	default:
 		return ""
 	}
 }
 
+// Helpers
 func boolStr(v bool) string {
 	if v {
 		return "true"
 	}
 	return "false"
 }
+
+func int64Ptr(v int64) *int64 { return &v }
+func boolPtr(v bool) *bool    { return &v }

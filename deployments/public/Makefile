@@ -24,7 +24,7 @@ all: cluster-01 cluster-02 cluster-03 cluster-04 cluster-05 cluster-06
 
 cluster-01:
 	@echo "→ cluster-01: hello-website ($(NS_01))"
-	cd cluster-01 && ork generate bundle --for runtime,cc -n $(NS_01) | kubectl apply -f -
+	cd cluster-01 && ork generate bundle --for runtime,cc -n $(NS_01) -o - | kubectl apply -f -
 	kubectl apply -f cluster-01/crd.yaml
 	helm upgrade --install orkestra $(CHART) \
 		--namespace $(NS_01) \
@@ -34,7 +34,7 @@ cluster-01:
 
 cluster-02:
 	@echo "→ cluster-02: website-with-serviceaccount ($(NS_02))"
-	cd cluster-02 && ork generate bundle --for runtime -n $(NS_02) | kubectl apply -f -
+	cd cluster-02 && ork generate bundle --for runtime -n $(NS_02) -o - | kubectl apply -f -
 	kubectl apply -f cluster-02/crd.yaml
 	helm upgrade --install orkestra $(CHART) \
 		--namespace $(NS_02) \
@@ -45,7 +45,7 @@ cluster-02:
 
 cluster-03:
 	@echo "→ cluster-03: secret-distribution ($(NS_03))"
-	cd cluster-03 && ork generate bundle --for runtime -n $(NS_03) | kubectl apply -f -
+	cd cluster-03 && ork generate bundle --for runtime -n $(NS_03) -o - | kubectl apply -f -
 	kubectl apply -f cluster-03/crd.yaml
 	kubectl apply -f cluster-03/setup.yaml
 	helm upgrade --install orkestra $(CHART) \
@@ -56,7 +56,7 @@ cluster-03:
 
 cluster-04:
 	@echo "→ cluster-04: app-platform ($(NS_04))"
-	cd cluster-04 && ork generate bundle --for runtime -n $(NS_04) | kubectl apply -f -
+	cd cluster-04 && ork generate bundle --for runtime -n $(NS_04) -o - | kubectl apply -f -
 	kubectl apply -f cluster-04/crd.yaml
 	helm upgrade --install orkestra $(CHART) \
 		--namespace $(NS_04) \
@@ -67,7 +67,7 @@ cluster-04:
 
 cluster-05:
 	@echo "→ cluster-05: data-platform ($(NS_05))"
-	cd cluster-05 && ork generate bundle --for runtime -n $(NS_05) | kubectl apply -f -
+	cd cluster-05 && ork generate bundle --for runtime -n $(NS_05) -o - | kubectl apply -f -
 	kubectl apply -f cluster-05/crd.yaml
 	helm upgrade --install orkestra $(CHART) \
 		--namespace $(NS_05) \
@@ -78,7 +78,7 @@ cluster-05:
 
 cluster-06:
 	@echo "→ cluster-06: network-suite ($(NS_06))"
-	cd cluster-06 && ork generate bundle --for runtime -n $(NS_06) | kubectl apply -f -
+	cd cluster-06 && ork generate bundle --for runtime -n $(NS_06) -o - | kubectl apply -f -
 	kubectl apply -f cluster-06/crd.yaml
 	helm upgrade --install orkestra $(CHART) \
 		--namespace $(NS_06) \
@@ -201,39 +201,39 @@ clean-01:
 	kubectl delete -f cluster-01/cr.yaml --ignore-not-found
 	kubectl delete -f cluster-01/crd.yaml --ignore-not-found
 	kubectl delete namespace demo-01     --ignore-not-found
-	cd cluster-01 && ork generate bundle --for runtime,cc -n $(NS_01) | kubectl delete -f - --ignore-not-found
+	cd cluster-01 && ork generate bundle --for runtime,cc -n $(NS_01) -o - | kubectl delete -f - --ignore-not-found
 
 clean-02:
 	helm uninstall orkestra -n $(NS_02) --ignore-not-found
 	kubectl delete -f cluster-02/cr.yaml --ignore-not-found
 	kubectl delete -f cluster-02/crd.yaml --ignore-not-found
 	kubectl delete namespace demo-02     --ignore-not-found
-	cd cluster-02 && ork generate bundle --for runtime -n $(NS_02) | kubectl delete -f - --ignore-not-found
+	cd cluster-02 && ork generate bundle --for runtime -n $(NS_02) -o - | kubectl delete -f - --ignore-not-found
 
 clean-03:
 	helm uninstall orkestra -n $(NS_03) --ignore-not-found
 	kubectl delete -f cluster-03/cr.yaml    --ignore-not-found
 	kubectl delete -f cluster-03/setup.yaml --ignore-not-found
 	kubectl delete -f cluster-03/crd.yaml   --ignore-not-found
-	cd cluster-03 && ork generate bundle --for runtime -n $(NS_03) | kubectl delete -f - --ignore-not-found
+	cd cluster-03 && ork generate bundle --for runtime -n $(NS_03) -o - | kubectl delete -f - --ignore-not-found
 
 clean-04:
 	helm uninstall orkestra -n $(NS_04) --ignore-not-found
 	kubectl delete -f cluster-04/cr.yaml  --ignore-not-found
 	kubectl delete -f cluster-04/crd.yaml --ignore-not-found
 	kubectl delete namespace demo-04      --ignore-not-found
-	cd cluster-04 && ork generate bundle --for runtime -n $(NS_04) | kubectl delete -f - --ignore-not-found
+	cd cluster-04 && ork generate bundle --for runtime -n $(NS_04) -o - | kubectl delete -f - --ignore-not-found
 
 clean-05:
 	helm uninstall orkestra -n $(NS_05) --ignore-not-found
 	kubectl delete -f cluster-05/cr.yaml  --ignore-not-found
 	kubectl delete -f cluster-05/crd.yaml --ignore-not-found
 	kubectl delete namespace demo-05      --ignore-not-found
-	cd cluster-05 && ork generate bundle --for runtime -n $(NS_05) | kubectl delete -f - --ignore-not-found
+	cd cluster-05 && ork generate bundle --for runtime -n $(NS_05) -o - | kubectl delete -f - --ignore-not-found
 
 clean-06:
 	helm uninstall orkestra -n $(NS_06) --ignore-not-found
 	kubectl delete -f cluster-06/cr.yaml  --ignore-not-found
 	kubectl delete -f cluster-06/crd.yaml --ignore-not-found
 	kubectl delete namespace demo-06      --ignore-not-found
-	cd cluster-06 && ork generate bundle --for runtime -n $(NS_06) | kubectl delete -f - --ignore-not-found
+	cd cluster-06 && ork generate bundle --for runtime -n $(NS_06) -o - | kubectl delete -f - --ignore-not-found

@@ -9,6 +9,7 @@ import (
 	"github.com/orkspace/orkestra/domain"
 	"github.com/orkspace/orkestra/pkg/logger"
 	"github.com/orkspace/orkestra/pkg/metrics"
+	"github.com/orkspace/orkestra/pkg/runtime/kordinator/vitals"
 	"github.com/orkspace/orkestra/pkg/runtime/queue"
 	apitypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/cache"
@@ -43,7 +44,7 @@ func (k *Kontroller) runWorkerForGVK(ctx context.Context, gvk string, workerID s
 			// (already idle from previous iteration or initialization)
 
 			// Wait for an item
-			item, shutdown := wq.Queue.Get()
+			item, shutdown := wq.Get()
 			if shutdown {
 				logger.Debug().Str("worker_id", workerID).Str("gvk", gvk).Msg("worker stopping (queue shutdown)")
 				return
@@ -54,7 +55,7 @@ func (k *Kontroller) runWorkerForGVK(ctx context.Context, gvk string, workerID s
 
 			// Process the item
 			func() {
-				defer wq.Queue.Done(item)
+				defer wq.Done(item)
 				k.processItemForGVK(ctx, gvk, item)
 			}()
 
@@ -101,7 +102,7 @@ func (k *Kontroller) processItemForGVK(ctx context.Context, gvk string, item que
 	// The queue is intact for reactivation. No ShutDown() called.
 	// TODO: Currently does not shutdown the workers
 	if item.Key == drainSentinel {
-		wq.Queue.Forget(item)
+		wq.Forget(item)
 		return
 	}
 
@@ -115,11 +116,11 @@ func (k *Kontroller) processItemForGVK(ctx context.Context, gvk string, item que
 				Str("expected", gvk).
 				Str("got", item.GVK).
 				Msg("GVK mismatch in per-CRD queue — dropping item")
-			wq.Queue.Forget(item)
+			wq.Forget(item)
 		} else {
 			// Default queue — item belongs to a different GVK, put it back
 			// This is the only valid re-queue case
-			wq.Queue.AddRateLimited(item)
+			wq.AddRateLimited(item)
 		}
 		return
 	}
@@ -131,23 +132,22 @@ func (k *Kontroller) processItemForGVK(ctx context.Context, gvk string, item que
 
 	if rec == nil {
 		logger.Error().Str("gvk", gvk).Str("key", item.Key).Msg("no reconciler found — dropping item")
-		wq.Queue.Forget(item)
+		wq.Forget(item)
 		return
 	}
 
-	// Pre-reconcile gate: evaluate operatorBox.reconcile.when/or conditions.
+	// Pre-reconcile gate: evaluate operatorBox.preReconcile.when/or conditions.
 	// The reconciler is never called when conditions are not met — gated state
 	// is idle, not failure; error rate and health state are unaffected.
 	if entry, ok := k.katalog.Get(gvk); ok {
 		if entry.CRD.HasAnyReconcileGate() {
 			obj := k.objectFromCache(entry, item.Key)
-			var sentinelMap map[string]string
-			if item.SentinelMap != nil {
-				sentinelMap = *item.SentinelMap
-			}
+
+			sentinelMap := wq.Sentinels(item)
+
 			if gated, reason := k.evaluatePreReconcileCheck(ctx, obj, entry.CRD.Name, sentinelMap); gated {
 				k.crdHealthMap[gvk].RecordGated(reason)
-				wq.Queue.Forget(item)
+				wq.Forget(item)
 				return
 			}
 		}
@@ -157,12 +157,12 @@ func (k *Kontroller) processItemForGVK(ctx context.Context, gvk string, item que
 	result, err := k.safeReconcile(rec, k.crdHealthMap[gvk], ctx, item.Key, gvk)
 	if err != nil {
 		logger.Error().Err(err).Str("gvk", gvk).Str("key", item.Key).Msg("reconcile failed")
-		wq.Queue.AddRateLimited(item)
+		wq.AddRateLimited(item)
 		k.failedReconcile(gvk)
 		return
 	}
 
-	wq.Queue.Forget(item)
+	wq.Forget(item)
 
 	requeueAfter := result.RequeueAfter
 	if requeueAfter == 0 {
@@ -172,7 +172,7 @@ func (k *Kontroller) processItemForGVK(ctx context.Context, gvk string, item que
 		}
 	}
 	if requeueAfter > 0 {
-		wq.Queue.AddAfter(item, requeueAfter)
+		wq.AddAfter(item, requeueAfter)
 	}
 }
 
@@ -192,7 +192,7 @@ func (k *Kontroller) processItemForGVK(ctx context.Context, gvk string, item que
 // the controller process stays alive and the failure is reported deterministically.
 func (k *Kontroller) safeReconcile(
 	rec domain.Reconciler,
-	health *CRDHealth,
+	health *vitals.CRDHealth,
 	ctx context.Context,
 	key string,
 	gvk string,

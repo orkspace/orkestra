@@ -41,7 +41,7 @@ func TestBuildIndexes(t *testing.T) {
 		},
 	}
 
-	if err := k.setGroupVersionKind(); err != nil {
+	if err := k.SetGroupVersionKind(); err != nil {
 		t.Fatalf("setGroupVersionKind: %v", err)
 	}
 
@@ -131,7 +131,7 @@ func TestLookupByKind(t *testing.T) {
 			"database": testCRDEntry("Database", "", false),
 		},
 	}
-	k.setGroupVersionKind()
+	k.SetGroupVersionKind()
 
 	tests := []struct {
 		name     string
@@ -170,7 +170,7 @@ func TestLookupByTarget(t *testing.T) {
 			"database": testCRDEntry("Database", "db", true),
 		},
 	}
-	k.setGroupVersionKind()
+	k.SetGroupVersionKind()
 
 	tests := []struct {
 		name     string
@@ -213,7 +213,7 @@ func TestLookupByName(t *testing.T) {
 			"platRsc": testCRDEntry("PlatformResource", "apifixture", true),
 		},
 	}
-	if err := k.setGroupVersionKind(); err != nil {
+	if err := k.SetGroupVersionKind(); err != nil {
 		t.Fatalf("setGroupVersionKind: %v", err)
 	}
 
@@ -274,7 +274,7 @@ func TestLookupByPlural(t *testing.T) {
 			},
 		},
 	}
-	if err := k.setGroupVersionKind(); err != nil {
+	if err := k.SetGroupVersionKind(); err != nil {
 		t.Fatalf("setGroupVersionKind: %v", err)
 	}
 
@@ -319,7 +319,7 @@ func TestLookupByTargetOrKind(t *testing.T) {
 			"cache":    testCRDEntry("Cache", "", false),
 		},
 	}
-	k.setGroupVersionKind()
+	k.SetGroupVersionKind()
 
 	tests := []struct {
 		name       string
@@ -367,10 +367,10 @@ func TestLookupByGVKString(t *testing.T) {
 		},
 	}
 	// set defaults
-	if err := k.setGroupVersionKind(); err != nil {
+	if err := k.SetGroupVersionKind(); err != nil {
 		t.Fatalf("failed to set defaults: %v", err)
 	}
-	k.setGroupVersionKind()
+	k.SetGroupVersionKind()
 
 	// Use the exact format that GVKString() returns
 	gvk := schema.GroupVersionKind{
@@ -417,10 +417,10 @@ func TestLookupByGVRString(t *testing.T) {
 		},
 	}
 	// set defaults
-	if err := k.setGroupVersionKind(); err != nil {
+	if err := k.SetGroupVersionKind(); err != nil {
 		t.Fatalf("failed to set defaults: %v", err)
 	}
-	k.setGroupVersionKind()
+	k.SetGroupVersionKind()
 
 	gvr := schema.GroupVersionResource{
 		Group:    "platform.myorg.io",
@@ -458,7 +458,7 @@ func TestMustLookupByTarget(t *testing.T) {
 			"app": testCRDEntry("App", "smartapp", true),
 		},
 	}
-	k.setGroupVersionKind()
+	k.SetGroupVersionKind()
 
 	// Should not panic
 	crd := k.MustLookupByTarget("smartapp").Entry()
@@ -491,7 +491,7 @@ func TestMustLookupByKind(t *testing.T) {
 			},
 		},
 	}
-	if err := k.setGroupVersionKind(); err != nil {
+	if err := k.SetGroupVersionKind(); err != nil {
 		t.Fatalf("setGroupVersionKind: %v", err)
 	}
 
@@ -519,7 +519,7 @@ func TestIsKindRegistered(t *testing.T) {
 			"app": testCRDEntry("App", "", false),
 		},
 	}
-	if err := k.setGroupVersionKind(); err != nil {
+	if err := k.SetGroupVersionKind(); err != nil {
 		t.Fatalf("setGroupVersionKind: %v", err)
 	}
 
@@ -537,7 +537,7 @@ func TestIsTargetRegistered(t *testing.T) {
 			"app": testCRDEntry("App", "smartapp", true),
 		},
 	}
-	k.setGroupVersionKind()
+	k.SetGroupVersionKind()
 
 	if !k.IsTargetRegistered("smartapp") {
 		t.Error("expected smartapp to be registered")
@@ -561,7 +561,7 @@ func TestLookupWebhookSource(t *testing.T) {
 			},
 		},
 	}
-	k.setGroupVersionKind()
+	k.SetGroupVersionKind()
 
 	tests := []struct {
 		name   string
@@ -588,7 +588,7 @@ func TestLookupWebhookSource(t *testing.T) {
 
 func TestLookupWebhookSource_NoWebhooksConfigured(t *testing.T) {
 	k := &Katalog{enabledCRDs: map[string]orktypes.CRDEntry{"app": testCRDEntry("App", "smartapp", true)}}
-	k.setGroupVersionKind()
+	k.SetGroupVersionKind()
 
 	if _, ok := k.LookupWebhookSource("anything"); ok {
 		t.Error("expected no match when no webhooks are configured")
@@ -602,7 +602,7 @@ func TestListTargets(t *testing.T) {
 			"database": testCRDEntry("Database", "db", true),
 		},
 	}
-	k.setGroupVersionKind()
+	k.SetGroupVersionKind()
 
 	targets := k.ListTargets()
 	if len(targets) != 2 {
@@ -628,7 +628,7 @@ func TestListKinds(t *testing.T) {
 			"database": testCRDEntry("Database", "", false),
 		},
 	}
-	if err := k.setGroupVersionKind(); err != nil {
+	if err := k.SetGroupVersionKind(); err != nil {
 		t.Fatalf("setGroupVersionKind: %v", err)
 	}
 
@@ -654,7 +654,7 @@ func TestLookup_EmptyKatalog(t *testing.T) {
 	k := &Katalog{
 		enabledCRDs: map[string]orktypes.CRDEntry{},
 	}
-	k.setGroupVersionKind()
+	k.SetGroupVersionKind()
 
 	if crd := k.LookupByKind("App").Entry(); crd != nil {
 		t.Errorf("expected nil, got %+v", crd)
@@ -673,7 +673,7 @@ func TestLookup_CRDWithoutServe(t *testing.T) {
 			"cache": testCRDEntry("Cache", "", false),
 		},
 	}
-	if err := k.setGroupVersionKind(); err != nil {
+	if err := k.SetGroupVersionKind(); err != nil {
 		t.Fatalf("setGroupVersionKind: %v", err)
 	}
 
@@ -694,7 +694,7 @@ func TestLookupByKind_CaseInsensitive(t *testing.T) {
 			"app": testCRDEntry("App", "", false),
 		},
 	}
-	if err := k.setGroupVersionKind(); err != nil {
+	if err := k.SetGroupVersionKind(); err != nil {
 		t.Fatalf("setGroupVersionKind: %v", err)
 	}
 
@@ -741,7 +741,7 @@ func TestLookupByAPIVersionAndKind(t *testing.T) {
 			},
 		},
 	}
-	if err := k.setGroupVersionKind(); err != nil {
+	if err := k.SetGroupVersionKind(); err != nil {
 		t.Fatalf("setGroupVersionKind: %v", err)
 	}
 
@@ -869,7 +869,7 @@ func TestLookupByAPIVersionAndKind_EmptyInput(t *testing.T) {
 			},
 		},
 	}
-	k.setGroupVersionKind()
+	k.SetGroupVersionKind()
 
 	tests := []struct {
 		name       string
@@ -905,10 +905,10 @@ func TestLookupByAPIVersionAndKind_IndexExists(t *testing.T) {
 		},
 	}
 	// set defaults
-	if err := k.setGroupVersionKind(); err != nil {
+	if err := k.SetGroupVersionKind(); err != nil {
 		t.Fatalf("failed to set defaults: %v", err)
 	}
-	k.setGroupVersionKind()
+	k.SetGroupVersionKind()
 
 	// Check that the index was built correctly
 	expectedKey := strings.ToLower("platform.myorg.io/v1" + "App")
@@ -956,10 +956,10 @@ func TestLookupByAPIVersionAndKind_MultipleEntries(t *testing.T) {
 		},
 	}
 	// set defaults
-	if err := k.setGroupVersionKind(); err != nil {
+	if err := k.SetGroupVersionKind(); err != nil {
 		t.Fatalf("failed to set defaults: %v", err)
 	}
-	k.setGroupVersionKind()
+	k.SetGroupVersionKind()
 
 	// Should find the v1 App
 	crd := k.LookupByAPIVersionAndKind("platform.myorg.io/v1", "App").Entry()
@@ -1156,10 +1156,10 @@ func TestLookupByAPIVersionAndKind_InvalidAPIVersion(t *testing.T) {
 		},
 	}
 	// set defaults
-	if err := k.setGroupVersionKind(); err != nil {
+	if err := k.SetGroupVersionKind(); err != nil {
 		t.Fatalf("failed to set defaults: %v", err)
 	}
-	k.setGroupVersionKind()
+	k.SetGroupVersionKind()
 
 	// Test with malformed apiVersion
 	tests := []struct {

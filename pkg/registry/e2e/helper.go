@@ -2,6 +2,16 @@ package e2e
 
 import (
 	orktypes "github.com/orkspace/orkestra/pkg/types"
+	"github.com/orkspace/orkestra/pkg/utils"
+)
+
+var (
+	readLocal         = utils.ReadLocal
+	strictUnmarshal   = utils.StrictUnmarshal
+	startSpinner      = utils.StartSpinner
+	successMark       = utils.SuccessMark
+	failureMark       = utils.FailureMark
+	parseTimeDuration = utils.ParseTimeDuration
 )
 
 // assertionListMsg is appended to every "at least one assertion required"

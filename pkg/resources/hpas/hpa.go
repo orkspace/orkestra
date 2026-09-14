@@ -13,14 +13,12 @@ import (
 	"github.com/orkspace/orkestra/pkg/labels"
 	"github.com/orkspace/orkestra/pkg/logger"
 	"github.com/orkspace/orkestra/pkg/profiles"
-	"github.com/orkspace/orkestra/pkg/resources/common"
+	"github.com/orkspace/orkestra/pkg/resources/shared"
 	orktypes "github.com/orkspace/orkestra/pkg/types"
-	"github.com/orkspace/orkestra/pkg/utils"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 )
 
@@ -31,8 +29,8 @@ func Create(ctx context.Context, kube kubeclient.Interface, owner domain.Object,
 		return fmt.Errorf("hpa.Create: invalid spec: %w", err)
 	}
 
-	namespace := common.ResolveNamespace(owner, spec.Namespace)
-	if err := common.SleepIfNeeded(spec.Sleep); err != nil {
+	namespace := shared.ResolveNamespace(owner, spec.Namespace)
+	if err := shared.SleepIfNeeded(spec.Sleep); err != nil {
 		return err
 	}
 
@@ -71,8 +69,8 @@ func Apply(ctx context.Context, kube kubeclient.Interface, owner domain.Object, 
 		return fmt.Errorf("hpa.Apply: invalid spec: %w", err)
 	}
 
-	namespace := common.ResolveNamespace(owner, spec.Namespace)
-	if err := common.SleepIfNeeded(spec.Sleep); err != nil {
+	namespace := shared.ResolveNamespace(owner, spec.Namespace)
+	if err := shared.SleepIfNeeded(spec.Sleep); err != nil {
 		return err
 	}
 
@@ -86,7 +84,7 @@ func Apply(ctx context.Context, kube kubeclient.Interface, owner domain.Object, 
 
 	if _, err = kube.Clientset().AutoscalingV2().HorizontalPodAutoscalers(namespace).Patch(
 		ctx, spec.Name, k8stypes.ApplyPatchType, body,
-		metav1.PatchOptions{FieldManager: konfig.FieldManagerRuntime, Force: utils.BoolPtr(true)},
+		metav1.PatchOptions{FieldManager: konfig.FieldManagerRuntime, Force: shared.ResolveForceConflict(kube, spec.ForceConflict)},
 	); err != nil {
 		return fmt.Errorf("hpa.Apply: %w", err)
 	}
@@ -107,8 +105,8 @@ func Update(ctx context.Context, kube kubeclient.Interface, owner domain.Object,
 
 // Delete deletes the HPA if it exists.
 func Delete(ctx context.Context, kube kubeclient.Interface, owner domain.Object, spec ResolvedHPASpec) error {
-	namespace := common.ResolveNamespace(owner, spec.Namespace)
-	if err := common.SleepIfNeeded(spec.Sleep); err != nil {
+	namespace := shared.ResolveNamespace(owner, spec.Namespace)
+	if err := shared.SleepIfNeeded(spec.Sleep); err != nil {
 		return err
 	}
 
@@ -163,6 +161,7 @@ func Resolve(src orktypes.HPATemplateSource, ownerName string, reg orktypes.Prof
 		MaxReplicas:    1,
 		Labels:         make(map[string]string),
 		Sleep:          src.Sleep,
+		ForceConflict:  src.ForceConflict,
 	}
 
 	if spec.Name == "" {
@@ -216,34 +215,14 @@ func Resolve(src orktypes.HPATemplateSource, ownerName string, reg orktypes.Prof
 
 func buildHPA(owner domain.Object, spec ResolvedHPASpec, namespace string) *autoscalingv2.HorizontalPodAutoscaler {
 	spec.Labels = labels.StampOrkestraLabels(spec.Labels, owner.GetName(), owner.GetAnnotations())
-	apiVersion := ""
-	kind := ""
-	if u, ok := owner.(*unstructured.Unstructured); ok {
-		apiVersion = u.GetAPIVersion()
-		kind = u.GetKind()
-	} else {
-		gvk := owner.GetObjectKind().GroupVersionKind()
-		apiVersion = gvk.GroupVersion().String()
-		kind = gvk.Kind
-	}
-
 	minR := spec.MinReplicas
 
 	hpa := &autoscalingv2.HorizontalPodAutoscaler{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      spec.Name,
-			Namespace: namespace,
-			Labels:    spec.Labels,
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					APIVersion:         apiVersion,
-					Kind:               kind,
-					Name:               owner.GetName(),
-					UID:                owner.GetUID(),
-					Controller:         utils.BoolPtr(true),
-					BlockOwnerDeletion: utils.BoolPtr(true),
-				},
-			},
+			Name:            spec.Name,
+			Namespace:       namespace,
+			Labels:          spec.Labels,
+			OwnerReferences: shared.ResolveOwnerReferences(owner),
 		},
 		Spec: autoscalingv2.HorizontalPodAutoscalerSpec{
 			ScaleTargetRef: autoscalingv2.CrossVersionObjectReference{

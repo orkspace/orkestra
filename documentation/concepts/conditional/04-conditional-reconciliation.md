@@ -149,6 +149,8 @@ operatorBox:
 
 Sentinels are declared in `preReconcile.sentinels` and computed at the informer level — in the `UpdateFunc`, before the gate is evaluated. Each sentinel compares the old and new object and produces `"true"` or `"false"`. Declared sentinels become template functions available in `enqueueGate` and `reconcileGate` conditions.
 
+### Core sentinels
+
 | Sentinel | Fires when |
 |---|---|
 | `generationChanged` | `.metadata.generation` incremented (spec change on most CRDs) |
@@ -156,6 +158,22 @@ Sentinels are declared in `preReconcile.sentinels` and computed at the informer 
 | `annotationsChanged` | annotation set differs |
 | `deletionStarted` | `deletionTimestamp` was nil, is now set |
 | `finalizersChanged` | finalizer list differs |
+
+### Full `metav1.Object` coverage
+
+Every field Kubernetes exposes on a resource's metadata is observable as a sentinel. The additional sentinels below cover the remaining fields of the `metav1.Object` interface — most are rarely useful in normal gate logic but are available for defensive checks and anomaly detection.
+
+| Sentinel | Fires when |
+|---|---|
+| `nameChanged` | object name differs (re-create seen as update — nearly always `false`) |
+| `namespaceChanged` | namespace differs (Kubernetes does not move resources — nearly always `false`) |
+| `generateNameChanged` | `generateName` prefix differs (set once at creation; does not change on updates) |
+| `uidChanged` | UID differs — object was deleted and recreated with the same name |
+| `resourceVersionChanged` | any write to the object — catches every update |
+| `creationTimestampChanged` | creation timestamp differs (immutable; fires only on anomalous events) |
+| `deletionGracePeriodSecondsChanged` | graceful deletion period changed |
+| `ownerReferenceChanged` | owner reference list differs — adoption or orphaning event |
+| `managedFieldsChanged` | managed fields differ — a field manager applied a change |
 
 A sentinel that is not declared is not available in gate templates — `ork validate` rejects templates that reference undeclared sentinel names.
 

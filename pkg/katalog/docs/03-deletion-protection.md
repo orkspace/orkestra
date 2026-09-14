@@ -28,10 +28,10 @@ This means resources from other operators or without the Orkestra labels are nev
 
 ## Protected CRD name format
 
-`ProtectedCRDNames()` returns a set keyed by `plural + "." + group`:
+`DeletionProtectedCRDNames()` returns a set keyed by `plural + "." + group`:
 
 ```go
-names := k.ProtectedCRDNames()
+names := k.DeletionProtectedCRDNames()
 // map["cronjobs.demo.orkestra.io":{}]
 ```
 

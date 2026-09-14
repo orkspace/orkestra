@@ -107,7 +107,7 @@ func (r *websiteReconciler) OnReconcile(ctx context.Context, obj *apiv1.Website)
 
     _, err := r.client.Resource(websiteGVR).
         Namespace(obj.Namespace).
-        UpdateStatus(ctx, toUnstructured(obj), metav1.UpdateOptions{})
+        UpdateStatus(ctx, domain.ToUnstructured(obj), metav1.UpdateOptions{})
     return err
 }
 ```

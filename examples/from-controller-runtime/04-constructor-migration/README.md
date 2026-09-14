@@ -9,12 +9,12 @@ Your existing `Reconcile` method runs inside Orkestra unchanged. Compare [reconc
 ```go
 func NewWebAppReconciler(kube kubeclient.Interface) domain.Reconciler {
     return domain.ReconcilerFrom(&WebAppReconciler{
-        Client: kubeclient.ToClient(kube),
+        Client: orkadapter.ToClient(kube),
     })
 }
 ```
 
-`kubeclient.ToClient` wraps Orkestra's interface as a `client.Client` — the same type your struct already holds. `domain.ReconcilerFrom` adapts the `ctrl.Request` signature. Nothing inside `Reconcile` changes.
+`orkadapter.ToClient` wraps Orkestra's interface as a `client.Client` — the same type your struct already holds. `domain.ReconcilerFrom` adapts the `ctrl.Request` signature. Nothing inside `Reconcile` changes.
 
 ---
 

@@ -19,7 +19,7 @@ The constant name is PascalCase. The string value is camelCase — this is what 
 
 ---
 
-## 2. Register it in `ValidSentinels` and `IsValid`
+## 2. Register it in `ValidSentinels`
 
 ```go
 func ValidSentinels() []string {
@@ -29,19 +29,9 @@ func ValidSentinels() []string {
         string(MyNewSentinel),  // ← add here, in declaration order
     }
 }
-
-func IsValid(s string) bool {
-    switch Sentinel(s) {
-    case GenerationChanged, LabelsChanged, AnnotationsChanged,
-        DeletionStarted, FinalizersChanged,
-        MyNewSentinel:  // ← add here
-        return true
-    }
-    return false
-}
 ```
 
-`ValidSentinels()` is used by validators to produce error messages with the full list. `IsValid` is the runtime check.
+`ValidSentinels()` is used by validators to produce error messages with the full list. `IsValid` and `IsAllValid` relies on it for runtime and test check respectively.
 
 ---
 

@@ -13,7 +13,7 @@ cd from-controller-runtime/04-constructor-migration
 
 ## What you will learn
 
-- How `kubeclient.ToClient` and `domain.ReconcilerFrom` bridge a controller-runtime reconciler into Orkestra
+- How `orkadapter.ToClient` and `domain.ReconcilerFrom` bridge a controller-runtime reconciler into Orkestra
 - What `default: false` means in the Katalog — the GenericReconciler is disabled, the constructor owns the loop
 - What the runtime provides that `ctrl.NewManager` previously handled
 - How `ork migrate` generates the constructor automatically
@@ -25,12 +25,12 @@ cd from-controller-runtime/04-constructor-migration
 ```go
 func NewWebAppReconciler(kube kubeclient.Interface) domain.Reconciler {
     return domain.ReconcilerFrom(&WebAppReconciler{
-        Client: kubeclient.ToClient(kube),
+        Client: orkadapter.ToClient(kube),
     })
 }
 ```
 
-- `kubeclient.ToClient(kube)` — wraps Orkestra's `kubeclient.Interface` as a `client.Client`. The same type your struct already holds.
+- `orkadapter.ToClient(kube)` — wraps Orkestra's `kubeclient.Interface` as a `client.Client`. The same type your struct already holds.
 - `domain.ReconcilerFrom(r)` — adapts the `ctrl.Request` signature so Orkestra's worker pool can call it.
 
 That is all. Your `Reconcile` method, your struct, your `r.Get` / `r.Create` / `r.Status().Update()` calls — unchanged.

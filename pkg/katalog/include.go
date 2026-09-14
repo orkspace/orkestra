@@ -47,24 +47,27 @@ func populateConversionPathsFromInclude(entry *orktypes.CRDEntry, katalogDir str
 	return nil
 }
 
-func populateWatchEntriesFromInclude(entry *orktypes.CRDEntry, katalogDir string) error {
-	var err error
-	entry.OperatorBox.Watch, err = orktypes.ExpandWatchEntries(entry.OperatorBox.Watch, katalogDir)
-	if err != nil {
-		return fmt.Errorf("operatorBox.watch: %w", err)
+func populateObserveInclude(entry *orktypes.CRDEntry, katalogDir string) error {
+	if entry.OperatorBox.Observe != nil {
+		if err := orktypes.ExpandObserveInclude(entry.OperatorBox.Observe, katalogDir); err != nil {
+			return fmt.Errorf("operatorBox.observe: %w", err)
+		}
 	}
+
 	if entry.Serve == nil {
 		return nil
 	}
+
 	for name, cfg := range entry.Serve.Target.Entries {
-		if cfg == nil || cfg.OperatorBox == nil {
+		if cfg == nil || cfg.OperatorBox == nil || cfg.OperatorBox.Observe == nil {
 			continue
 		}
-		cfg.OperatorBox.Watch, err = orktypes.ExpandWatchEntries(cfg.OperatorBox.Watch, katalogDir)
-		if err != nil {
-			return fmt.Errorf("serve.target[%q].operatorBox.watch: %w", name, err)
+
+		if err := orktypes.ExpandObserveInclude(cfg.OperatorBox.Observe, katalogDir); err != nil {
+			return fmt.Errorf("serve.target[%q].operatorBox.observe: %w", name, err)
 		}
 	}
+
 	return nil
 }
 
@@ -81,41 +84,6 @@ func populateReconcilerFromInclude(entry *orktypes.CRDEntry, katalogDir string) 
 		}
 		if err := orktypes.ExpandReconcilerInclude(cfg.OperatorBox.Reconciler, katalogDir); err != nil {
 			return fmt.Errorf("serve.target[%q].operatorBox.reconciler: %w", name, err)
-		}
-	}
-	return nil
-}
-
-func populateExternalCallsFromInclude(entry *orktypes.CRDEntry, katalogDir string) error {
-	var err error
-	if entry.OperatorBox.OnReconcile != nil {
-		entry.OperatorBox.OnReconcile.External, err = orktypes.ExpandExternalCalls(entry.OperatorBox.OnReconcile.External, katalogDir)
-		if err != nil {
-			return fmt.Errorf("onReconcile.external: %w", err)
-		}
-	}
-	if entry.OperatorBox.OnCreate != nil {
-		entry.OperatorBox.OnCreate.External, err = orktypes.ExpandExternalCalls(entry.OperatorBox.OnCreate.External, katalogDir)
-		if err != nil {
-			return fmt.Errorf("onCreate.external: %w", err)
-		}
-	}
-	if r := entry.OperatorBox.Reconciler; r != nil && r.Hooks != nil {
-		r.Hooks.External, err = orktypes.ExpandExternalCalls(r.Hooks.External, katalogDir)
-		if err != nil {
-			return fmt.Errorf("hooks.external: %w", err)
-		}
-	}
-	if entry.Validation != nil {
-		entry.Validation.External, err = orktypes.ExpandExternalCalls(entry.Validation.External, katalogDir)
-		if err != nil {
-			return fmt.Errorf("validation.external: %w", err)
-		}
-	}
-	if entry.Mutation != nil {
-		entry.Mutation.External, err = orktypes.ExpandExternalCalls(entry.Mutation.External, katalogDir)
-		if err != nil {
-			return fmt.Errorf("mutation.external: %w", err)
 		}
 	}
 	return nil

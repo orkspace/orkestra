@@ -3,7 +3,6 @@ package katalog
 
 import (
 	"fmt"
-	"reflect"
 
 	"github.com/orkspace/orkestra/pkg/konfig"
 	"github.com/orkspace/orkestra/pkg/merger"
@@ -15,23 +14,6 @@ import (
 //	YAML Builder
 //
 // -----------------------------------------------------------------------------
-
-// BuildExpanded is the canonical pipeline for CLI commands that need a fully
-// ready Katalog: merge → expand motifs → validate.
-//
-// Use this instead of calling KomposeRuntimeKatalog + ValidateConfig separately.
-// For the rare case where validation must be skipped (e.g. ork template --no-validate),
-// call KomposeRuntimeKatalog directly.
-func BuildExpanded(kfg *konfig.Konfig, m *merger.Merger) (*Katalog, error) {
-	var k Katalog
-	if _, err := k.KomposeRuntimeKatalog(kfg, m); err != nil {
-		return nil, err
-	}
-	if _, err := k.ValidateConfig(kfg); err != nil {
-		return nil, err
-	}
-	return &k, nil
-}
 
 // KomposeRuntimeKatalog composes the runtime Katalog for Orkestra from merged configuration sources.
 //
@@ -106,20 +88,9 @@ func (k *Katalog) KomposeRuntimeKatalog(
 	k.konfig = kfg
 	k.katalogDir = m.FirstEntryDir()
 
-	if err := orktypes.ExpandNotesInclude(&k.Notes, k.katalogDir); err != nil {
-		return nil, fmt.Errorf("notes: %w", err)
-	}
-	if err := orktypes.ExpandProfileInclude(&k.Profiles, k.katalogDir); err != nil {
-		return nil, fmt.Errorf("profiles: %w", err)
-	}
-	if err := orktypes.ExpandGatewayAPIAuth(k.Gateway, k.katalogDir); err != nil {
-		return nil, fmt.Errorf("gateway API auth: %w", err)
-	}
-	if err := orktypes.ExpandGatewayWebhookIncludes(k.Gateway, k.katalogDir); err != nil {
-		return nil, fmt.Errorf("gateway.webhooks: %w", err)
-	}
-	if err := orktypes.ExpandGatewayClustersInclude(k.Gateway, k.katalogDir); err != nil {
-		return nil, fmt.Errorf("gateway.clusters: %w", err)
+	// Expand all includes
+	if err := k.expandIncludes(); err != nil {
+		return nil, err
 	}
 
 	for name, entry := range k.enabledCRDs {
@@ -133,34 +104,6 @@ func (k *Katalog) KomposeRuntimeKatalog(
 				return nil, fmt.Errorf("CRD %q: %w", name, err)
 			}
 			entry.CRDFile = ""
-		}
-
-		// Expand serve.include before enrichment so field hints are fully resolved.
-		if err := populateAllServeFieldsFromInclude(&entry, k.katalogDir); err != nil {
-			return nil, fmt.Errorf("CRD %q: %w", name, err)
-		}
-
-		// Expand validation.include, mutation.include, conversion.include and status.include.
-		if err := populateValidationRulesFromInclude(&entry, k.katalogDir); err != nil {
-			return nil, fmt.Errorf("CRD %q: %w", name, err)
-		}
-		if err := populateMutationRulesFromInclude(&entry, k.katalogDir); err != nil {
-			return nil, fmt.Errorf("CRD %q: %w", name, err)
-		}
-		if err := populateConversionPathsFromInclude(&entry, k.katalogDir); err != nil {
-			return nil, fmt.Errorf("CRD %q: %w", name, err)
-		}
-		if err := populateStatusFieldsFromInclude(&entry, k.katalogDir); err != nil {
-			return nil, fmt.Errorf("CRD %q: %w", name, err)
-		}
-		if err := populateExternalCallsFromInclude(&entry, k.katalogDir); err != nil {
-			return nil, fmt.Errorf("CRD %q: %w", name, err)
-		}
-		if err := populateWatchEntriesFromInclude(&entry, k.katalogDir); err != nil {
-			return nil, fmt.Errorf("CRD %q: %w", name, err)
-		}
-		if err := populateReconcilerFromInclude(&entry, k.katalogDir); err != nil {
-			return nil, fmt.Errorf("CRD %q: %w", name, err)
 		}
 
 		// Enrich enabled CRDs
@@ -182,60 +125,9 @@ func (k *Katalog) KomposeRuntimeKatalog(
 		return nil, err
 	}
 
-	// serve.fields / serve.additionalFields marked required: true get an implicit
-	// exists rule, and entries declaring type: enum get an implicit in rule —
-	// see CRDEntry.RequiredServeFieldRules / EnumServeFieldRules. Runs last, after
-	// every other rules source (inline, validation.include, motif imports)
-	// has settled.
-	//
-	// Prepended, not appended: ValidationResult.DenialMessage() reports only
-	// Violations[0] as the headline denial reason, and a hand-written rule
-	// on the same field (e.g. a content/format check) can fail alongside the
-	// synthesized exists rule when the field is simply missing. Presence is
-	// the more fundamental problem — "team is required" is a more useful
-	// headline than "team must be a valid DNS subdomain" when the real issue
-	// is that team was never set at all. Same principle EnumServeFieldRules
-	// already applies to itself (its own synthesized rule's When prepends an
-	// exists gate ahead of the enum check). This only reorders relative to
-	// hand-written rules on the same field — it doesn't change any rule's
-	// own pass/fail outcome, and the full violations: list (what the
-	// Control Center highlights from) is unaffected either way.
-	for name, entry := range k.enabledCRDs {
-		synthesized := append(entry.RequiredServeFieldRules(), entry.EnumServeFieldRules()...)
-		if len(synthesized) == 0 {
-			continue
-		}
-		if entry.Validation == nil {
-			entry.Validation = &orktypes.ValidationConfig{}
-		}
-		// KomposeRuntimeKatalog runs on both a raw katalog.yaml and an
-		// already-expanded bundle.yaml (ork generate bundle calls
-		// SerializeExpanded, which serializes the post-KomposeRuntimeKatalog
-		// state — synthesized rules included). serve.fields/serve.additionalFields
-		// required:/type: enum config is still present either way, so without
-		// this check, loading a bundle would re-synthesize and duplicate every
-		// rule already baked in from generate-bundle time. Synthesis is
-		// deterministic — the same config always produces a byte-identical
-		// ValidationRule — so an exact match already present is a leftover
-		// a leftover from a prior pass, and safe to skip.
-		var toAdd []orktypes.ValidationRule
-		for _, s := range synthesized {
-			dup := false
-			for _, existing := range entry.Validation.Rules {
-				if reflect.DeepEqual(s, existing) {
-					dup = true
-					break
-				}
-			}
-			if !dup {
-				toAdd = append(toAdd, s)
-			}
-		}
-		if len(toAdd) > 0 {
-			entry.Validation.Rules = append(toAdd, entry.Validation.Rules...)
-		}
-		k.enabledCRDs[name] = entry
-	}
+	// Apply any sythesized admission rules for:
+	// required: true, default and override
+	k.applyServeAdmissionSynthesis()
 
 	// initialize conversion registry and admission registry
 	k.conversionRegistry = NewInMemoryConversionRegistry()
@@ -248,11 +140,11 @@ func (k *Katalog) KomposeRuntimeKatalog(
 	}
 
 	// Apply defaults/GVK so CLI tools (simulate, validate, plan) get the same
-	// field values as the runtime without needing to call ValidateConfig.
-	if err := k.setDefaults(kfg); err != nil {
+	// field values as the runtime without needing to call Validate.
+	if err := k.SetDefaults(kfg); err != nil {
 		return nil, err
 	}
-	if err := k.setGroupVersionKind(); err != nil {
+	if err := k.SetGroupVersionKind(); err != nil {
 		return nil, err
 	}
 

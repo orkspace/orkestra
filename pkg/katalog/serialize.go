@@ -18,7 +18,7 @@ import (
 // Must be called after KomposeRuntimeKatalog; returns an error if no CRDs
 // are present (indicates expansion hasn't been run yet).
 func (k *Katalog) SerializeExpanded() ([]byte, error) {
-	if len(k.enabledCRDs) == 0 && !k.IsStandaloneGateway() {
+	if k.EnabledCRDsEmpty() && !k.IsStandaloneGateway() {
 		return nil, fmt.Errorf("Katalog has no enabled CRDs")
 	}
 

@@ -7,6 +7,7 @@ import (
 	"github.com/orkspace/orkestra/pkg/labels"
 	"github.com/orkspace/orkestra/pkg/logger"
 	"github.com/orkspace/orkestra/pkg/runtime/runners"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // cleanupPreviousSurface deletes all resources belonging to the surface the CR
@@ -46,7 +47,7 @@ func (r *GenericReconciler[PTR]) cleanupPreviousSurface(
 
 	if err := r.kube.PatchAnnotations(ctx, rawObj, map[string]string{
 		labels.AnnotationLastSurface: target,
-	}); err != nil {
+	}, metav1.PatchOptions{}); err != nil {
 		logger.FromContext(ctx).Warn().Err(err).
 			Str("name", rawObj.GetName()).
 			Msg("surface cleanup: failed to update last-surface annotation")

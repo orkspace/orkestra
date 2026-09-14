@@ -5,25 +5,22 @@ import (
 	"sync"
 
 	"github.com/orkspace/orkestra/domain"
+	"github.com/orkspace/orkestra/pkg/runtime/kordinator/contract"
 	orktypes "github.com/orkspace/orkestra/pkg/types"
 	"k8s.io/client-go/tools/cache"
 )
 
-type RegistryEntry struct {
-	CRD               orktypes.CRDEntry
-	Informer          cache.SharedIndexInformer
-	ReconcilerFactory func() domain.Reconciler // factory lives here
-	FailureThreshold  int
-}
-
 type ResourceKatalog struct {
 	mu      sync.Mutex
-	entries map[string]RegistryEntry
+	entries map[string]contract.RegistryEntry
 }
+
+// compile time check
+var _ contract.RuntimeResourceKatalog = (*ResourceKatalog)(nil)
 
 func NewKordinatorRegistry() *ResourceKatalog {
 	return &ResourceKatalog{
-		entries: make(map[string]RegistryEntry),
+		entries: make(map[string]contract.RegistryEntry),
 	}
 }
 
@@ -36,7 +33,7 @@ func (r *ResourceKatalog) Register(
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	r.entries[gvk] = RegistryEntry{
+	r.entries[gvk] = contract.RegistryEntry{
 		CRD:               crd,
 		Informer:          inf,
 		ReconcilerFactory: rec,
@@ -50,7 +47,7 @@ func (r *ResourceKatalog) Unregister(gvk string) {
 	delete(r.entries, gvk)
 }
 
-func (r *ResourceKatalog) Get(gvk string) (RegistryEntry, bool) {
+func (r *ResourceKatalog) Get(gvk string) (contract.RegistryEntry, bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -80,6 +77,6 @@ func (r *ResourceKatalog) GetWorkers(gvk string, defaultWorkers int) int {
 	return entry.CRD.OperatorBox.Reconciler.Workers
 }
 
-func (r *ResourceKatalog) Entries() map[string]RegistryEntry {
+func (r *ResourceKatalog) Entries() map[string]contract.RegistryEntry {
 	return r.entries
 }

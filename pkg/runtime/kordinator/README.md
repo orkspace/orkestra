@@ -67,4 +67,4 @@ Complete documentation is in [docs/](docs/README.md).
 | `Kontroller` | `kontroller.go` | Base worker manager embedded by `DependencyKordinator` |
 | `ResourceKatalog` | `kordinator_registry.go` | Per-GVK registry: informer, reconciler factory, CRD config |
 | `CRDHealth` | `crd_health.go` | Per-CRD health counters, worker states, dependency status |
-| `OrkestraHealth` | `crd_worker_health.go` | Aggregate operator health (ready / degraded) |
+| `RuntimeHealth` | `crd_worker_health.go` | Aggregate operator health (ready / degraded) |

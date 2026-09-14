@@ -3,13 +3,14 @@ package kordinator
 import (
 	"context"
 
+	"github.com/orkspace/orkestra/domain"
+	"github.com/orkspace/orkestra/pkg/runtime/kordinator/contract"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/client-go/tools/cache"
 )
 
 // objectFromCache retrieves the live CR from the informer cache for the given
 // key. Returns nil if the entry has no informer or the key is not found.
-func (k *Kontroller) objectFromCache(entry RegistryEntry, key string) *unstructured.Unstructured {
+func (k *Kontroller) objectFromCache(entry contract.RegistryEntry, key string) *unstructured.Unstructured {
 	if entry.Informer == nil {
 		return nil
 	}
@@ -39,12 +40,6 @@ func (k *Kontroller) evaluatePreReconcileCheck(
 	if k.kat == nil || obj == nil {
 		return false, ""
 	}
-	allowed, reason := k.kat.EvaluatePreReconcile(ctx, crdName, obj, k.kube.Clientset(), sentinels)
+	allowed, reason := k.kat.EvaluatePreReconcile(ctx, crdName, obj, k.kube.Clientset(), domain.EvaluateOptions{Sentinels: sentinels})
 	return !allowed, reason
-}
-
-// resolveInformerKey extracts the cache key for a CR from a cache.SharedIndexInformer.
-// Uses the same MetaNamespaceKeyFunc the workqueue uses when enqueuing events.
-func resolveInformerKey(obj interface{}) (string, error) {
-	return cache.MetaNamespaceKeyFunc(obj)
 }

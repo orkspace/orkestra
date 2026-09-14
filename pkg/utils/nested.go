@@ -161,3 +161,24 @@ func SplitPath(path string) []string {
 	}
 	return parts
 }
+
+func SetFieldPath(obj map[string]interface{}, path string, value interface{}) {
+	parts := strings.Split(path, ".")
+	current := obj
+
+	for i, part := range parts {
+		if i == len(parts)-1 {
+			current[part] = value
+			return
+		}
+		if _, ok := current[part]; !ok {
+			current[part] = map[string]interface{}{}
+		}
+		next, ok := current[part].(map[string]interface{})
+		if !ok {
+			next = map[string]interface{}{}
+			current[part] = next
+		}
+		current = next
+	}
+}

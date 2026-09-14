@@ -25,7 +25,7 @@ kfg, err := konfig.Init(".env", ".env.local")
 
 The cluster namespace follows a specific resolution order:
 
-1. `ORK_NAMESPACE` ENV var (if set and non-empty)
+1. `ORK_NAMESPACE` ENV var (if set and non-Empty()
 2. `orkestra-system` — default when running inside a Pod
 3. `default` — fallback when running outside a Pod (detected by `utils.IsRunningInCluster()`, which checks for the service account token file)
 

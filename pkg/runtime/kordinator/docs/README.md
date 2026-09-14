@@ -20,6 +20,6 @@ Running the runtime with `replicaCount > 1` introduces a split-brain health stat
 | File | Covers |
 |---|---|
 | [health-reporting/01-overview.md](health-reporting/01-overview.md) | The problem, the `isKonductor` signal, how it flows |
-| [health-reporting/02-runtime.md](health-reporting/02-runtime.md) | `OrkestraHealth.isKonductor`, `Kordinate()` lifecycle, real JSON responses from leader and follower |
+| [health-reporting/02-runtime.md](health-reporting/02-runtime.md) | `RuntimeHealth.isKonductor`, `Kordinate()` lifecycle, real JSON responses from leader and follower |
 | [health-reporting/03-control-center.md](health-reporting/03-control-center.md) | Connection pooling root cause, cache-update guard, CRD detail retry logic |
 | [health-reporting/04-diagnosis.md](health-reporting/04-diagnosis.md) | Diagnosing flapping health, port-forward inspection commands, common failure patterns |

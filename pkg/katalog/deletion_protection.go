@@ -222,7 +222,7 @@ func (k *Katalog) DeletionProtectedCRDNames() map[string]struct{} {
 	if !utils.IsRunningInCluster() {
 		return nil
 	}
-	names := make(map[string]struct{}, len(k.enabledCRDs))
+	names := make(map[string]struct{}, k.Len())
 
 	// Owner CRDs managed by this Katalog.
 	for _, crd := range k.enabledCRDs {

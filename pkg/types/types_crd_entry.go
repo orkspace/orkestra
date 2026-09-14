@@ -291,6 +291,12 @@ type CRDEntry struct {
 	// When enabled, the Control Center renders a [+ Create] button for this CRD
 	// and serves its schema via GET /api/v1/schema/{kind}.
 	Serve *ServeConfig `yaml:"serve,omitempty" json:"serve,omitempty"`
+
+	// ForceConflict, when true, sets Force: true on every server-side apply
+	// for the resources created on onCreate/onReconcile CRD, taking
+	// ownership of conflicting fields instead of returning a conflict error.
+	// Default: true.
+	ForceConflict *bool `yaml:"forceConflict,omitempty" json:"forceConflict,omitempty"`
 }
 
 // EffectiveOperatorBox returns the operatorBox for a given target.
@@ -593,6 +599,14 @@ func (c *CRDEntry) IsServeRequiredField(field string) bool {
 // only resolves and applies a namespace override when this is true.
 func (c *CRDEntry) HasServeNamespace() bool {
 	return c.Serve != nil && c.Serve.Namespace != ""
+}
+
+// ServeFields returns serve.fields. Nil-safe.
+func (c *CRDEntry) ServeFields() map[string]ServeFieldConfig {
+	if c.Serve == nil {
+		return nil
+	}
+	return c.Serve.Fields
 }
 
 // ServeLabels returns serve.labels. Nil-safe.

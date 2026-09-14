@@ -21,6 +21,7 @@ type CRDInfo struct {
 	Namespaced           bool // Required for cluster-scoped resources
 	APIPath              string
 	Namespace            string
+	ForceConflict        *bool
 }
 
 // SharedClientFactory provides a simple way to build clients from config

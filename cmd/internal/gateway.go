@@ -23,6 +23,7 @@ import (
 	"github.com/orkspace/orkestra/pkg/gateway/webhook"
 	"github.com/orkspace/orkestra/pkg/health"
 	"github.com/orkspace/orkestra/pkg/katalog"
+	"github.com/orkspace/orkestra/pkg/katalog/pipeline"
 	"github.com/orkspace/orkestra/pkg/konfig"
 	"github.com/orkspace/orkestra/pkg/kubeclient"
 	"github.com/orkspace/orkestra/pkg/logger"
@@ -46,7 +47,7 @@ func KonductGateway(kfg *konfig.Konfig, m *merger.Merger, ctx context.Context) {
 
 	// ── 1b. Katalog ────────────────────────────────────────────────────────────
 	// Needed to know which CRDs require webhooks.
-	kat := katalog.NewKatalog(kfg, m)
+	kat := pipeline.NewKatalog(kfg, m)
 
 	if registryURL := kfg.RegistryConfig().RegistryURL; registryURL != "" {
 		m.SetRegistryURL(registryURL)

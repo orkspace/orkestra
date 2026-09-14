@@ -20,7 +20,7 @@ import (
 )
 
 // TemplateResolver resolves a Go-template expression string against CR data
-// and notes. Satisfied structurally by *pkg/resources/template.Resolver,
+// and notes. Satisfied structurally by *pkg/template.Resolver,
 // which this package can't import directly — that package already imports
 // pkg/types, so a reverse import would cycle.
 type TemplateResolver interface {
@@ -471,4 +471,32 @@ func EvaluateValidationRule(data map[string]interface{}, resolver TemplateResolv
 	}
 
 	return nil // rule passed
+}
+
+// ConvertToType converts a string value to the requested type.
+// Supported valueType: "int", "integer", "bool", "boolean", "float", "number", "string" (default).
+// Returns the typed value (int64, bool, float64, or string) suitable for JSON patch.
+func ConvertToType(val string, valueType string) (interface{}, error) {
+	switch valueType {
+	case "int", "integer":
+		i, err := strconv.ParseInt(val, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("cannot convert %q to int: %w", val, err)
+		}
+		return i, nil
+	case "bool", "boolean":
+		b, err := strconv.ParseBool(val)
+		if err != nil {
+			return nil, fmt.Errorf("cannot convert %q to bool: %w", val, err)
+		}
+		return b, nil
+	case "float", "number":
+		f, err := strconv.ParseFloat(val, 64)
+		if err != nil {
+			return nil, fmt.Errorf("cannot convert %q to float: %w", val, err)
+		}
+		return f, nil
+	default: // "string" or empty
+		return val, nil
+	}
 }

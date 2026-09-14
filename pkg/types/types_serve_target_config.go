@@ -142,27 +142,6 @@ func (s ServeTargetValue) MarshalYAML() (interface{}, error) {
 	return s.Entries, nil
 }
 
-// UnmarshalYAML implements yaml.Unmarshaler for ServeTargetValue.
-// func (s *ServeTargetValue) UnmarshalYAML(value *yaml.Node) error {
-// 	// Try to unmarshal as a string first (shorthand)
-// 	var shorthand string
-// 	if err := value.Decode(&shorthand); err == nil {
-// 		s.Shorthand = shorthand
-// 		s.Entries = nil
-// 		return nil
-// 	}
-
-// 	// Try to unmarshal as a map of target configs
-// 	var entries map[string]*ServeTargetConfig
-// 	if err := value.Decode(&entries); err == nil {
-// 		s.Entries = entries
-// 		s.Shorthand = ""
-// 		return nil
-// 	}
-
-// 	return fmt.Errorf("ServeTargetValue: expected string or object")
-// }
-
 // MarshalJSON serialises as a plain string for the shorthand case.
 func (s ServeTargetValue) MarshalJSON() ([]byte, error) {
 	if s.Shorthand != "" {

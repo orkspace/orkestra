@@ -14,7 +14,7 @@ type GitHubOIDC struct {
 }
 
 // GitHubOIDCClaims declares which GitHub-issued claims must match.
-// All declared (non-empty) fields must match — unset fields are not checked.
+// All declared (non-Empty() fields must match — unset fields are not checked.
 type GitHubOIDCClaims struct {
 	Repository      string `yaml:"repository,omitempty" json:"repository,omitempty"`
 	RepositoryOwner string `yaml:"repositoryOwner,omitempty" json:"repositoryOwner,omitempty"`
@@ -93,7 +93,7 @@ type VaultOIDC struct {
 	Audience string `yaml:"audience,omitempty" json:"audience,omitempty"`
 
 	// Allow declares which Vault identity claims must match.
-	// All declared (non-empty) fields must match — unset fields are not checked.
+	// All declared (non-Empty() fields must match — unset fields are not checked.
 	Allow VaultOIDCClaims `yaml:"allow" json:"allow"`
 }
 

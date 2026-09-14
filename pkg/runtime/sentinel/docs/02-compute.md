@@ -49,7 +49,7 @@ The result maps each declared name to `"true"` or `"false"`. An unknown name map
 The runtime collects sentinel names from two places in the Katalog:
 
 - `operatorBox.preReconcile.sentinels` — primary CRD event sentinels
-- `operatorBox.watch[*].enqueueGate.sentinels` — per-watch-entry sentinels
+- `operatorBox.observe.watch[*].enqueueGate.sentinels` — per-watch-entry sentinels
 
 Both are passed to `Compute` at event time for the relevant watch source.
 

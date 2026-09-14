@@ -36,7 +36,7 @@ DynamicListerWatcher
 └── fieldSelector  — injected into ListOptions at call time
 ```
 
-Namespaced CRDs scope to `namespace` (or `NamespaceAll` when empty). Cluster-scoped CRDs omit the `Namespace()` call entirely:
+Namespaced CRDs scope to `namespace` (or `NamespaceAll` when Empty(). Cluster-scoped CRDs omit the `Namespace()` call entirely:
 
 ```go
 if d.namespaced {

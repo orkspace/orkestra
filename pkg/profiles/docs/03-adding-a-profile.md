@@ -176,7 +176,7 @@ type LimitRangeProfileDef struct {
 }
 ```
 
-**2. Add the class** to `ProfileRegistry` and wire `IsEmpty`, `Lookup*`, and `Merge`:
+**2. Add the class** to `ProfileRegistry` and wire `Empty`, `Lookup*`, and `Merge`:
 
 ```go
 type ProfileRegistry struct {
@@ -199,7 +199,7 @@ Profile string `yaml:"profile,omitempty" json:"profile,omitempty"`
 
 **7. Update `pkg/runtime/runners/<resource>.go`** — pass `resolver.Profiles()` to `Resolve()`.
 
-**8. Add `pkg/katalog/validate_<resource>_profile.go`** — `validate<Resource>Profiles()` using `Collect<Resource>ProfileEntries()`. Call it from `ValidateConfig()` in `validate.go`.
+**8. Add `pkg/katalog/validate_<resource>_profile.go`** — `validate<Resource>Profiles()` using `Collect<Resource>ProfileEntries()`. Call it from `Validate()` in `validate.go`.
 
 **9. Update `pkg/katalog/validate_user_profiles.go`** — three additions:
 

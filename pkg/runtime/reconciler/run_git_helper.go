@@ -12,6 +12,7 @@ import (
 
 	"github.com/orkspace/orkestra/domain"
 	"github.com/orkspace/orkestra/pkg/kubeclient"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const annotationLastCommit = "orkestra.orkspace.io/last-commit"
@@ -124,5 +125,5 @@ func patchLastCommitAnnotation(
 ) error {
 	return kube.PatchAnnotations(ctx, obj, map[string]string{
 		annotationLastCommit: commit,
-	})
+	}, metav1.PatchOptions{})
 }

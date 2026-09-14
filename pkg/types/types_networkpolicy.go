@@ -99,7 +99,12 @@ type NetworkPolicyTemplateSource struct {
 
 	// Sleep injects an artificial delay.
 	// Accepts extended duration units (s, m, h, d, w, mo, y).
-	Sleep string `yaml:"sleep,omitempty" json:"sleep,omitempty"`
+	Sleep string `json:"sleep,omitempty" yaml:"sleep,omitempty"`
+
+	// ForceConflict, when true, sets Force: true when applying this resource,
+	// taking ownership of conflicting fields instead of returning a conflict error.
+	// Overrides the CRD-level ForceConflict setting.
+	ForceConflict *bool `yaml:"forceConflict,omitempty" json:"forceConflict,omitempty"`
 }
 
 // NetworkPolicyIngressRule describes one ingress rule.

@@ -49,6 +49,7 @@ func (k *Kubeclient) PatchStatus(
 	ctx context.Context,
 	obj domain.Object,
 	statusFields map[string]interface{},
+	opts metav1.PatchOptions,
 ) error {
 	if len(statusFields) == 0 {
 		return nil
@@ -70,7 +71,7 @@ func (k *Kubeclient) PatchStatus(
 
 	namespace := obj.GetNamespace()
 
-	_, err = k.DynamicClient().
+	_, err = k.dynamic.
 		Resource(mapping.Resource).
 		Namespace(namespace).
 		Patch(
@@ -78,7 +79,7 @@ func (k *Kubeclient) PatchStatus(
 			obj.GetName(),
 			types.MergePatchType,
 			patchBytes,
-			metav1.PatchOptions{},
+			opts,
 			"status",
 		)
 

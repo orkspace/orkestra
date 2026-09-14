@@ -10,8 +10,8 @@
 // KatalogSecurity uses *bool fields which allows detecting
 // "not declared" (nil) vs "explicitly false" (*false).
 //
-// Deletion protection is ENABLED BY DEFAULT when the security block
-// is present but deletionProtection is not declared.
+// Deletion protection is ENABLED BY DEFAULT when the security.deletionProtection block
+// is present but deletionProtection.enabled is not declared.
 package katalog
 
 import (
@@ -47,7 +47,8 @@ func (k *Katalog) securityEnvDefaults() interface {
 }
 
 const (
-	ork = "orkestra"
+	orkRun  = "orkestra-runtime"
+	orkGate = "orkestra-gateway"
 )
 
 // envSecurityReader adapts *konfig.SecurityConfig through a small interface
@@ -56,14 +57,14 @@ type envSecurityReader struct{ k *Katalog }
 
 func (r *envSecurityReader) RuntimeServiceName() string {
 	if r.k.konfig == nil {
-		return "orkestra-runtime"
+		return orkRun
 	}
 	return r.k.konfig.Security().ServiceName.Runtime
 }
 
 func (r *envSecurityReader) GatewayServiceName() string {
 	if r.k.konfig == nil {
-		return "orkestra-gateway"
+		return orkGate
 	}
 	return r.k.konfig.Security().ServiceName.Gateway
 }
@@ -76,7 +77,7 @@ func (r *envSecurityReader) DeletionProtectionEnabled() bool {
 }
 func (r *envSecurityReader) DeletionProtectionSvcName() string {
 	if r.k.konfig == nil {
-		return ork
+		return orkGate
 	}
 	return r.k.konfig.Security().DeletionProtection.ServiceName
 }
@@ -100,7 +101,7 @@ func (r *envSecurityReader) ConversionEnabled() bool {
 }
 func (r *envSecurityReader) WebhooksSvcName() string {
 	if r.k.konfig == nil {
-		return ork
+		return orkGate
 	}
 	return r.k.konfig.Security().Webhooks.ServiceName
 }
@@ -162,7 +163,7 @@ func (r *envSecurityReader) NamespaceProtectionPolicy() string {
 }
 func (r *envSecurityReader) NamespaceProtectionSvcName() string {
 	if r.k.konfig == nil {
-		return ork
+		return orkGate
 	}
 	return r.k.konfig.Security().NamespaceProtection.ServiceName
 }
@@ -464,7 +465,7 @@ func (k *Katalog) GatewayEndpoint() string {
 //
 //	metadata.clusterName non-empty → use Katalog value
 //	CLUSTER_NAME env var set       → use konfig value
-//	Neither set                    → empty string
+//	Neither set                    → orkestra-runtime
 func (k *Katalog) ClusterName() string {
 	if k.metadata.ClusterName != "" {
 		return k.metadata.ClusterName
@@ -472,7 +473,7 @@ func (k *Katalog) ClusterName() string {
 	if k.konfig != nil {
 		return k.konfig.Cluster().Name()
 	}
-	return ""
+	return orkRun
 }
 
 // ── Gateway requirement ───────────────────────────────────────────────────────
@@ -484,7 +485,7 @@ func (k *Katalog) ClusterName() string {
 //     (deletion protection, admission webhooks, conversion, namespace protection)
 //   - Notifications — unless standalone: true is declared (or implied by local dev)
 //
-// Used by ValidateConfig to fail fast when gatewayEndpoint is not set.
+// Used by Validate to fail fast when gatewayEndpoint is not set.
 func (k *Katalog) NeedsGateway() bool {
 	return k.NeedsCertificates() || (k.HasNotification() && !k.IsNotificationStandalone())
 }
@@ -562,4 +563,20 @@ func (k *Katalog) CertValidFor() time.Duration {
 // Falls back to "1y" when not configured.
 func (k *Katalog) CertValidForStr() string {
 	return k.Security.ValidForVal(k.securityEnvDefaults().CertValidForStr())
+}
+
+// GatewayTokenNames returns the names of all tokens declared in
+// gateway.api.auth.tokens. Returns nil when the gateway is not enabled.
+func (k *Katalog) GatewayTokenNames() []string {
+	if !k.IsGatewayEnabled() {
+		return nil
+	}
+	if !k.Gateway.HasAPI() || k.Gateway.API.Auth.Empty() {
+		return nil
+	}
+	names := make([]string, 0, len(k.Gateway.API.Auth.Tokens))
+	for _, t := range k.Gateway.API.Auth.Tokens {
+		names = append(names, t.Name)
+	}
+	return names
 }

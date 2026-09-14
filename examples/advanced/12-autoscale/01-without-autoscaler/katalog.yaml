@@ -20,6 +20,11 @@ spec:
         reconciler:
           workers: 2
           resync: 60s
+          queue:
+            maxDepth: 100
+            behaviour:
+              onLimit:
+                drop: true
         status:
           fields:
             - path: phase

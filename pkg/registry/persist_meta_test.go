@@ -30,7 +30,7 @@ metadata:
 			t.Fatalf("persistMetadataVersion failed: %v", err)
 		}
 
-		out, err := os.ReadFile(path)
+		out, err := readLocal(path)
 		if err != nil {
 			t.Fatalf("read updated file: %v", err)
 		}
@@ -68,7 +68,7 @@ spec:
 			t.Fatalf("persistMetadataVersion failed: %v", err)
 		}
 
-		out, err := os.ReadFile(path)
+		out, err := readLocal(path)
 		if err != nil {
 			t.Fatalf("read updated file: %v", err)
 		}

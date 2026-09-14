@@ -6,7 +6,7 @@ metadata:
     Run with: ork e2e
 
     Verifies that a controller-runtime reconciler plugged in via
-    domain.ReconcilerFrom and kubeclient.ToClient reconciles a WebApp
+    domain.ReconcilerFrom and orkadapter.ToClient reconciles a WebApp
     into a live Deployment end-to-end on a real cluster.
 
 spec:

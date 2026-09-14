@@ -32,7 +32,7 @@ type Server struct {
 // returns a ready-to-register server. Returns (nil, nil) when
 // gateway.webhooks declares no sources — the caller skips registration.
 func NewIntakeServer(ctx context.Context, kat *katalog.Katalog, kube kubeclient.Interface, clusters *api.ClusterRegistry, ownNS string) (*Server, error) {
-	if kat == nil || kat.Gateway == nil || kat.Gateway.Webhooks.IsEmpty() {
+	if kat == nil || kat.Gateway == nil || kat.Gateway.Webhooks.Empty() {
 		return nil, nil
 	}
 

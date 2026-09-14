@@ -38,7 +38,7 @@ sources, with its path and what's configured.`,
 		if err != nil {
 			return err
 		}
-		if !k.IsGatewayAPIEnabled() || k.Gateway.Webhooks.IsEmpty() {
+		if !k.IsGatewayAPIEnabled() || k.Gateway.Webhooks.Empty() {
 			fmt.Println("no gateway.webhooks entries configured")
 			return nil
 		}

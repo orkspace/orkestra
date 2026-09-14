@@ -1,9 +1,5 @@
 // Tests for the pure evaluation logic in admission_evaluation.go and
 // the shared helper functions in admission.go.
-//
-// Package webhook (white-box) — gives direct access to unexported functions
-// without requiring exported test shims. These are the innermost unit tests:
-// no network, no Kubernetes, no filesystem.
 package webhook
 
 import (

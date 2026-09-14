@@ -34,7 +34,7 @@ type RestrictedNamespaces []string
 // Supports exact matches and simple glob patterns (* prefix or suffix).
 func (r RestrictedNamespaces) IsRestricted(namespace string) bool {
 	for _, pattern := range r {
-		if matchesPattern(namespace, pattern) {
+		if MatchesPattern(namespace, pattern) {
 			return true
 		}
 	}
@@ -65,13 +65,13 @@ func (r RestrictedNamespaces) Merge(other RestrictedNamespaces) RestrictedNamesp
 	return merged
 }
 
-// matchesPattern reports whether a namespace matches a restriction pattern.
+// MatchesPattern reports whether a namespace matches a restriction pattern.
 // Supports:
 //
 //	exact:   "kube-system"  → matches only "kube-system"
 //	prefix:  "kube-*"       → matches any namespace starting with "kube-"
 //	suffix:  "*-system"     → matches any namespace ending in "-system"
-func matchesPattern(namespace, pattern string) bool {
+func MatchesPattern(namespace, pattern string) bool {
 	if pattern == namespace {
 		return true
 	}

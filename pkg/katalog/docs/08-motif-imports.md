@@ -53,12 +53,12 @@ func (k *Katalog) expandKatalogImports() error {
     for i, imp := range k.Spec.Imports {
         expanded, _ := k.loadAndExpandImport(&imp)
         // Profiles
-        if !expanded.Profiles.IsEmpty() {
+        if !expanded.Profiles.Empty() {
             merged, _ := k.Profiles.Merge(expanded.Profiles, label)
             k.Profiles = merged
         }
         // Notes — conflict detection via seen map
-        if !expanded.Notes.IsEmpty() {
+        if !expanded.Notes.Empty() {
             merged, _ := k.Notes.MergeImport(expanded.Notes, label, seen)
             k.Notes = merged
         }
@@ -118,7 +118,7 @@ If the new field should be shared across all CRDs (like profiles and notes):
 5. Accumulate it in the three source blocks of `loadKomposer` in `pkg/merger/file.go`
 6. Add it to `Katalog` struct (`pkg/katalog/type.go`) and wire from merger in `parser.go`
 7. Expand it in `expandKatalogImports` (`pkg/katalog/motif_imports.go`)
-8. Attach it to the `Resolver` via a `With*()` method (`pkg/resources/template/resolver.go`)
+8. Attach it to the `Resolver` via a `With*()` method (`pkg/template/resolver.go`)
 9. Call `With*()` in `pkg/runtime/reconciler/generic.go` alongside `WithProfiles` and `WithUserNotes`
 
 If the new field should be CRD-scoped (like resources, status, admission):

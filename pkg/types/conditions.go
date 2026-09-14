@@ -288,7 +288,6 @@ const (
 	ConditionUnique ConditionOperator = "unique"
 
 	// ConditionTypeOf — check field type
-	//
 	ConditionTypeOf ConditionOperator = "typeOf"
 
 	// ConditionTypeMap — field value is a map (YAML object)
