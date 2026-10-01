@@ -19,13 +19,6 @@ Recovery from `degraded` to `healthy` happens on the next successful reconcile �
 - **Worker states** — per-worker idle/processing/stopped, plus aggregate counters; updated atomically on each reconcile item, reflected in Prometheus gauges immediately
 - **Dependency status** — kept fresh by `dependencyHealthChecker`; flows into `/katalog/{crd}` and the Control Center
 - **Autoscaler snapshot** — `workerInfoFn` and `autoMetricsFn` closures set by `wireCRDHealthCallbacks` during startup; called on every `/katalog/{crd}` request for a live snapshot; omitted when no autoscaler is configured
-- **Rollback tracking** — callbacks injected via `SetRollbackNotifiers`; increments on trigger, clears on new spec generation *(rollback in development)*
-
-## RuntimeHealth
-
-<<<<<<< HEAD
-`RuntimeHealth` is the operator-level aggregate. `/health` reflects it. `/ready` reflects it plus whether `Kordinate()` has started. It transitions to degraded when any CRD is missing or degraded, and recovers when all CRDs are started.
-=======
 ```go
 health.MarkWorkerProcessing(workerID)  // item dequeued, reconcile starting
 // ... reconcile runs ...
@@ -82,25 +75,6 @@ h.SetWorkerInfoFn(func() *ork_autoscaler.WorkerInfo {
 h.SetAutoMetricsFn(m.AsMap)  // m is *autoscaler.AutoMetrics
 ```
 
-## Rollback tracking
-
-When `operatorBox.rollback:` is declared, `startCRDWorkers` injects two callbacks into the reconciler via `SetRollbackNotifiers(onTrigger, onClear)`:
-
-- `onTrigger` — called by `markRollbackActive` when the failure trigger fires. Increments `rollbackTotal`, sets `rollbackActive = true`, stores `rollbackLastAt = now`.
-- `onClear` — called by `clearRollback` when the user submits a new spec generation. Sets `rollbackActive = false`.
-
-`RollbackStats()` returns a snapshot struct for the handler:
-
-```go
-type RollbackStats struct {
-    TotalRollbacks int64
-    Active         bool
-    LastRollbackAt string  // RFC3339, empty if never triggered
-}
-```
-
-The handler includes this under `"rollback"` in the `/katalog/{crd}` response only when `crd.HasRollbackRules()` is true.
-
 ## RuntimeHealth
 
 `RuntimeHealth` is the operator-level aggregate signal. It is separate from per-CRD health.
@@ -113,7 +87,6 @@ SetOrkDegraded()     — called on leadership loss before shutdown
 ```
 
 `/health` reflects `RuntimeHealth`. `/ready` reflects both `RuntimeHealth` and whether `Kordinate()` has started.
->>>>>>> origin/main
 
 ---
 

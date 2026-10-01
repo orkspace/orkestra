@@ -51,4 +51,4 @@ nav:
 
 Pages within a section are discovered automatically from `website/content/docs/<section>/`. They are sorted by the `weight` field injected during sync — which tracks source file order alphabetically. Prefix filenames with numbers (`01-`, `02-`) to control order.
 
-→ Next: [04-local](../local/)
+→ Next: [04-local](04-local.md)

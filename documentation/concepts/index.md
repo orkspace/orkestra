@@ -96,9 +96,9 @@ The [Operator of Operators](operator-of-operators/) pattern lets one Orkestra op
 
 ## Schema Evolution
 
-[Schema Evolution](conversion/) is how Orkestra handles CRD field changes over time — without breaking stored objects, without manual caBundle management, and without a separate conversion webhook deployment. Two approaches: `normalize:` for single-version input tolerance, `conversion.paths:` for multi-version APIs.
+[Schema Evolution](schema-evolution/) is how Orkestra handles CRD field changes over time — without breaking stored objects, without manual caBundle management, and without a separate conversion webhook deployment. Two approaches: `normalize:` for single-version input tolerance, `conversion.paths:` for multi-version APIs.
 
-→ [Read: Schema Evolution](conversion/)
+→ [Read: Schema Evolution](schema-evolution/)
 
 ---
 

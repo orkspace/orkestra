@@ -138,6 +138,6 @@ A Pattern that passes `ork validate` and `ork simulate` is very unlikely to fail
 
 ## Further reading
 
-- **[Admission Control](./01-admission.md)** — deny and warn rules enforced by the webhook
-- **[Namespace Protection](./03-namespace-protection.md)** — two-point namespace enforcement
+- **[Admission Control](./03-admission.md)** — deny and warn rules enforced by the webhook
+- **[Namespace Protection](./05-namespace-protection.md)** — two-point namespace enforcement
 - **[ork plan](../reference/cli/02-plan.md)** — diff a Katalog before applying it

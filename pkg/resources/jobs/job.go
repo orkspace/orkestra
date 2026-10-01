@@ -71,14 +71,18 @@ type ResolvedJobSpec struct {
 }
 
 // Create creates a Job if it does not already exist.
-// Idempotent — skips if the Job exists.
-//
-// Owner reference behaviour depends on context:
-//
-//	onCreate Jobs — owner reference set, garbage collected with CR
-//	onDelete Jobs — NO owner reference — the CR is being deleted,
-//	                the Job must survive to complete cleanup
+// Sets an owner reference — use for onCreate Jobs only.
 func Create(ctx context.Context, kube kubeclient.Interface, owner domain.Object, spec ResolvedJobSpec) error {
+	return create(ctx, kube, owner, spec, true)
+}
+
+// CreateForDelete creates a Job without an owner reference.
+// Use for onDelete Jobs: the CR is being deleted and the Job must outlive it.
+func CreateForDelete(ctx context.Context, kube kubeclient.Interface, owner domain.Object, spec ResolvedJobSpec) error {
+	return create(ctx, kube, owner, spec, false)
+}
+
+func create(ctx context.Context, kube kubeclient.Interface, owner domain.Object, spec ResolvedJobSpec, ownerRef bool) error {
 	if err := validateSpec(spec); err != nil {
 		return fmt.Errorf("job.Create: invalid spec: %w", err)
 	}
@@ -100,7 +104,7 @@ func Create(ctx context.Context, kube kubeclient.Interface, owner domain.Object,
 		return nil
 	}
 
-	job := buildJob(owner, spec, namespace)
+	job := buildJob(owner, spec, namespace, ownerRef)
 
 	_, err = kube.Clientset().BatchV1().Jobs(namespace).Create(ctx, job, metav1.CreateOptions{})
 	if err != nil {
@@ -185,7 +189,7 @@ func Resolve(src orktypes.JobTemplateSource, backoffLimit int, ownerName string,
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
-func buildJob(owner domain.Object, spec ResolvedJobSpec, namespace string) *batchv1.Job {
+func buildJob(owner domain.Object, spec ResolvedJobSpec, namespace string, ownerRef bool) *batchv1.Job {
 	spec.Labels = labels.StampOrkestraLabels(spec.Labels, owner.GetName(), owner.GetAnnotations())
 	backoffLimit := int32(spec.BackoffLimit)
 
@@ -199,17 +203,17 @@ func buildJob(owner domain.Object, spec ResolvedJobSpec, namespace string) *batc
 		container.Resources = shared.BuildResourceRequirements(spec.Resources)
 	}
 
+	var ownerRefs []metav1.OwnerReference
+	if ownerRef {
+		ownerRefs = shared.ResolveOwnerReferences(owner)
+	}
+
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      spec.Name,
-			Namespace: namespace,
-			Labels:    spec.Labels,
-			// Owner references set only for onCreate Jobs.
-			// onDelete Jobs must NOT have owner references — the CR is being
-			// deleted and the Job must outlive it to complete cleanup.
-			// The caller (run_jobs.go) is responsible for this distinction.
-			// We always set it here — the reconciler controls when to call Create.
-			OwnerReferences: shared.ResolveOwnerReferences(owner),
+			Name:            spec.Name,
+			Namespace:       namespace,
+			Labels:          spec.Labels,
+			OwnerReferences: ownerRefs,
 		},
 		Spec: batchv1.JobSpec{
 			BackoffLimit: &backoffLimit,

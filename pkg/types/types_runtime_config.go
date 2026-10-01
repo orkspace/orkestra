@@ -2,8 +2,7 @@
 package types
 
 // RuntimeConfig governs the operatorBox as a long-lived entity, not a single reconcile cycle.
-// Covers autoscaling the worker pool, rollback on error, finalizer lifecycle,
-// namespace guards, and deletion protection.
+// Covers autoscaling the worker pool, finalizer lifecycle, namespace guards, and deletion protection.
 type RuntimeConfig struct {
 	// Finalizers is the per-CRD finalizer list. Falls back to the Katalog-level finalizer.
 	Finalizers []string `yaml:"finalizers,omitempty" json:"finalizers,omitempty" validate:"omitempty"`
@@ -28,12 +27,6 @@ type RuntimeConfig struct {
 
 	// Autoscale declares runtime worker/queue/resync overrides driven by conditions.
 	Autoscale *AutoscaleSpec `yaml:"autoscale,omitempty" json:"autoscale,omitempty"`
-
-	// Rollback declares failure-recovery behavior.
-	Rollback *RollbackBlock `yaml:"rollback,omitempty" json:"rollback,omitempty"`
-
-	// RollBackOnError enables zero-config rollback on 3 consecutive failures.
-	RollBackOnError bool `yaml:"rollBackOnError,omitempty" json:"rollBackOnError,omitempty"`
 
 	// Cleanup declares when to delete the CR after it reaches a terminal state.
 	// Evaluated at the pre-reconcile gate — conditions met before the reconciler is

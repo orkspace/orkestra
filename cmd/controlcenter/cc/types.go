@@ -349,13 +349,6 @@ type AutoscalerWorkersInfo struct {
 	BusyPercent          float64 `json:"busyPercent"`
 }
 
-// RollbackStatsInfo mirrors kordinator.RollbackStats from the API response.
-type RollbackStatsInfo struct {
-	TotalRollbacks int    `json:"totalRollbacks"`
-	Active         bool   `json:"active"`
-	LastRollbackAt string `json:"lastRollbackAt,omitempty"`
-}
-
 // CRDInfo is the response from the /katalog/{crd} endpoint
 type CRDInfo struct {
 	Name                     string                    `json:"name"`
@@ -392,7 +385,6 @@ type CRDInfo struct {
 	HasUnhealthyDependencies bool                      `json:"hasUnhealthyDependencies"`
 	AutoscalerEnabled        bool                      `json:"autoscalerEnabled"`
 	AutoscalerWorkers        *AutoscalerWorkersInfo    `json:"autoscalerWorkers,omitempty"`
-	Rollback                 *RollbackStatsInfo        `json:"rollback,omitempty"`
 	Gated                    bool                      `json:"gated,omitempty"`
 	GatedReason              string                    `json:"gatedReason,omitempty"`
 }
@@ -491,7 +483,6 @@ type CRDDetail struct {
 	RBACCount                int                         `json:"rbacCount,omitempty"`
 	AutoscalerEnabled        bool                        `json:"autoscalerEnabled"`
 	AutoscalerWorkers        *AutoscalerWorkersInfo      `json:"autoscalerWorkers,omitempty"`
-	Rollback                 *RollbackStatsInfo          `json:"rollback,omitempty"`
 	HealthEndpointDisabled   bool                        `json:"healthEndpointDisabled,omitempty"`
 	InfoEndpointDisabled     bool                        `json:"infoEndpointDisabled,omitempty"`
 	Gated                    bool                        `json:"gated,omitempty"`

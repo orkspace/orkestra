@@ -70,7 +70,7 @@ var Packs = map[string]Pack{
 }
 ```
 
-`Path` is the directory name inside the embedded FS. For nested packs (like `rollback` which lives at `use-cases/rollback`), set `Path` to the full subdirectory path.
+`Path` is the directory name inside the embedded FS. Set it to the full subdirectory path when the pack is nested.
 
 Also add a helper and a `firstExample()` case so `ork init --list-packs` shows the right starting point:
 

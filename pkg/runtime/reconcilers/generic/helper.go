@@ -19,20 +19,29 @@ import (
 // GVR aliases used by reconciler-internal files (run_delete_ordered.go).
 // All authoritative GVR definitions live in pkg/children.
 var (
-	deploymentGVR     = children.DeploymentGVR
-	statefulSetGVR    = children.StatefulSetGVR
-	serviceGVR        = children.ServiceGVR
-	secretGVR         = children.SecretGVR
-	configMapGVR      = children.ConfigMapGVR
-	serviceAccountGVR = children.ServiceAccountGVR
-	jobGVR            = children.JobGVR
-	cronJobGVR        = children.CronJobGVR
-	ingressGVR        = children.IngressGVR
-	pvcGVR            = children.PersistentVolumeClaimGVR
-	pvGVR             = children.PersistentVolumeGVR
-	hpaGVR            = children.HorizontalPodAutoscalerGVR
-	pdbGVR            = children.PodDisruptionBudgetGVR
-	namespaceGVR      = children.NamespaceGVR
+	deploymentGVR         = children.DeploymentGVR
+	statefulSetGVR        = children.StatefulSetGVR
+	replicaSetGVR         = children.ReplicaSetGVR
+	serviceGVR            = children.ServiceGVR
+	secretGVR             = children.SecretGVR
+	configMapGVR          = children.ConfigMapGVR
+	serviceAccountGVR     = children.ServiceAccountGVR
+	jobGVR                = children.JobGVR
+	cronJobGVR            = children.CronJobGVR
+	ingressGVR            = children.IngressGVR
+	pvcGVR                = children.PersistentVolumeClaimGVR
+	pvGVR                 = children.PersistentVolumeGVR
+	hpaGVR                = children.HorizontalPodAutoscalerGVR
+	pdbGVR                = children.PodDisruptionBudgetGVR
+	namespaceGVR          = children.NamespaceGVR
+	podGVR                = children.PodGVR
+	roleGVR               = children.RoleGVR
+	roleBindingGVR        = children.RoleBindingGVR
+	clusterRoleGVR        = children.ClusterRoleGVR
+	clusterRoleBindingGVR = children.ClusterRoleBindingGVR
+	networkPolicyGVR      = children.NetworkPolicyGVR
+	limitRangeGVR         = children.LimitRangeGVR
+	resourceQuotaGVR      = children.ResourceQuotaGVR
 )
 
 func runExternal(

@@ -52,7 +52,6 @@ type CRDDocsData struct {
 	HasProtection    bool
 	HasRBAC          bool
 	HasAutoscaler    bool
-	HasRollback      bool
 	HasChildren      bool
 	ChildResources   []ChildResourceEntry
 	CCVersion        string
@@ -170,7 +169,6 @@ func (cc *ControlCenter) handleCRDDocs(w http.ResponseWriter, r *http.Request, k
 			(crd.NamespaceProtection != nil && crd.NamespaceProtection.Enabled),
 		HasRBAC:        crd.RBAC.TotalRules > 0,
 		HasAutoscaler:  crd.AutoscalerEnabled && crd.AutoscalerWorkers != nil,
-		HasRollback:    crd.Rollback != nil,
 		HasChildren:    len(children) > 0,
 		ChildResources: children,
 		CCVersion:      ccversion.Short(),

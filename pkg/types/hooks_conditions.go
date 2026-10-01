@@ -163,9 +163,6 @@ func (h HookTemplates) FilterResources(fn func(conditions, or []Condition) (keep
 
 	// External calls are copied unchanged — their conditions are runtime-only.
 	out.External = h.External
-	out.Git = h.Git
-	out.Docker = h.Docker
-	out.Ordered = h.Ordered
 	out.Timeout = h.Timeout
 
 	return out

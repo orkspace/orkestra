@@ -38,7 +38,7 @@ func BuildFromIntent(fields map[string]interface{}, owner domain.Object) (map[st
 		BackoffLimit: backoffLimit,
 	}
 
-	obj := buildJob(owner, spec, namespace)
+	obj := buildJob(owner, spec, namespace, true)
 
 	rawMap, err := shared.ToObjectMap(obj, "batch/v1", "Job")
 	if err != nil {

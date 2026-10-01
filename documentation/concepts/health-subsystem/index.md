@@ -38,7 +38,7 @@ The server tracks four independent flags:
 
 ## CRD-level health
 
-Each operatorBox tracks its own `CRDHealth` instance — see [CRD Health](crd-health/).
+Each operatorBox tracks its own `CRDHealth` instance — see [CRD Health](01-crd-health.md).
 
 ---
 
@@ -56,4 +56,4 @@ GET /katalog/{crd}/health — live health status for one CRD
 
 ## Where to go next
 
-- [CRD Health](crd-health/) — per-CRD health tracking, degradation logic, and health endpoints
+- [CRD Health](01-crd-health.md) — per-CRD health tracking, degradation logic, and health endpoints

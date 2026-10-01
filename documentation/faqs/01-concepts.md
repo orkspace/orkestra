@@ -380,10 +380,10 @@ declared alongside reconcile templates:
 
 ---
 
-## What is the OPRE execution model?
+## What is the OPPRE execution model?
 
-OPRE is the name for the execution model Orkestra implements:
-**O**bserve, **P**re-reconcile, **R**econcile, **E**mit.
+OPPRE is the name for the execution model Orkestra implements:
+**O**bserve, **P**re-reconcile, **P**repare, **R**econcile, **E**mit.
 
 Each phase is owned by a distinct layer:
 
@@ -391,6 +391,7 @@ Each phase is owned by a distinct layer:
 |---|---|---|
 | Observe | Informer | Watch CRDs, secondary resources, and Kubernetes Events; produce reconcile triggers |
 | Pre-reconcile | Kordinator | Gate events before the queue (enqueueGate) and before the reconciler (reconcileGate) |
+| Prepare | Kordinator | Validate, mutate and enrich the CR with resolver context, profiles, notes, intent, and cross-references |
 | Reconcile | Reconciler | Receive a fully-prepared request and reconcile exactly that |
 | Emit | Post-reconcile | Write status, emit events, stamp health and metrics onto the CR |
 

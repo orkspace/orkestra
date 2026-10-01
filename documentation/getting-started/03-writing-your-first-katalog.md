@@ -211,5 +211,5 @@ ork validate
 
 ## Further reading
 
-- **[Writing Your First Komposer](./03-writing-your-first-komposer.md)** — compose multiple Katalogs into a platform declaration
-- **[Learning to Orkestrate](./01-learning-to-orkestrate.md)** — full progression through the example packs
+- **[Writing Your First Komposer](./04-writing-your-first-komposer.md)** — compose multiple Katalogs into a platform declaration
+- **[Learning to Orkestrate](./01-learning-to-orkestrate/index.md)** — full progression through the example packs

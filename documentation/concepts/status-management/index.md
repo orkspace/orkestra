@@ -62,7 +62,7 @@ This makes `kubectl get` immediately informative. External tools that watch for 
 
 ## Where to go next
 
-- [Declarative Status Fields](declarative-fields/) — Layer 2: writing spec values and computed strings to status
-- [Child Resource Propagation](child-propagation/) — Layer 3: reading live child resource state into status
-- [Complete Example](complete-example/) — all three layers together, plus hooks and disabling
-- [Transient Fields](transient-fields/) — clearing stale values when a condition clears (`clearOnFalse`)
+- [Declarative Status Fields](01-declarative-fields.md) — Layer 2: writing spec values and computed strings to status
+- [Child Resource Propagation](02-child-propagation.md) — Layer 3: reading live child resource state into status
+- [Complete Example](03-complete-example.md) — all three layers together, plus hooks and disabling
+- [Transient Fields](04-transient-fields.md) — clearing stale values when a condition clears (`clearOnFalse`)

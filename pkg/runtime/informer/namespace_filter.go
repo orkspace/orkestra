@@ -28,13 +28,7 @@
 // when both are declared (same semantics as the existing reconciler guard).
 package informer
 
-import (
-	"strings"
-
-	"github.com/orkspace/orkestra/domain"
-	"k8s.io/apimachinery/pkg/api/meta"
-	"k8s.io/apimachinery/pkg/runtime"
-)
+import "strings"
 
 // NamespaceFilter holds the namespace restriction configuration for one GVK.
 // Stored on the Factory keyed by GVK string. Checked in handleEvent before
@@ -130,33 +124,6 @@ func (f *Factory) namespaceAllowed(gvkStr, namespace string) bool {
 	}
 
 	return filter.Allows(namespace)
-}
-
-// extractNamespace extracts the namespace from an object passed to handleEvent.
-// Handles both regular objects and DeletedFinalStateUnknown (tombstone) wrappers.
-// Returns "" for cluster-scoped resources — Allows("") returns true so they pass.
-func extractNamespace(obj interface{}) string {
-	// Handle tombstone (deleted objects)
-	obj = domain.UnwrapCacheTombstone(obj)
-
-	if rObj, ok := obj.(runtime.Object); ok {
-		if accessor, err := meta.Accessor(rObj); err == nil {
-			return accessor.GetNamespace()
-		}
-	}
-
-	return ""
-}
-
-// extractGeneration returns metadata.generation for obj, or 0 if unavailable.
-func extractGeneration(obj interface{}) int64 {
-	obj = domain.UnwrapCacheTombstone(obj)
-	if rObj, ok := obj.(runtime.Object); ok {
-		if accessor, err := meta.Accessor(rObj); err == nil {
-			return accessor.GetGeneration()
-		}
-	}
-	return 0
 }
 
 // NamespaceFilterSummary returns a human-readable description of the filter

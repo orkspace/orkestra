@@ -12,12 +12,10 @@ runTemplateReconcile()                       reconciler
    │
    ├── Step 1  NewResolver(obj)
    ├── Step 2  readCross(r.rc.Cross)
-   ├── Step 3  runGit()
-   ├── Step 4  external.Run()               ◄── here (reconcile time)
+   ├── Step 3  external.Run()               ◄── here (reconcile time)
    │             .external.<name>.*
-   ├── Step 5  runDocker()
-   ├── Step 6  runResourceGroup(onCreate)
-   └── Step 7  runResourceGroup(onReconcile)
+   ├── Step 4  runResourceGroup(onCreate)
+   └── Step 5  runResourceGroup(onReconcile)
 
 Admission webhook (ValidatingWebhookConfiguration)
          │

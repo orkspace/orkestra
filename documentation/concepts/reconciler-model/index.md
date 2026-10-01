@@ -119,4 +119,4 @@ When your Katalog declares `serve.target:` entries, CRs routed through the gatew
 - [Kordinator](05-kordinator.md) — startup sequencing, worker management, health
 - [Queue behaviour](06-queue-behaviour.md) — controlled back-pressure at the queue boundary: `onLimit`, `onThreshold`, and two-tier conditional evaluation
 - [Operational state on the CR](07-operational-state.md) — the runtime stamps live health and metrics onto each CR; readable in conditions, validation rules, and cross-CRD references
-- [Event-Aware Reconciliation](08-event-aware-reonciliation.md) —  the reconciliation that follows the event
+- [Event-Aware Reconciliation](08-event-aware-reconciliation.md) —  the reconciliation that follows the event

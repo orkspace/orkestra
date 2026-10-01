@@ -82,7 +82,6 @@ Each reconcile failure increments a consecutive failure counter. When it reaches
 
 - The Control Center marks it unhealthy with the failure count and last error.
 - Other CRDs with `dependsOn: <this-crd>: healthy` stop processing new CRs.
-- If `rollback:` is configured, the rollback templates execute.
 - The counter resets to zero on the next successful reconcile.
 
 The default of `5` is appropriate for most operators. Increase it for operators that call external services that can be transiently unavailable — a lower threshold would cause false degraded states during brief outages:

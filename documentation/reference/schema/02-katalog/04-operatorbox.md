@@ -1,6 +1,6 @@
 # operatorBox
 
-Defines the reconciliation strategy and lifecycle configuration for a CRD. Controls which reconciler implementation runs and how resources, status, admission, autoscaling, and rollback behave.
+Defines the reconciliation strategy and lifecycle configuration for a CRD. Controls which reconciler implementation runs and how resources, status, admission, and autoscaling behave.
 
 ```yaml
 operatorBox:
@@ -467,14 +467,6 @@ All [condition operators](06-when-conditions.md#operators) are supported. `when:
 See [Conditional Reconciliation](../../../concepts/conditional/04-conditional-reconciliation.md) for the full concept guide.
 
 ---
-
-## `rollBackOnError`
-
-Zero-config rollback on reconcile failure. Restores the previous known-good state when a reconcile cycle errors.
-
-```yaml
-rollBackOnError: true
-```
 
 ## `autoscale`
 

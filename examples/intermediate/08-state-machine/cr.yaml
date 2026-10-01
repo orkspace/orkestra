@@ -25,7 +25,7 @@ spec:
   image: alpine:3.19
   steps:
     - name: build
-      command: "sh -c echo 'Build failing' && exit 1"
+      command: "echo 'Build failing' && exit 1"
 
     - name: test
       command: "echo This should not run"

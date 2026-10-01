@@ -91,7 +91,7 @@ Stay declarative when your operator creates Kubernetes resources and applies rul
 
 The Katalog fields that replace what you used to write:
 
-- [watch](../operatorbox/watch.md) — secondary resource informers, enqueue filtering, key resolution
+- [watch](../operatorbox/10-observe/01-watch.md) — secondary resource informers, enqueue filtering, key resolution
 - [retryBackoff](../operatorbox/09-retry-backoff.md) — per-call and per-reconciler retry with exponential backoff
 - [Conditional reconciliation](../conditional/04-conditional-reconciliation.md) — enqueue gates, reconcile gates, sentinels
 - [Profiles](../operatorbox/06-profiles/) — worker count, resync, queue depth — named and reusable across CRDs

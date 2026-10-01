@@ -16,9 +16,8 @@ Once oriented, pick the area you want to work in:
 
 | Area | Guide |
 |------|-------|
-| Add a resource type to the registry | [orkestra-registry](contributing-registry.md) |
+| Add a new resource type | [Orkestra resources](contributing-resources.md) |
 | Improve the control center UI | [control-center](contributing-controlcenter.md) |
-| Implement rollback | [rollback](contributing-rollback.md) |
 | Add or improve an example pack | [examples](contributing-examples.md) |
 | Add a note function to make operators more declarative (`pkg/note`) | Add to `pkg/note/<domain>.go`, register in `buildNotes()` in `pkg/note/note.go` |
 

@@ -160,7 +160,7 @@ spec:
 
 The cluster is created, the Helm chart is installed, the assertions run, and the cluster is torn down — without Orkestra involved in managing the workload itself. You get the full e2e harness against anything.
 
-→ [Testing anything in Kubernetes](../guides/e2e-universal.md)
+→ [Testing anything in Kubernetes](../guides/e2e-universal/index.md)
 
 ---
 
@@ -168,7 +168,7 @@ The cluster is created, the Helm chart is installed, the assertions run, and the
 
 Yes — this is the same `custom.target: kubernetes` mode. cert-manager, FluxCD, Crossplane, ArgoCD, your own legacy controller-runtime operator — if it runs in Kubernetes, `ork e2e` can test it. Install the operator in `setup.helm`, apply your CR, assert the resources it should produce.
 
-→ [Testing anything in Kubernetes](../guides/e2e-universal.md) · [custom.target reference](../reference/schema/04-e2e/05-custom-target.md)
+→ [Testing anything in Kubernetes](../guides/e2e-universal/index.md) · [custom.target reference](../reference/schema/04-e2e/05-custom-target.md)
 
 ---
 

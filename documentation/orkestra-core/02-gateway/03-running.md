@@ -55,6 +55,22 @@ ork serve play -f katalog.yaml --token platform-team --intent intent.yaml \
 
 `--simulate` is only valid for `create` and `update` operations. The built CR substitutes the `cr:` field in the simulate spec; the `expect:` block is evaluated normally.
 
+### ork gate run
+
+`ork gate run` starts the Gateway locally in HTTP-only mode. The full Serve API is live — `POST /api/v1/apply`, `GET /api/v1/resources/` — but TLS and admission webhooks are disabled (those require a live cluster). Use it to test serve routing, apply flows, and intake payloads without a Helm deployment.
+
+```bash
+ork gate run -f katalog.yaml
+```
+
+The gateway listens on `:8080` by default. Use `ORK_PORT` to change it:
+
+```bash
+ORK_PORT=8085 ork gate run -f katalog.yaml
+```
+
+Admission and conversion webhooks are not registered — they require TLS and a running cluster.
+
 ### ork gate
 
 `ork gate` evaluates admission rules only — validation and mutation — against a CR file. It does not run the full intent chain. Use it when you have a CR already and want to check what the admission webhook would do:

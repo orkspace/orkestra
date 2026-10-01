@@ -6,7 +6,6 @@ import (
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/tools/cache"
 )
 
 // ── NamespaceFilter.Allows ────────────────────────────────────────────────────
@@ -174,33 +173,6 @@ func TestNamespaceFilterSummary_RestrictedList(t *testing.T) {
 	got := NamespaceFilterSummary(f)
 	if got != "restricted: [kube-system]" {
 		t.Errorf("unexpected summary: %q", got)
-	}
-}
-
-// ── extractNamespace ──────────────────────────────────────────────────────────
-
-func TestExtractNamespace_UnstructuredWithNamespace(t *testing.T) {
-	obj := &unstructured.Unstructured{}
-	obj.SetNamespace("my-ns")
-	if got := extractNamespace(obj); got != "my-ns" {
-		t.Errorf("expected my-ns, got %q", got)
-	}
-}
-
-func TestExtractNamespace_UnstructuredClusterScoped(t *testing.T) {
-	obj := &unstructured.Unstructured{}
-	// no namespace set
-	if got := extractNamespace(obj); got != "" {
-		t.Errorf("expected empty for cluster-scoped, got %q", got)
-	}
-}
-
-func TestExtractNamespace_Tombstone_ExtractsNamespace(t *testing.T) {
-	inner := &unstructured.Unstructured{}
-	inner.SetNamespace("tombstone-ns")
-	tombstone := cache.DeletedFinalStateUnknown{Obj: inner}
-	if got := extractNamespace(tombstone); got != "tombstone-ns" {
-		t.Errorf("expected tombstone-ns from tombstone, got %q", got)
 	}
 }
 

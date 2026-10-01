@@ -1,4 +1,4 @@
-##  v0.7.18 — Remote Reconciler, OPPRE Execution Model, Declarative Events
+## v0.7.18 — Remote Reconciler, OPPRE Execution Model, Declarative Events
 
 ### New
 

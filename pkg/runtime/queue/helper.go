@@ -24,12 +24,21 @@ func (q *Workqueue) evaluateQueueBehaviour(item QueueItem) bool {
 		switch {
 		case cfg.HasOnThreshold():
 			if cfg.ThresholdReached(q.QueueInfo().Depth) {
-				// Delegate to the informer to evaluate when/or conditions.
-				// It has access to all preReconcile resolver context.
 				if cfg.HasOnThresholdConditions() {
+					// Delegate to the informer to evaluate when/or conditions.
+					// It has access to all preReconcile resolver context.
 					q.evaluateCond.OnThreshold.Store(true)
 					return true
 				}
+				// Threshold reached, no conditions configured — drop.
+				logger.Warn().
+					Str("key", item.Key).
+					Str("gvk", item.GVK).
+					Int("limit", q.QueueInfo().Limit).
+					Int("depth", q.QueueInfo().Depth).
+					Int("threshold", cfg.ThresholdValue()).
+					Msg("enqueue: queue depth threshold reached — item dropped")
+				return false
 			}
 		case q.QueueInfo().DepthReached:
 			if cfg.HasOnLimitConditions() {
@@ -37,17 +46,15 @@ func (q *Workqueue) evaluateQueueBehaviour(item QueueItem) bool {
 				q.evaluateCond.OnLimit.Store(true)
 				return true
 			}
+			// Limit reached, no conditions configured — drop.
+			logger.Warn().
+				Str("key", item.Key).
+				Str("gvk", item.GVK).
+				Int("limit", q.QueueInfo().Limit).
+				Int("depth", q.QueueInfo().Depth).
+				Msg("enqueue: queue depth limit reached — item dropped")
+			return false
 		}
-
-		// No conditions declared — drop immediately.
-		logger.Warn().
-			Str("key", item.Key).
-			Str("gvk", item.GVK).
-			Int("limit", q.QueueInfo().Limit).
-			Int("depth", q.QueueInfo().Depth).
-			Int("threshold", cfg.ThresholdValue()).
-			Msg("enqueue: queue depth threshold/limit reached — item dropped")
-		return false
 	}
 
 	return true

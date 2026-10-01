@@ -78,15 +78,11 @@ The service responds with `200 OK` and a JSON body:
 
 ```json
 {
-  "result":       "ok",
-  "status":       { "phase": "Ready" },
+  "result":  "ok",
+  "status":  { "phase": "Ready" },
   "resources": [
-    {
-      "apiVersion": "apps/v1",
-      "kind": "Deployment",
-      "metadata": { "name": "my-webapp", "namespace": "default" },
-      "spec": { ... }
-    }
+    { "type": "deployment", "fields": { "name": "my-webapp", "image": "nginx:latest", "replicas": 2 } },
+    { "type": "service",    "fields": { "name": "my-webapp-svc", "port": 80, "targetPort": 8080 } }
   ]
 }
 ```
@@ -97,9 +93,11 @@ The service responds with `200 OK` and a JSON body:
 | `requeueAfter` | Go duration string, used when `result` is `"requeue"` (e.g. `"60s"`). |
 | `error` | Human-readable message. Non-empty sets `Ready=False` and triggers backoff. |
 | `status` | Map of fields to patch onto `.status`. Omit or `null` to leave status unchanged. |
-| `resources` | Kubernetes objects to apply. Must be types declared in `managedResources`. |
+| `resources` | Resources to apply. Each entry is an **intent form** (`type` + `fields`) or a **full Kubernetes object** (`apiVersion`, `kind`, `metadata.name`). Only types declared in `managedResources` are accepted. |
 
-Resources not listed in `managedResources` are rejected before any apply. If the list contains an undeclared type, the entire response is rejected and the reconcile is treated as an error.
+The intent form lets the service name a type and return a flat field map — Orkestra constructs the full object. When more control is needed, return a complete Kubernetes object instead. Either way, undeclared types cause an immediate error before any resource is applied.
+
+See the [schema reference](../../reference/schema/02-katalog/31-reconcile-remote.md#intent-form) for supported intent types and field maps.
 
 ---
 

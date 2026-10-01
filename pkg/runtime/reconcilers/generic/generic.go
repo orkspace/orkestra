@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"slices"
-	"sync"
 
 	"github.com/orkspace/orkestra/domain"
 	"github.com/orkspace/orkestra/pkg/event"
@@ -56,16 +55,6 @@ type Reconciler[PTR domain.Object] struct {
 
 	// Notification
 	notifStack *notification.NotificationStack
-
-	// rollbackHistory tracks per-CR failure timestamps for window-based rollback triggers.
-	// Key: "namespace/name". Guarded by rollbackMu.
-	rollbackHistory map[string]*rollbackFailureHistory
-	rollbackMu      sync.Mutex
-
-	// rollbackNotifier is injected by kordinator after construction. Called when
-	// rollback is triggered or cleared so CRDHealth can track rollback stats.
-	rollbackTriggerFn func()
-	rollbackClearFn   func()
 }
 
 // discardRecorder is the package-private noop used when nil is passed for ev.
@@ -139,16 +128,15 @@ func New[PTR domain.Object](
 	}
 
 	r := &Reconciler[PTR]{
-		crd:             crd,
-		operatorBox:     box,
-		informer:        informer,
-		event:           ev,
-		kube:            kube,
-		hooks:           hooks,
-		targetHooks:     targetHooks,
-		newObj:          newObj,
-		rollbackHistory: make(map[string]*rollbackFailureHistory),
-		kat:             kat,
+		crd:         crd,
+		operatorBox: box,
+		informer:    informer,
+		event:       ev,
+		kube:        kube,
+		hooks:       hooks,
+		targetHooks: targetHooks,
+		newObj:      newObj,
+		kat:         kat,
 	}
 
 	// Wire notification: GatewayNotifier when a gateway endpoint is configured;
@@ -242,7 +230,7 @@ func (r *Reconciler[PTR]) reconcileImpl(ctx context.Context, resolver *orktmpl.R
 	case box.EffectiveOnCreate() != nil || box.EffectiveOnReconcile() != nil:
 		// Declarative templates — interpreted at runtime.
 		// Requires: nothing. ork generate registry NOT needed.
-		// The returned resolver carries cross/external/git data for status evaluation.
+		// The returned resolver carries cross/external data for status evaluation.
 		resolver, err = r.runTemplateReconcile(ctx, resolver, obj, box)
 
 	default:

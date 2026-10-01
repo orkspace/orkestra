@@ -72,22 +72,6 @@ podSecurity:
 
 `hardened` sets `runAsNonRoot: true`, `allowPrivilegeEscalation: false`, `readOnlyRootFilesystem: true`, drops all capabilities. Profiles: `baseline`, `restricted`, `hardened`. Individual fields can be declared instead of a profile. → See [Pod security](./security/07-pod-security.md).
 
-### Improved rollback — child resource tracking
-
-Current rollback triggers on consecutive CR reconcile failures. The redesign watches the child resources the CR creates:
-
-```yaml
-rollback:
-  trigger:
-    consecutiveFailures: 3
-  watchResources:
-    deployments:
-      - name: "{{ .metadata.name }}"
-        severity: critical
-```
-
-A Deployment that never becomes `Available` within the timeout triggers rollback — not an abstract reconcile failure count. Snapshots are taken only after child resources confirm healthy; they are refreshed when the spec changes and resources are healthy. Rollback exits automatically when the CR generation changes (user fixed the spec).
-
 ### Operator as library ✓ shipped
 
 Orkestra is a Go library. Teams can import it (`go.mod` version pin) and write their own entrypoint — full control, no fork needed:

@@ -4,7 +4,7 @@ The runtime process is the reconciliation engine. It watches custom resources an
 
 | Sub-package    | Responsibility |
 |----------------|----------------|
-| [reconciler/](reconciler/README.md) | Core reconcile loop — normalize, resolve, apply, rollback, snapshot |
+| [reconciler/](reconciler/README.md) | Core reconcile loop — normalize, resolve, apply |
 | [kordinator/](kordinator/README.md) | CRD workqueue, dependency graph, CR fan-out, health tracking |
 | [konductor/](konductor/README.md)  | Leader election and conductor lifecycle |
 | [informer/](informer/README.md)    | CR watcher, namespace enforcement, shared index informer factory |

@@ -18,7 +18,7 @@ Orkestra reads from its local informer cache, not the API server. The cache is a
 
 ## 4. Deletion check
 
-If the CR has a deletion timestamp, reconciliation switches to the delete path. See [Delete](../delete/).
+If the CR has a deletion timestamp, reconciliation switches to the delete path. See [Delete](02-delete.md).
 
 ## 5. Finalizer
 
@@ -48,13 +48,13 @@ Declared field defaults are applied — fields that should have a value if none 
 
 Declarative validation rules run. A failure stops the pipeline, records the error on the CR status, and does not requeue unless the CR changes.
 
-## 10. Hooks (if declared)
-
-If a Go hook is registered for this operatorBox, it runs here — before template reconciliation. The hook has full access to the (normalized, mutated, validated) CR and the Kubernetes client.
-
-## 11. Template reconciliation
+## 10. Template reconciliation
 
 `onCreate` templates run on the first reconcile for a CR. `onReconcile` templates run on every reconcile. Conditions (`when:`, `or:`) are evaluated, `forEach:` expansions are applied, and the resolved resources are created or updated.
+
+## 11. Hooks (if declared)
+
+If a Go hook is registered for this operatorBox, it runs after template reconciliation by default. The hook has full access to the (normalized, mutated, validated) CR and the Kubernetes client. Set `runHooksFirst: true` in the Katalog to reverse the order — the hook runs first, then templates.
 
 ## 12. Drift correction
 

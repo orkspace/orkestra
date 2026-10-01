@@ -267,25 +267,6 @@ func TestHasTemplates_OnReconcile(t *testing.T) {
 	assert.True(t, c.HasTemplates())
 }
 
-// ── HasRollbackRules ──────────────────────────────────────────────────────────
-
-func TestHasRollbackRules_None(t *testing.T) {
-	c := emptyCRD()
-	assert.False(t, c.HasRollbackRules())
-}
-
-func TestHasRollbackRules_ViaShorthand(t *testing.T) {
-	c := emptyCRD()
-	c.OperatorBox.Runtime = &orktypes.RuntimeConfig{RollBackOnError: true}
-	assert.True(t, c.HasRollbackRules())
-}
-
-func TestHasRollbackRules_ViaBlock(t *testing.T) {
-	c := emptyCRD()
-	c.OperatorBox.Runtime = &orktypes.RuntimeConfig{Rollback: &orktypes.RollbackBlock{}}
-	assert.True(t, c.HasRollbackRules())
-}
-
 // ── IsNotificationEnabled ────────────────────────────────────────────────────
 
 func TestIsNotificationEnabled_NilDefaultsTrue(t *testing.T) {

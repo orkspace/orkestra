@@ -13,11 +13,7 @@ metadata:
 spec:
   crds:
     pipeline:
-      apiTypes:
-        group: demo.orkestra.io
-        version: v1alpha1
-        kind: Pipeline
-        plural: pipelines
+      crdFile: ./crd.yaml
       # ── Validation ───────────────────────────────────────────────────
       admission:
         validation:
@@ -36,50 +32,36 @@ spec:
           resync: 10s   # short resync to check Job completion quickly
           queue:
             maxDepth: 1000
-            failureThreshold: 0.5
           onReconcile:
             jobs:
               # ── Step 1: build ───────────────────────────────────────────
               # Created when phase is empty (first reconcile)
               - name: "{{ .metadata.name }}-build"
                 image: "{{ .spec.image }}"
-                command:
-                  - "sh"
-                  - "-c"
-                  - "{{ index (index .spec.steps 0) \"command\" }}"
+                command: ["sh", "-c", "{{ index (index .spec.steps 0) \"command\" }}"]
                 when:
                   - field: status.phase
                     operator: notExists
-                reconcile: false   # create once — Job is terminal 
-                # false is the default internally, so ignored in the rest of the jobs
+                reconcile: false   # create once — Job is terminal
 
               # ── Step 2: test ────────────────────────────────────────────
-              # Created when build Job succeeded
+              # Gate on status.phase only — children.* is not available during
+              # resource evaluation; phase already encodes that build succeeded.
               - name: "{{ .metadata.name }}-test"
                 image: "{{ .spec.image }}"
-                command:
-                  - "sh"
-                  - "-c"
-                  - "{{ index (index .spec.steps 1) \"command\" }}"
+                command: ["sh", "-c", "{{ index (index .spec.steps 1) \"command\" }}"]
                 when:
                   - field: status.phase
-                    equals: "Running/build"
-                  - field: children.job.status.succeeded
-                    greaterThan: "0"
+                    equals: "Running/test"
 
               # ── Step 3: notify ──────────────────────────────────────────
               # Created when test Job succeeded
               - name: "{{ .metadata.name }}-notify"
                 image: "{{ .spec.image }}"
-                command:
-                  - "sh"
-                  - "-c"
-                  - "{{ index (index .spec.steps 2) \"command\" }}"
+                command: ["sh", "-c", "{{ index (index .spec.steps 2) \"command\" }}"]
                 when:
                   - field: status.phase
-                    equals: "Running/test"
-                  - field: children.job.status.succeeded
-                    greaterThan: "0"
+                    equals: "Running/notify"
         emit:
           status:
             fields:
@@ -168,28 +150,6 @@ spec:
               # No when: → written on every successful reconcile
               - path: image
                 value: "{{ .spec.image }}"
-        # ── Phase-gated Jobs ─────────────────────────────────────────────
-        # Each step is a separate Job.
-        # The when: conditions gate creation based on current phase
-        # and child Job completion status.
-        #
-        # The state machine:
-        #
-        #   (Empty() ──────→ Pending
-        #   Pending ──────→ create build Job → Running/build
-        #   Running/build → build succeeded → create test Job → Running/test
-        #   Running/test  → test succeeded  → create notify Job → Running/notify
-        #   Running/notify→ notify succeeded → Succeeded
-        #   any phase     → any Job failed  → Failed
-        #
-        # Key insight: each reconcile does one thing and writes one state.
-        # The queue fires again on the next resync (10s) and advances.
-        # This is level-triggered reconciliation — idempotent by design.
-        # ── Conditional status fields — the state machine ────────────────
-        # Fields are evaluated in order.
-        # When multiple entries write the same path, the last one
-        # whose conditions pass wins.
-        #
         # Terminal states (Succeeded, Failed) are declared last
         # so they override Running states when conditions are met.
 

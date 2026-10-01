@@ -18,7 +18,7 @@ import (
 //     lowercased kind when serve.target is not set explicitly on one of them.
 //
 //  3. Reconciler-level fields on per-target operatorBox — workers, resync, queue,
-//     autoscale, rollback are fixed at CRD level and ignored at runtime if declared
+//     autoscale are fixed at CRD level and ignored at runtime if declared
 //     on a target entry. Reject early to make the mistake visible.
 //
 //     if err := e.validateServeTarget(); err != nil { return err }
@@ -90,12 +90,6 @@ func validateTargetOperatorBox(crdName, targetName string, box *orktypes.Operato
 	}
 	if box.EffectiveAutoscale() != nil {
 		bad = append(bad, "autoscale")
-	}
-	if box.EffectiveRollback() != nil {
-		bad = append(bad, "rollback")
-	}
-	if box.EffectiveRollBackOnError() {
-		bad = append(bad, "rollBackOnError")
 	}
 	if len(bad) == 0 {
 		return nil

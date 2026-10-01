@@ -537,19 +537,6 @@ func (c *OperatorBoxConfig) EffectiveAutoscale() *AutoscaleSpec {
 	return c.Runtime.Autoscale
 }
 
-// EffectiveRollback returns the rollback config from runtime.rollback. Safe on nil receiver.
-func (c *OperatorBoxConfig) EffectiveRollback() *RollbackBlock {
-	if c == nil || c.Runtime == nil {
-		return nil
-	}
-	return c.Runtime.Rollback
-}
-
-// EffectiveRollBackOnError reports whether runtime.rollBackOnError is set. Safe on nil receiver.
-func (c *OperatorBoxConfig) EffectiveRollBackOnError() bool {
-	return c != nil && c.Runtime != nil && c.Runtime.RollBackOnError
-}
-
 // HasCleanup reports whether operatorBox.runtime.cleanup has at least one condition.
 func (c *OperatorBoxConfig) HasCleanup() bool {
 	return c != nil && c.Runtime != nil && c.Runtime.HasCleanup()

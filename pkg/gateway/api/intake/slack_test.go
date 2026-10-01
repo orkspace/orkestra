@@ -75,7 +75,7 @@ func TestSlackHandler_InvalidSignature(t *testing.T) {
 
 func TestSlackHandler_UnknownCommand(t *testing.T) {
 	h := NewSlackHandler(testSlackSource("s3cr3t", "/deploy"), nil, nil, nil, orktypes.NoteRegistry{}, newFakeSlackClient())
-	form := url.Values{"command": {"/rollback"}, "text": {"app"}}
+	form := url.Values{"command": {"/unknown-cmd"}, "text": {"app"}}
 	req := slackRequest(t, "s3cr3t", form)
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, req)

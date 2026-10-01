@@ -34,7 +34,7 @@ Nothing else is required. Nothing else is assumed.
 
 **The Runtime** knows the Katalog and Kubernetes. It knows nothing about the registry, the Komposer, the Motifs, or any tooling that produced the Katalog. It reads the resolved declaration and reconciles against the cluster API. That is its entire job.
 
-This is not incidental. It follows directly from [Do One Thing Well](02-do-one-thing-well.md) — a layer that does only one thing needs to know only what that one thing requires. Blindness is the consequence of focus.
+This is not incidental. It follows directly from [Do One Thing Well](04-do-one-thing-well.md) — a layer that does only one thing needs to know only what that one thing requires. Blindness is the consequence of focus.
 
 ---
 

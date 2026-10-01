@@ -19,17 +19,11 @@ resources:
       command: ["sh", "-c", "{{ index (index .spec.steps 1) \"command\" }}"]
       when:
         - field: status.phase
-          equals: "Running/build"
-        - field: children.job.status.succeeded
-          greaterThan: "0"
-      reconcile: false
+          equals: "Running/test"
 
     - name: "{{ .metadata.name }}-notify"
       image: "{{ .spec.image }}"
       command: ["sh", "-c", "{{ index (index .spec.steps 2) \"command\" }}"]
       when:
         - field: status.phase
-          equals: "Running/test"
-        - field: children.job.status.succeeded
-          greaterThan: "0"
-      reconcile: false
+          equals: "Running/notify"

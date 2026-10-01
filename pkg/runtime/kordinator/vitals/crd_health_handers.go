@@ -148,7 +148,6 @@ type CRDInfoResponse struct {
 	RBAC              RBACInfo                   `json:"rbac,omitempty"`
 	AutoscalerEnabled bool                       `json:"autoscalerEnabled,omitempty"`
 	AutoscalerWorkers *ork_autoscaler.WorkerInfo `json:"autoscalerWorkers,omitempty"`
-	Rollback          *RollbackStats             `json:"rollback,omitempty"`
 	// Metrics is the live AutoMetrics map for this operatorbox.
 	// Populated only when autoscale: is declared. Used by cross-binary autoscale
 	// conditions via the source.endpoint HTTP fallback — the remote autoscaler
@@ -293,11 +292,6 @@ func BuildCRDInfoHandler(
 			Metrics:           autoMetrics,
 			Gated:             h.IsGated(),
 			GatedReason:       h.GatedReason(),
-		}
-
-		if crd.HasRollbackRules() {
-			stats := h.RollbackStats()
-			response.Rollback = &stats
 		}
 
 		utils.WriteJSON(w, http.StatusOK, response)

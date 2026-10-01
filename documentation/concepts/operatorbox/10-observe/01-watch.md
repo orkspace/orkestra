@@ -4,7 +4,7 @@
 
 No Go code is required. The feature is purely declarative.
 
-For an introduction to observation and how it relates to Events and enrichment, see [Observe](00-observe.md).
+For an introduction to observation and how it relates to Events and enrichment, see [Observe](index.md#observe).
 
 ---
 

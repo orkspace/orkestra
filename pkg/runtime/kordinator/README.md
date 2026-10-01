@@ -14,7 +14,6 @@ Everything upstream of kordinator — informers, queues, the reconciler factory 
 - **System maintenance** — applies and enforces system labels, annotations, and finalizers via `maintain.Apply()` on every reconcile pass, regardless of reconciler type
 - **Post-reconcile jobs** — after `Reconcile()` returns, runs `post.Apply()`: status field patching, declarative event emission (`emit.events:`), and runtime annotation updates
 - **Autoscaler wiring** — when `autoscale:` is declared, `startCRDWorkers` builds a `perCRDRuntime` (semaphore, `AutoMetrics`, `Autoscaler`) owned by the `Kontroller`, wires `kordinatorTarget` as the `AutoscaleTarget`, and launches the autoscaler and resync goroutines tied to the CRD's context; `AutoMetrics` is registered in `GlobalCrossMetricsRegistry` for cross-CRD condition evaluation
-- **Rollback wiring** — injects `onTrigger` / `onClear` callbacks into the reconciler so that rollback events update `CRDHealth` counters and are reflected in the `/katalog/{crd}` response and the Control Center
 - **Runtime introspection** — serves the `/katalog`, `/katalog/{crd}`, and `/katalog/{crd}/health` endpoints that power the Control Center
 
 ## Where kordinator fits
@@ -72,10 +71,5 @@ Complete documentation is in [docs/](docs/README.md).
 | `perCRDRuntime` | `crd_runtime.go` | Per-CRD autoscale state: semaphore, `AutoMetrics`, `Autoscaler`, resync interval, `spawnWorker` |
 | `kordinatorTarget` | `crd_runtime.go` | `AutoscaleTarget` implementation backed by `perCRDRuntime` |
 | `ResourceKatalog` | `kordinator_registry.go` | Per-GVK registry: informer, reconciler factory, CRD config |
-<<<<<<< HEAD
 | `CRDHealth` | `vitals/crd_health.go` | Per-CRD health counters, worker states, dependency status |
 | `RuntimeHealth` | `vitals/runtime_health.go` | Aggregate operator health (ready / degraded) |
-=======
-| `CRDHealth` | `crd_health.go` | Per-CRD health counters, worker states, dependency status |
-| `RuntimeHealth` | `crd_worker_health.go` | Aggregate operator health (ready / degraded) |
->>>>>>> origin/main

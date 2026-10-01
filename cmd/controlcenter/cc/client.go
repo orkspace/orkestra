@@ -185,7 +185,6 @@ func (c *Client) FetchCRDDetail(name string, endpoints EndpointInfo, summary *CR
 		RBACCount:                info.RBAC.TotalRules,
 		AutoscalerEnabled:        info.AutoscalerEnabled,
 		AutoscalerWorkers:        info.AutoscalerWorkers,
-		Rollback:                 info.Rollback,
 		HealthEndpointDisabled:   !endpoints.HealthEnabled,
 		InfoEndpointDisabled:     !endpoints.InfoEnabled,
 		Gated:                    health.Gated,

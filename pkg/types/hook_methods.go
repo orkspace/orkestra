@@ -26,9 +26,7 @@ func (h HookTemplates) Empty() bool {
 		len(h.ResourceQuotas) == 0 &&
 		len(h.LimitRanges) == 0 &&
 		len(h.External) == 0 &&
-		len(h.CustomResource) == 0 &&
-		h.Git == nil &&
-		h.Docker == nil
+		len(h.CustomResource) == 0
 }
 
 // ExternalCalls returns the external call specs declared in this hook phase.

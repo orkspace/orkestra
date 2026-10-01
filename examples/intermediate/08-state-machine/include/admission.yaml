@@ -1,0 +1,9 @@
+rules:
+  - field: spec.image
+    operator: exists
+    message: "spec.image is required"
+    action: deny
+  - field: spec.steps
+    operator: exists
+    message: "spec.steps is required"
+    action: deny

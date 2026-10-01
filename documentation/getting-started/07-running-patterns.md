@@ -149,6 +149,6 @@ ork e2e
 - [`ork inspect`](../reference/cli/11-inspect.md) — full flag reference
 - [`ork pull`](../reference/cli/10-pull.md) — full flag reference
 - [`ork run`](../reference/cli/07-run.md) — full flag reference
-- [Publishing a Pattern](../guides/registry/01-publishing.md)
+- [Publishing a Pattern](../guides/registry/01-patterns.md)
 - [Consuming Patterns](../guides/registry/02-consuming.md)
 - [Artifact signing guide](../security/10-artifact-signing.md)

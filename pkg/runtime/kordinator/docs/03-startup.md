@@ -27,7 +27,7 @@ The loop walks the topological order once. For each CRD it calls `dependenciesRe
 
 2. **`wireCRDHealthCallbacks`** — sets `workerInfoFn` and `autoMetricsFn` on `CRDHealth` so the `/katalog/{crd}` handler can read live autoscaler state on every request.
 
-3. **`ReconcilerFactory()`** — builds the reconciler. The only interface check is `rollbackNotifierSetter` — injected when `rollback:` is declared.
+3. **`ReconcilerFactory()`** — builds the reconciler.
 
 4. **Autoscaler + resync goroutines** — started directly (`rt.autoscaler.Run`, `k.startResyncLoop`) when `autoscale:` is declared. Tied to the CRD's context.
 

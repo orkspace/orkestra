@@ -16,7 +16,7 @@ Core concepts — what Orkestra is, how it works, and how it compares.
 - What is the OrkestraRegistry?
 - What is the super-operator model?
 - Does Orkestra support multi-version CRDs?
-- What is the OPRE execution model?
+- What is the OPPRE execution model?
 
 ---
 

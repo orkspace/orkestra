@@ -33,8 +33,8 @@ Traditional operators don't handle this. You write code to check if dependencies
 
 ## Where to go next
 
-- [Declaring Dependencies](declaring-dependencies/) — three formats and condition values
-- [Lifecycle](lifecycle/) — graph building, missing CRDs, shutdown, and CLI visualization
+- [Declaring Dependencies](01-declaring-dependencies.md) — three formats and condition values
+- [Lifecycle](02-lifecycle.md) — graph building, missing CRDs, shutdown, and CLI visualization
 
 ---
 

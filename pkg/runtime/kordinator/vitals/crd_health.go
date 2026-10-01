@@ -90,13 +90,6 @@ type CRDHealth struct {
 	// cross-binary autoscale conditions can read them via HTTP fallback.
 	autoMetricsFn func() map[string]interface{}
 
-	// Rollback stats — updated by the reconciler on each rollback event.
-	rollbackTotal      atomic.Int64
-	rollbackActive     atomic.Bool
-	rollbackLastAt     atomic.Value // stores time.Time or zero
-	rollbackMu         sync.RWMutex
-	rollbackLastReason string // protected by rollbackMu
-
 	// Gate state — set when a reconcile item is discarded by pre-reconcile conditions.
 	// Cleared on the next successful reconcile.
 	gated       atomic.Bool
@@ -132,45 +125,6 @@ func (h *CRDHealth) GetAutoMetrics() map[string]interface{} {
 		return nil
 	}
 	return h.autoMetricsFn()
-}
-
-// RollbackStats is a snapshot of rollback activity for one CRD.
-type RollbackStats struct {
-	// TotalRollbacks is the number of times rollback was triggered since startup.
-	TotalRollbacks int64 `json:"totalRollbacks"`
-	// Active is true when rollback is currently blocking normal reconciliation.
-	Active bool `json:"active"`
-	// LastRollbackAt is the RFC3339 timestamp of the most recent rollback trigger.
-	// Empty when no rollback has occurred.
-	LastRollbackAt string `json:"lastRollbackAt,omitempty"`
-}
-
-// RecordRollbackTriggered increments the rollback counter and marks rollback active.
-// Called by the reconciler when it triggers a rollback.
-func (h *CRDHealth) RecordRollbackTriggered() {
-	h.rollbackTotal.Add(1)
-	h.rollbackActive.Store(true)
-	h.rollbackLastAt.Store(time.Now())
-}
-
-// RecordRollbackCleared marks rollback inactive.
-// Called by the reconciler when it clears the rollback annotation.
-func (h *CRDHealth) RecordRollbackCleared() {
-	h.rollbackActive.Store(false)
-}
-
-// RollbackStats returns a snapshot of rollback activity for this CRD.
-func (h *CRDHealth) RollbackStats() RollbackStats {
-	s := RollbackStats{
-		TotalRollbacks: h.rollbackTotal.Load(),
-		Active:         h.rollbackActive.Load(),
-	}
-	if v := h.rollbackLastAt.Load(); v != nil {
-		if t, ok := v.(time.Time); ok && !t.IsZero() {
-			s.LastRollbackAt = t.Format(time.RFC3339)
-		}
-	}
-	return s
 }
 
 type DependencyStatus struct {
@@ -563,8 +517,6 @@ func (h *CRDHealth) StateAndStatus() (string, int) {
 //		{{ .health.lastReconcile }}      — string: RFC3339 timestamp of last reconcile
 //		{{ .health.uptime }}             — string: how long the reconciler has been running
 //		{{ .health.lastError }}          — string: most recent error message (empty if none)
-//		{{ .health.rollbackActive }}     — bool: rollback is currently blocking reconcile
-//		{{ .health.rollbackTotal }}      — int64: total rollback triggers since startup
 //		{{ .health.hasUnhealthyDeps }}   — bool: any dependency is unsatisfied
 func (h *CRDHealth) HealthAsMap() map[string]interface{} {
 	if h == nil {
@@ -587,8 +539,6 @@ func (h *CRDHealth) HealthAsMap() map[string]interface{} {
 		"lastReconcile":    h.LastReconcile(),
 		"uptime":           h.Uptime(),
 		"lastError":        h.LastError(),
-		"rollbackActive":   h.rollbackActive.Load(),
-		"rollbackTotal":    h.rollbackTotal.Load(),
 		"hasUnhealthyDeps": h.hasUnhealthyDeps.Load(),
 	}
 }

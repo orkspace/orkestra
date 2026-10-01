@@ -164,7 +164,7 @@ ork clusters check --clusters staging
 ork clusters bootstrap --context kind-prod --name prod
 ```
 
-See [ork clusters bootstrap](../../cli/clusters-bootstrap.md) for the full onboarding workflow.
+See [ork clusters bootstrap](../../cli/clusters.md) for the full onboarding workflow.
 
 ## Where to go next
 

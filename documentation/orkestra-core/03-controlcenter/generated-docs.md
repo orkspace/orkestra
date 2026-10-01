@@ -48,7 +48,7 @@ Explains whether the CRD runs in `dynamic` or `typed` mode and what that means f
 
 ## Configuration
 
-Worker count, resync interval, and queue depth as configured and reported by the runtime. If the autoscaler is enabled, the current effective worker count and in-flight reconciles are shown. If rollback is enabled, the total rollback count and active status are shown.
+Worker count, resync interval, and queue depth as configured and reported by the runtime. If the autoscaler is enabled, the current effective worker count and in-flight reconciles are shown.
 
 ---
 

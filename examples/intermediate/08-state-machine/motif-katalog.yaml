@@ -9,13 +9,7 @@ metadata:
 spec:
   crds:
     pipeline:
-      apiTypes:
-        group: demo.orkestra.io
-        version: v1alpha1
-        kind: Pipeline
-        plural: pipelines
-      # operatorBox:
-      #   default: true
+      crdFile: ./crd.yaml
       # No inline code – everything comes from motifs
       operatorBox:
         reconcile:
@@ -23,7 +17,6 @@ spec:
           resync: 10s
           queue:
             maxDepth: 1000
-            failureThreshold: 0.5
           imports:
             - motif: ./motif/admission.yaml
             - motif: ./motif/resources.yaml

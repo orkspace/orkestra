@@ -124,6 +124,6 @@ spec:
 ## Where to go next
 
 - [Artifact Signing](../../../security/10-artifact-signing.md) — how keyless signing works end to end
-- [`ork pattern sign`](../../cli/17-pattern.md) — sign a pushed artifact
-- [`ork pattern verify`](../../cli/17-pattern.md) — verify a signature
+- [`ork pattern sign`](../../cli/12-patterns.md) — sign a pushed artifact
+- [`ork pattern verify`](../../cli/12-patterns.md) — verify a signature
 - [`ork push --sign`](../../cli/09-push.md) — sign at push time

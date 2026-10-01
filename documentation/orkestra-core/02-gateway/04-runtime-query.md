@@ -73,4 +73,3 @@ validation:
 ```
 
 → [Admission](01-admission.md)  
-→ [query package](../../reference/cli/index.md)

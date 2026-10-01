@@ -19,7 +19,6 @@ Step   Method                  Adds              Available in
   8    .WithRequest(map)       .request.*        Target-mode admission and preReconcile
   9    .WithSentinels(…)       sentinel funcs    enqueueGate, reconcileGate, behaviour
  10    .WithUserNotes(reg)     note funcs        Everywhere
- 11    .WithPrevious(map)      .previous.*       Rollback path only
 ```
 
 ## Sources
@@ -33,7 +32,6 @@ Step   Method                  Adds              Available in
 | `.health.*` | Runtime health annotations written onto the CR after each reconcile |
 | `.metrics.*` | Runtime metrics annotations written onto the CR after each reconcile |
 | `.request.*` | Raw intent payload from the serve API in target mode |
-| `.previous.*` | Previous status snapshot for rollback condition evaluation |
 
 ## Immutability
 

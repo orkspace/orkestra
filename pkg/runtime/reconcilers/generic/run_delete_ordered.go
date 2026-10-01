@@ -61,9 +61,21 @@ func (r *Reconciler[PTR]) runOrderedDelete(
 		stages = []orktypes.HookTemplates{*t}
 	}
 
+	// deadline is shared across all stages — timeout applies to the entire sequence.
+	deadline := time.Now().Add(timeout)
+
 	for i, stage := range stages {
-		stageLog := log.With().Int("stage", i+1).Int("total_stages", len(stages)).Logger()
+		sl := log.With().Int("stage", i+1).Int("total_stages", len(stages))
+		if stage.Name != "" {
+			sl = sl.Str("name", stage.Name)
+		}
+		stageLog := sl.Logger()
 		stageLog.Info().Msg("ordered delete: processing stage")
+
+		if !orktypes.EvaluateConditions(resolver.Data(), stage.When, stage.Or, resolver.TemplateEvaluator()) {
+			stageLog.Debug().Msg("ordered delete: stage conditions not met — skipping")
+			continue
+		}
 
 		s := stage // capture for closure
 		pending, err := r.submitGroupDeletion(ctx, kube, resolver, obj, &s, guard)
@@ -77,7 +89,7 @@ func (r *Reconciler[PTR]) runOrderedDelete(
 		}
 
 		stageLog.Info().Int("waiting_for", len(pending)).Msg("ordered delete: waiting for resources to be gone")
-		if err := waitForDeletion(ctx, kube, pending, timeout); err != nil {
+		if err := waitForDeletionUntil(ctx, kube, pending, deadline); err != nil {
 			return fmt.Errorf("ordered delete stage %d: wait: %w", i+1, err)
 		}
 		stageLog.Info().Msg("ordered delete: stage complete")
@@ -163,10 +175,19 @@ func (r *Reconciler[PTR]) expandAllForDelete(
 
 	out = append(out, resolveNames(resolver, deploymentGVR, true, t.Deployments, func(s orktypes.DeploymentTemplateSource) (string, string) { return s.Name, s.Namespace })...)
 	out = append(out, resolveNames(resolver, statefulSetGVR, true, t.StatefulSets, func(s orktypes.StatefulSetTemplateSource) (string, string) { return s.Name, s.Namespace })...)
+	out = append(out, resolveNames(resolver, replicaSetGVR, true, t.ReplicaSets, func(s orktypes.ReplicaSetTemplateSource) (string, string) { return s.Name, s.Namespace })...)
+	out = append(out, resolveNames(resolver, podGVR, true, t.Pods, func(s orktypes.PodTemplateSource) (string, string) { return s.Name, s.Namespace })...)
 	out = append(out, resolveNames(resolver, serviceGVR, true, t.Services, func(s orktypes.ServiceTemplateSource) (string, string) { return s.Name, s.Namespace })...)
 	out = append(out, resolveNames(resolver, secretGVR, true, t.Secrets, func(s orktypes.SecretTemplateSource) (string, string) { return s.Name, s.Namespace })...)
 	out = append(out, resolveNames(resolver, configMapGVR, true, t.ConfigMaps, func(s orktypes.ConfigMapTemplateSource) (string, string) { return s.Name, s.Namespace })...)
 	out = append(out, resolveNames(resolver, serviceAccountGVR, true, t.ServiceAccounts, func(s orktypes.ServiceAccountTemplateSource) (string, string) { return s.Name, s.Namespace })...)
+	out = append(out, resolveNames(resolver, roleGVR, true, t.Roles, func(s orktypes.RoleTemplateSource) (string, string) { return s.Name, s.Namespace })...)
+	out = append(out, resolveNames(resolver, roleBindingGVR, true, t.RoleBindings, func(s orktypes.RoleBindingTemplateSource) (string, string) { return s.Name, s.Namespace })...)
+	out = append(out, resolveNames(resolver, clusterRoleGVR, false, t.ClusterRoles, func(s orktypes.ClusterRoleTemplateSource) (string, string) { return s.Name, "" })...)
+	out = append(out, resolveNames(resolver, clusterRoleBindingGVR, false, t.ClusterRoleBindings, func(s orktypes.ClusterRoleBindingTemplateSource) (string, string) { return s.Name, "" })...)
+	out = append(out, resolveNames(resolver, networkPolicyGVR, true, t.NetworkPolicies, func(s orktypes.NetworkPolicyTemplateSource) (string, string) { return s.Name, s.Namespace })...)
+	out = append(out, resolveNames(resolver, limitRangeGVR, true, t.LimitRanges, func(s orktypes.LimitRangeTemplateSource) (string, string) { return s.Name, s.Namespace })...)
+	out = append(out, resolveNames(resolver, resourceQuotaGVR, true, t.ResourceQuotas, func(s orktypes.ResourceQuotaTemplateSource) (string, string) { return s.Name, s.Namespace })...)
 	out = append(out, resolveNames(resolver, jobGVR, true, t.Jobs, func(s orktypes.JobTemplateSource) (string, string) { return s.Name, s.Namespace })...)
 	out = append(out, resolveNames(resolver, cronJobGVR, true, t.CronJobs, func(s orktypes.CronJobTemplateSource) (string, string) { return s.Name, s.Namespace })...)
 	out = append(out, resolveNames(resolver, ingressGVR, true, t.Ingresses, func(s orktypes.IngressTemplateSource) (string, string) { return s.Name, s.Namespace })...)
@@ -207,10 +228,9 @@ func resolveNames[S any](
 	return []expandedResourceDef{{gvr: gvr, namespaced: namespaced, names: items}}
 }
 
-// waitForDeletion polls the API server until all resources in pending are gone
-// or the timeout elapses. Uses Get (not informer) so the answer is authoritative.
-func waitForDeletion(ctx context.Context, kube kubeclient.Interface, pending []orderedDeleteEntry, timeout time.Duration) error {
-	deadline := time.Now().Add(timeout)
+// waitForDeletionUntil polls the API server until all resources in pending are gone
+// or the deadline passes. Uses Get (not informer) so the answer is authoritative.
+func waitForDeletionUntil(ctx context.Context, kube kubeclient.Interface, pending []orderedDeleteEntry, deadline time.Time) error {
 	dc := kube.DynamicClient()
 
 	for time.Now().Before(deadline) {
@@ -244,5 +264,5 @@ func waitForDeletion(ctx context.Context, kube kubeclient.Interface, pending []o
 	for _, e := range pending {
 		names = append(names, e.gvr.Resource+"/"+e.name)
 	}
-	return fmt.Errorf("timed out after %s waiting for deletion of: %v", timeout, names)
+	return fmt.Errorf("timed out waiting for deletion of: %v", names)
 }

@@ -38,7 +38,7 @@ This is one of the highest-value additions — operators running in production n
 ### CR detail — richer status
 
 The CR detail page shows spec and status but does not yet show:
-- Rollback state (is rollback active? how many consecutive failures?)
+- Error state (how many consecutive failures?)
 - Condition history (not just current conditions)
 - Notification state (last sent, throttle window remaining)
 

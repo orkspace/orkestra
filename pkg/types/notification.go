@@ -1,43 +1,5 @@
 // pkg/types/notification_refined.go
 //
-// This file replaces the KatalogNotification type in pkg/types.
-// It adds:
-//   - enabled: true/false at the notification block level
-//   - per-team Slack webhookUrl (overrides the global default)
-//   - a global default Slack webhook
-//   - message template field per team for customisation
-//   - rollback integration (notify on rollback via existing team references)
-//
-// YAML shape:
-//
-//	notification:
-//	  enabled: true
-//	  defaults:
-//	    interval: 15m
-//	    slackWebhookUrl: "https://hooks.slack.com/services/..."  # global default
-//	  teams:
-//	    platform:
-//	      email: ["platform@company.io"]
-//	      slack: ["#platform-alerts"]
-//	      slackWebhookUrl: "https://hooks.slack.com/services/..."  # override
-//	      interval: 5m
-//	      message: "{{ .metadata.name }} in {{ .metadata.namespace }}: {{ .status.conditions.Ready.message }}"
-//	    oncall:
-//	      slack: ["#oncall"]
-//	      interval: 1m
-//
-//	# On conditions:
-//	when:
-//	  - field: status.phase
-//	    equals: Degraded
-//	    notify: [platform, oncall]
-//
-//	# On rollback:
-//	rollback:
-//	  trigger:
-//	    consecutiveFailures: 3
-//	  notify: [oncall]     # fires when rollback activates
-//
 // SMTP config is read from pkg/konfig env vars — not declared in YAML.
 // Slack webhook URL is per-team or global default — not from env (user choice).
 package types
@@ -66,7 +28,7 @@ type KatalogNotification struct {
 	// not specify its own override.
 	Defaults *NotificationDefaults `yaml:"defaults,omitempty" json:"defaults,omitempty"`
 
-	// Teams declares named notification targets. Conditions and rollback blocks
+	// Teams declares named notification targets. Condition blocks
 	// reference teams by name via notify: ["platform", "oncall"].
 	Teams map[string]*NotificationTeam `yaml:"teams,omitempty" json:"teams,omitempty"`
 }

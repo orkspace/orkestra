@@ -15,7 +15,7 @@ postgres/
 `motif.yaml` is the only required file.
 
 ## Writing a Motif
-See full description in [Writing your first Motif](../getting-started/03-writing-your-first-motif.md).
+See full description in [Writing your first Motif](../getting-started/02-writing-your-first-motif.md).
 
 
 ## Publishing

@@ -1,0 +1,77 @@
+fields:
+  - path: phase
+    value: "Pending"
+    when:
+      - field: status.phase
+        operator: notExists
+
+  - path: phase
+    value: "Running/build"
+    when:
+      - field: status.phase
+        operator: in
+        value: "Pending,"
+
+  - path: currentStep
+    value: "build"
+    when:
+      - field: status.phase
+        operator: in
+        value: "Pending,Running/build,"
+
+  - path: phase
+    value: "Running/test"
+    when:
+      - field: status.phase
+        equals: "Running/build"
+      - field: children.job.status.succeeded
+        greaterThan: "0"
+
+  - path: currentStep
+    value: "test"
+    when:
+      - field: status.phase
+        equals: "Running/test"
+
+  - path: phase
+    value: "Running/notify"
+    when:
+      - field: status.phase
+        equals: "Running/test"
+      - field: children.job.status.succeeded
+        greaterThan: "0"
+
+  - path: currentStep
+    value: "notify"
+    when:
+      - field: status.phase
+        equals: "Running/notify"
+
+  - path: phase
+    value: "Succeeded"
+    when:
+      - field: status.phase
+        equals: "Running/notify"
+      - field: children.job.status.succeeded
+        greaterThan: "0"
+
+  - path: currentStep
+    value: ""
+    when:
+      - field: status.phase
+        equals: "Succeeded"
+
+  - path: phase
+    value: "Failed"
+    when:
+      - field: children.job.status.failed
+        greaterThan: "0"
+
+  - path: currentStep
+    value: ""
+    when:
+      - field: status.phase
+        equals: "Failed"
+
+  - path: image
+    value: "{{ .spec.image }}"

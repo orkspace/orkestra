@@ -1,8 +1,8 @@
 # Condition-Based Deletion
 
-In addition to hard ordered deletion, Orkestra supports a declarative sequencing model using `when:` and `or:` conditions on `onDelete:` blocks. Each deletion step becomes eligible only when its condition evaluates to true.
+`onDelete:`, `onCreate:`, and `onReconcile:` blocks support `when:` and `or:` conditions at the block level. When conditions are declared, the entire block is skipped unless they pass.
 
-This model is non-blocking: the CR's finalizer is never held, the CR never gets stuck.
+This is distinct from per-resource conditions (also `when:`/`or:` but on individual resource entries). Block-level conditions gate everything in the block at once.
 
 ---
 
@@ -10,47 +10,79 @@ This model is non-blocking: the CR's finalizer is never held, the CR never gets 
 
 ```yaml
 onDelete:
-  # Step 1 — runs unconditionally
+  when:
+    - field: .status.phase
+      equals: Ready
   jobs:
     - name: "{{ .metadata.name }}-drain"
-
-  # Step 2 — runs only after the Job is gone
   deployments:
     - name: "{{ .metadata.name }}"
-  when:
-    - "{{ not (resourceExists .children.job) }}"
+```
 
-  # Step 3 — runs when either:
-  #   - the Deployment is gone, OR
-  #   - the CR has already entered a Failed phase
-  services:
-    - name: "{{ .metadata.name }}-svc"
+The `when:` block is evaluated before any resource in `onDelete:` runs. If the condition is false, the entire block is skipped and the finalizer is removed immediately.
+
+---
+
+## Condition semantics
+
+`when:` uses AND semantics — all conditions must pass.
+
+`or:` uses OR semantics — at least one condition must pass.
+
+Both can be combined: the block runs when `when:` passes **or** any `or:` condition passes.
+
+```yaml
+onDelete:
+  when:
+    - field: .status.phase
+      equals: Ready
   or:
-    - "{{ not (resourceExists .children.deployment) }}"
-    - "{{ eq .status.phase \"Failed\" }}"
-
-  # Step 4 — runs only after the Service is gone
-  secrets:
-    - name: "{{ .metadata.name }}-credentials"
-  when:
-    - "{{ not (resourceExists .children.service) }}"
+    - field: .status.phase
+      equals: Degraded
+  jobs:
+    - name: "{{ .metadata.name }}-drain"
 ```
 
 ---
 
-## How it works
+## Ordered deletion with per-group conditions
 
-1. Orkestra evaluates deletion blocks in the order they appear
-2. A block with no conditions runs immediately
-3. A block with `when:` runs only when **all** conditions are true
-4. A block with `or:` runs when **any** condition is true
-5. If conditions never become true, the block is skipped
-6. The CR's finalizer is not held — deletion is non-blocking
+When `ordered: true`, each group in `groups:` is also a full `HookTemplates` block and can carry its own `when:`/`or:`. A group whose conditions are not met is skipped; the sequence continues with the next group.
+
+```yaml
+onDelete:
+  ordered: true
+  timeout: 10m
+  groups:
+    # Always runs - no conditions
+    - jobs:
+        - name: "{{ .metadata.name }}-drain"
+
+    # Only runs if the drain job left data behind
+    - deployments:
+        - name: "{{ .metadata.name }}"
+      when:
+        - field: .status.drainState
+          equals: partial
+
+    # Always runs — final cleanup
+    - secrets:
+        - name: "{{ .metadata.name }}-credentials"
+```
 
 ---
 
-## When to use condition-based vs hard ordered
+## Block-level vs per-resource conditions
 
-Use **hard ordered deletion** when cleanup *must* complete before the CR disappears — backups, migrations, cloud infrastructure teardown where incomplete teardown leaves orphaned resources.
+| Level | What it gates | Where declared |
+|---|---|---|
+| Block | Entire `onDelete:`/`onCreate:`/`onReconcile:` | `when:`/`or:` on the block |
+| Resource | A single resource entry | `when:`/`or:` on the resource |
 
-Use **condition-based deletion** when cleanup is optional, dynamic, or should not block deletion — soft dependencies, best-effort sequencing, or when you want to express deletion logic using the same condition grammar as `onCreate` and `onReconcile`.
+Both levels can be used together. A resource whose block condition passes but whose own condition fails is still skipped.
+
+---
+
+## When to use
+
+Use block-level conditions when the decision applies to the whole lifecycle event — "skip cleanup entirely if the CR never finished provisioning", or "skip onCreate if this is a read-only replica". Use per-resource conditions when individual resources have independent eligibility.

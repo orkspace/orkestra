@@ -55,6 +55,11 @@ func (e *executor) validateReconcilerMode() error {
 			return err
 		}
 
+		// onDelete group name uniqueness
+		if err := validateOnDeleteGroupNames(name, &crd); err != nil {
+			return err
+		}
+
 		// Save updated CRD entry
 		e.k.EnabledCRDs()[name] = crd
 	}
@@ -394,6 +399,29 @@ func (e *executor) validateManagedResources(name string, crd *orktypes.CRDEntry)
 		}
 	}
 
+	return nil
+}
+
+// -----------------------------------------------------------------------------
+// validateOnDeleteGroupNames checks that named groups within onDelete.groups are unique.
+func validateOnDeleteGroupNames(crdName string, crd *orktypes.CRDEntry) error {
+	t := crd.Box().EffectiveOnDelete()
+	if t == nil || len(t.Groups) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(t.Groups))
+	for i, g := range t.Groups {
+		if g.Name == "" {
+			continue
+		}
+		if _, exists := seen[g.Name]; exists {
+			return fmt.Errorf(
+				"%s CRD %q: onDelete.groups[%d].name %q is not unique — group names must be distinct",
+				failureMark(), crdName, i, g.Name,
+			)
+		}
+		seen[g.Name] = struct{}{}
+	}
 	return nil
 }
 

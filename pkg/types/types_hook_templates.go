@@ -34,19 +34,22 @@ type HookTemplates struct {
 	// Results available as .external.<n>.status, .body, .error
 	External []ExternalCallSpec `yaml:"external,omitempty" json:"external,omitempty"`
 
-	// Git triggers reconciles for all CRs when the target branch tip changes.
-	// Enables Git-driven pipelines where the CR provides parameters and Git provides logic.
-	// IN DEVELOPMENT — not yet active in the runtime.
-	Git *GitHookSpec `yaml:"git,omitempty" json:"git,omitempty"`
+	// When declares conditions that must all be true for this block to execute.
+	// AND semantics — all conditions must pass. Evaluated before any resource in the block runs.
+	When []Condition `yaml:"when,omitempty" json:"when,omitempty"`
 
-	// Docker builds and optionally pushes an image as part of reconciliation.
-	// IN DEVELOPMENT — not yet active in the runtime.
-	Docker *DockerHookSpec `yaml:"docker,omitempty" json:"docker,omitempty"`
+	// Or declares conditions where at least one must be true for this block to execute.
+	// Works alongside When: block runs if When passes OR any Or condition passes.
+	Or []Condition `yaml:"or,omitempty" json:"or,omitempty"`
 
 	// Ordered controls whether deletion happens sequentially with verification.
 	// true  — delete groups in order, verify each is gone before proceeding
 	// false — delete all resources via owner references (default, parallel)
 	Ordered bool `yaml:"ordered,omitempty" json:"ordered,omitempty"`
+
+	// Name is an optional identifier for this block, used in logs and events.
+	// When set on groups inside ordered deletion, names must be unique across the group list.
+	Name string `yaml:"name,omitempty" json:"name,omitempty"`
 
 	// Groups declares sequential deletion stages for ordered deletes.
 	// Each element is a full HookTemplates block whose resources are deleted

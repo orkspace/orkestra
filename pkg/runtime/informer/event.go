@@ -4,6 +4,7 @@ package informer
 import (
 	"context"
 
+	"github.com/orkspace/orkestra/domain"
 	"github.com/orkspace/orkestra/pkg/logger"
 )
 
@@ -30,7 +31,7 @@ func (f *Factory) handleEvent(ctx context.Context, obj interface{}) {
 	// Items that fail this check are dropped — they do no work and create
 	// no queue pressure. The reconciler check (Tier 3) remains as a safety
 	// net for race conditions during startup.
-	namespace := extractNamespace(obj)
+	namespace := domain.ExtractNamespace(obj)
 	if !f.namespaceAllowed(gvkStr, namespace) {
 		logger.Debug().
 			Str("gvk", gvkStr).
@@ -60,15 +61,23 @@ func (f *Factory) handleUpdate(
 	<-f.ready
 
 	// Skip enqueue when only status or metadata (annotations, labels) changed —
-	// i.e. generation is unchanged. Inspire by controller-runtime's
-	// GenerationChangedPredicate and prevents Orkestra's own status/annotation
+	// i.e. generation is unchanged. Prevents Orkestra's own status/annotation
 	// patches from re-triggering the reconciler in a tight loop.
-	// Fall through when generation is 0: the resource does not track generation
-	// and we must not suppress real events.
-	oldGen := extractGeneration(oldObj)
-	newGen := extractGeneration(newObj)
+	//
+	// Exception: resync. client-go calls UpdateFunc with the same object as both
+	// old and new (identical resourceVersion). When RV is unchanged the event is
+	// a resync — allow it through so the reconciler can observe child state that
+	// changed outside of a spec update.
+	//
+	// Falls through when generation is 0: the resource does not track generation.
+	oldGen := domain.ExtractGeneration(oldObj)
+	newGen := domain.ExtractGeneration(newObj)
 	if oldGen != 0 && oldGen == newGen {
-		return
+		if domain.ExtractResourceVersion(oldObj) != domain.ExtractResourceVersion(newObj) {
+			// RV changed but gen didn't — Orkestra status/annotation patch. Skip.
+			return
+		}
+		// Same RV — resync. Allow through.
 	}
 
 	sentinels := f.ComputeSentinels(gvkStr, oldObj, newObj)

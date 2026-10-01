@@ -15,7 +15,7 @@ The reconciliation engine. Watches Kubernetes resources, runs operatorBox logic,
 | Package | What it does |
 |---------|-------------|
 | `pkg/katalog` | Loads, merges, and validates the Katalog. The link between YAML config and every runtime decision. |
-| `pkg/runtime/reconciler` | `Generic Reconciler` — the reconcile loop, rollback gate, snapshot logic, notification dispatch. |
+| `pkg/runtime/reconciler` | `Generic Reconciler` — the reconcile loop, notification dispatch. |
 | `pkg/runtime/kordinator` | Orchestrates reconcilers per CRD; manages CRD health, degradation, and dependency ordering. |
 | `pkg/children` | Fetches and enriches child resources (`_pods`, `_replicaSets`, `_owner`, etc.) and builds the `.children` map available in status templates. |
 | `pkg/runtime/informer` | Shared index informers and factory lifecycle. |

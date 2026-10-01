@@ -266,7 +266,7 @@ cd 10-constructor
 # Follow the steps in README
 ```
 
-→ [Typed Operators — Constructor](../concepts/typed-operators/02-constructor.md) · [Migration Guide — Constructor](../guides/migration/05-constructor.md) · [ork migrate](../guides/migration/07-ork-migrate.md)
+→ [Typed Operators — Constructor](../concepts/typed-operators/02-constructor.md) · [Migration Guide — Constructor](../guides/migration/05-constructor-migration.md) · [ork migrate](../guides/migration/07-ork-migrate.md)
 
 ---
 

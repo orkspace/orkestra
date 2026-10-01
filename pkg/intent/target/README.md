@@ -8,7 +8,7 @@
 
 **Intent-to-CR translation** — takes a flat intent payload (`{"target": "app", "repository": "...", "replicas": 2}`) and builds a full `Unstructured` CR from it. Routes each field to its declared destination: `serve.fields` → `spec.*`, `serve.labels` → `metadata.labels`, `serve.annotations` → `metadata.annotations`. Resolves `serve.name` and `serve.namespace` from the same payload via template expressions. Unknown fields are silently ignored — the caller's vocabulary and the CRD's structure don't have to match.
 
-**MuxReconciler** — dispatches `Reconcile(ctx, key)` to the right `domain.Reconciler` based on the CR's target annotation. Targets with a registered constructor (via `TargetReconcilerRegistry`) get their own reconciler instance. CRs with no annotation, or an unknown target, fall through to the CRD-level reconciler. Deletion cycles route to the reconciler that handled the last create (tracked in a `sync.Map`). All CRD-level infrastructure (queue injection, autoscale, resync, rollback notifiers, metrics) is forwarded to the fallback.
+**MuxReconciler** — dispatches `Reconcile(ctx, key)` to the right `domain.Reconciler` based on the CR's target annotation. Targets with a registered constructor (via `TargetReconcilerRegistry`) get their own reconciler instance. CRs with no annotation, or an unknown target, fall through to the CRD-level reconciler. Deletion cycles route to the reconciler that handled the last create (tracked in a `sync.Map`). All CRD-level infrastructure (queue injection, autoscale, resync, metrics) is forwarded to the fallback.
 
 ## How the pieces connect
 

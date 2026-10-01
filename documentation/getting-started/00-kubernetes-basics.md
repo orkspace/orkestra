@@ -128,15 +128,16 @@ The above is what writing one operator requires. The next CRD you want to manage
 
 Orkestra makes a separation: the scaffolding is infrastructure, and `Reconcile()` is business logic. Orkestra handles the infrastructure. You declare the behaviour of your CRD in a Katalog. When you need a second operator, you add a new CRD entry to the same Katalog and declare its behaviour there.
 
-For the declaration, Orkestra gives you five options:
+For the declaration, Orkestra gives you six options:
 
 | Option | What you write |
 |--------|---------------|
 | Declarative | Nothing — pure YAML, no binary |
-| Hybrid | The 10% that templates cannot express |
-| Hooks | Go functions at specific points in the reconcile cycle |
-| Constructor | Your own `Reconcile` method; Orkestra's runtime as the host |
-| Constructor + Orkestra resources | Your reconciler with Orkestra's resource helpers instead of raw client calls |
+| [Remote](../concepts/reconciler-model/09-remote-reconciler.md) | A HTTP endpoint |
+| [Hybrid](../concepts/typed-operators/01-hooks.md) | The 10% that templates cannot express |
+| [Hooks](../concepts/typed-operators/01-hooks.md) | TheGo functions at specific points in the reconcile cycle |
+| [Constructor](../concepts/typed-operators/05-migration.md) | Your own `Reconcile` method; Orkestra's runtime as the host |
+| [Constructor + Orkestra resources](../concepts/typed-operators/02-constructor.md) | Your reconciler with Orkestra's resource helpers instead of raw client calls |
 
 ```yaml
 # katalog.yaml
@@ -181,5 +182,5 @@ spec:
 
 - [Kubernetes Basics](https://kubernetes.io/docs/tutorials/kubernetes-basics/) — hands-on introduction to Kubernetes
 - [Learning to Orkestrate](./01-learning-to-orkestrate/index.md) — the map of all runnable examples
-- [Writing your first Katalog](../03-writing-your-first-katalog.md) — go from nothing to a running operator in one file
-- [Migration Guide](./07-migration.md) — if you have an existing controller-runtime operator
+- [Writing your first Katalog](./03-writing-your-first-katalog.md) — go from nothing to a running operator in one file
+- [Migration Guide](../guides/migration/index.md) — if you have an existing controller-runtime operator

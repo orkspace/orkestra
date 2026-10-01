@@ -22,15 +22,15 @@ Ordered deletion is for the cases where sequence matters:
 
 | | Hard ordered | Condition-based |
 |---|---|---|
-| Mechanism | `ordered: true` | `when:` / `or:` conditions |
-| Finalizer | Held until complete | Never held |
-| CR can get stuck | Yes (on timeout) | Never |
-| Guarantee | Sequential, enforced | Best-effort |
-| Use case | Safety-critical cleanup | Optional sequencing |
+| Mechanism | `ordered: true` + `groups:` | `when:` / `or:` on the block or group |
+| Finalizer | Held until complete | Held only if Jobs are present |
+| CR can get stuck | Yes (on timeout) | No |
+| Guarantee | Sequential, enforced | Conditional skip |
+| Use case | Safety-critical sequential cleanup | Selective execution based on CR state |
 
 ---
 
 ## Where to go next
 
-- [Hard Ordered Deletion](hard-ordered/) — `ordered: true`, groups, timeouts
-- [Condition-Based Deletion](condition-based/) — `when:` / `or:` sequencing without blocking
+- [Hard Ordered Deletion](01-hard-ordered.md) — `ordered: true`, groups, timeouts
+- [Condition-Based Deletion](02-condition-based.md) — `when:` / `or:` sequencing without blocking

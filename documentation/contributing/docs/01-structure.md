@@ -42,4 +42,4 @@ On every push to `main` that touches `website/`, `docs/`, or `documentation/`:
 3. Runs `hugo --source ./website --minify --baseURL "https://orkestra.sh/"`
 4. Deploys the built output to Cloudflare Pages
 
-→ Next: [02-writing](../writing/)
+→ Next: [02-writing](02-writing.md)

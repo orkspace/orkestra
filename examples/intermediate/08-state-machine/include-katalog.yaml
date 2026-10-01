@@ -1,0 +1,27 @@
+apiVersion: orkestra.orkspace.io/v1
+kind: Katalog
+metadata:
+  name: pipeline-operator
+  author: orkspace
+  version: 0.1.0
+  description: >
+    Declarative state machine — built with include fragments.
+spec:
+  crds:
+    pipeline:
+      crdFile: ./crd.yaml
+      # ── Validation ───────────────────────────────────────────────────
+      admission:
+        validation:
+          include: ./include/admission.yaml
+      operatorBox:
+        reconcile:
+          workers: 4
+          resync: 10s
+          queue:
+            maxDepth: 1000
+          imports:
+            - motif: ./motif/resources.yaml
+        emit:
+          status:
+            include: ./include/status.yaml

@@ -10,7 +10,7 @@ import (
 )
 
 // packPaths maps CLI pack names to their paths inside the embedded FS.
-// Most packs are top-level directories; rollback is nested under use-cases.
+// Packs map to top-level directories in the examples/ tree.
 type Pack struct {
 	Name        string
 	Description string
@@ -109,7 +109,6 @@ func (p Pack) isIntermediatePack() bool          { return p.Name == "intermediat
 func (p Pack) isAdvancedPack() bool              { return p.Name == "advanced" }
 func (p Pack) isSecurityPack() bool              { return p.Name == "security" }
 func (p Pack) isUseCasesPack() bool              { return p.Name == "use-cases" }
-func (p Pack) isRollbackPack() bool              { return p.Name == "rollback" }
 func (p Pack) isDeveloperPack() bool             { return p.Name == "developer" }
 func (p Pack) isRegistryGuidePack() bool         { return p.Name == "registry-guide" }
 func (p Pack) isFromControllerRuntimePack() bool { return p.Name == "from-controller-runtime" }
@@ -128,8 +127,6 @@ func (p Pack) firstExample() string {
 		return "admission"
 	case p.isUseCasesPack():
 		return "full-stack-app"
-	case p.isRollbackPack():
-		return "rollback"
 	case p.isDeveloperPack():
 		return "01-one-project"
 	case p.isRegistryGuidePack():

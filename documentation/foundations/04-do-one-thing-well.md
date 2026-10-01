@@ -88,7 +88,7 @@ Because the Control Center has no write permissions to CRs or cluster resources,
 
 ## Why this compounds with Blindness
 
-[Blindness by Design](01-blindness-by-design.md) is the consequence of Do One Thing Well.
+[Blindness by Design](03-blindness-by-design.md) is the consequence of Do One Thing Well.
 
 A layer that does only one thing needs to know only what that one thing requires. The Runtime needs the Katalog and Kubernetes. It does not need the registry, the Komposer, or the Motifs — so it does not know about them. The Motif needs to declare inputs and resources. It does not need to know the Katalog, the Komposer, or the Runtime — so it does not know about them.
 

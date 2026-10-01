@@ -53,7 +53,7 @@ A CRD becomes **unhealthy** when:
 consecutiveFails >= failureThreshold
 ```
 
-The threshold is configurable per CRD in the Katalog - `queue.failureThreshold`. Unhealthy CRDs are visible in the Control Center and can trigger rollback if configured.
+The threshold is configurable per CRD in the Katalog - `queue.failureThreshold`. Unhealthy CRDs are visible in the Control Center.
 
 ---
 

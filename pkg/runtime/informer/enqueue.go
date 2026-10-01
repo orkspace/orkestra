@@ -135,7 +135,7 @@ func (f *Factory) allowEnqueue(
 	}
 
 	// Namespace restriction.
-	namespace := extractNamespace(obj)
+	namespace := domain.ExtractNamespace(obj)
 	if !f.namespaceAllowed(gvkStr, namespace) {
 		logger.Debug().
 			Str("gvk", gvkStr).

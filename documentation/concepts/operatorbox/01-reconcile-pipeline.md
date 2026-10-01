@@ -29,6 +29,6 @@ Each step receives the output of the previous step.
 
 ## Error behavior
 
-A pipeline step failure records the error, increments the consecutive-failure counter in `CRDHealth`, and requeues with backoff. After the configured `consecutiveFailures` threshold is crossed, the operatorBox enters degraded state. Degraded operatorBoxes are visible in the Control Center and can trigger rollback if configured.
+A pipeline step failure records the error, increments the consecutive-failure counter in `CRDHealth`, and requeues with backoff. After the configured `consecutiveFailures` threshold is crossed, the operatorBox enters degraded state. Degraded operatorBoxes are visible in the Control Center.
 
 A panic anywhere in the pipeline is caught by `safeReconcile`, recorded as a failure, and does not affect any other operatorBox.

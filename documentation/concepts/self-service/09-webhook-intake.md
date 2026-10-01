@@ -1,5 +1,8 @@
 # Webhook Intake
 
+!!! warning "Stability"
+    Webhook intake is implemented but not yet fully tested. Treat this feature as experimental until further notice.
+
 `ork serve apply` is pull-based: someone runs a command with a token and sends one intent at a moment they choose. Webhook intake is push-based: the gateway sits listening, and an external event — a commit landing on a watched branch, a Slack slash command, an incident firing in PagerDuty — triggers the apply without anyone invoking the CLI.
 
 Every source, no matter how different its wire format, ends at the exact same place the CLI does: the target-mode apply chain. The source's only job is to turn its own payload into a flat field map and prove it's genuine. Past that point there is no "webhook" concept left at all — it's the same target resolution, token check, CR construction, provenance stamping, and admission validation every other caller goes through.

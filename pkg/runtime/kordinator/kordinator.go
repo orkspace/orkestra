@@ -261,12 +261,6 @@ func (k *DependencyKordinator) dependenciesReady(crd orktypes.CRDEntry, nameToGV
 	return true
 }
 
-// rollbackNotifierSetter is a local interface for injecting CRDHealth rollback
-// callbacks into the reconciler. Called once after reconciler construction.
-type rollbackNotifierSetter interface {
-	SetRollbackNotifiers(onTrigger, onClear func())
-}
-
 // Name returns the name of the dependency kordinator
 func (k *DependencyKordinator) Name() string {
 	return "orkestra dependency kordinator"

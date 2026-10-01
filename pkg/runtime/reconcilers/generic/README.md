@@ -13,15 +13,9 @@ Generic Reconciler.Reconcile(ctx, req)
   ├── Deletion check       → handleDeletion (hooks.OnDelete or runTemplateOnDelete)
   │
   └── reconcileImpl
-        ├── Rollback gate  [in development] active rollback blocks normal reconcile;
-        │                  runs onRollback templates until spec changes
-        ├── Dispatch       hooks.OnReconcile  — typed Go callback
-        │                  runTemplateReconcile — declarative onCreate/onReconcile
-        │                  (no-op)            — kordinator still runs post.Apply
-        ├── Rollback check [in development] on dispatch error: evaluate trigger conditions,
-        │                  mark rollback active via RollbackGenerationAnnotation
-        └── Spec snapshot  on success: write PreviousSpecAnnotation (gzip+base64),
-                           clear failure history
+        └── Dispatch       hooks.OnReconcile  — typed Go callback
+                           runTemplateReconcile — declarative onCreate/onReconcile
+                           (no-op)            — kordinator still runs post.Apply
 ```
 
 Per-resource-type runners live in [`pkg/runtime/runners`](../../runners/README.md).

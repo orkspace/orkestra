@@ -30,7 +30,6 @@ After `consecutiveFailures` threshold reconcile failures in a row (default: 5), 
 
 - The operatorBox is marked degraded in `CRDHealth`.
 - The Control Center surfaces it as unhealthy with the failure count and last error.
-- If `rollback:` is configured on the CRD entry, Orkestra runs the rollback templates to revert to the last known-good spec.
 - Other CRDs with `dependsOn: <this-crd>: healthy` stop processing new CRs until this operatorBox recovers.
 
 The operatorBox exits degraded state automatically when a reconcile succeeds (consecutive-failure counter resets to zero).

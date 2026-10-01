@@ -218,34 +218,6 @@ func TestValidateServeTarget_Autoscale(t *testing.T) {
 	}
 }
 
-func TestValidateServeTarget_Rollback(t *testing.T) {
-	box := &orktypes.OperatorBoxConfig{
-		Runtime: &orktypes.RuntimeConfig{Rollback: &orktypes.RollbackBlock{}},
-	}
-	err := katalogWithTargetCRDs(map[string]orktypes.CRDEntry{
-		"res": crdWithTargetAndBox("web", box),
-	}).validateServeTarget()
-	if err == nil {
-		t.Fatal("expected error for rollback on target box")
-	}
-	if !strings.Contains(err.Error(), "rollback") {
-		t.Errorf("error should name rollback, got: %v", err)
-	}
-}
-
-func TestValidateServeTarget_RollBackOnError(t *testing.T) {
-	box := &orktypes.OperatorBoxConfig{Runtime: &orktypes.RuntimeConfig{RollBackOnError: true}}
-	err := katalogWithTargetCRDs(map[string]orktypes.CRDEntry{
-		"res": crdWithTargetAndBox("web", box),
-	}).validateServeTarget()
-	if err == nil {
-		t.Fatal("expected error for rollBackOnError on target box")
-	}
-	if !strings.Contains(err.Error(), "rollBackOnError") {
-		t.Errorf("error should name rollBackOnError, got: %v", err)
-	}
-}
-
 func TestValidateServeTarget_MultipleViolations(t *testing.T) {
 	box := &orktypes.OperatorBoxConfig{
 		Reconcile: &orktypes.ReconcileConfig{

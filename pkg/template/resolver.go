@@ -142,22 +142,6 @@ func NewResolver(ctx context.Context, obj domain.Object) (*Resolver, error) {
 		return nil, fmt.Errorf("template.NewResolver: %w", err)
 	}
 
-	// Basic defaults -> workaround for now until full implementation
-	data["git"] = map[string]interface{}{
-		"called":  "false",
-		"commit":  "",
-		"changed": "false",
-		"path":    "",
-		"error":   "",
-	}
-
-	data["docker"] = map[string]interface{}{
-		"called":         "false",
-		"image":          "",
-		"buildSucceeded": "false",
-		"error":          "",
-	}
-
 	// Inject empty inputs map so any unexpanded {{ .inputs.* }} motif expressions
 	// that survive motif expansion return "" instead of nil-pointer-panicking.
 	if _, ok := data["inputs"]; !ok {

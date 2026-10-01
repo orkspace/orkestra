@@ -68,4 +68,4 @@ Use relative `.md` paths when linking to other docs pages. The sync rewrites the
 
 Do not use absolute `/docs/...` paths inside documentation source files — they bypass the rewriter and break in local preview.
 
-→ Next: [03-new-page](../new-page/)
+→ Next: [03-new-page](03-new-page.md)

@@ -36,7 +36,6 @@ NewResolver(ctx, obj)         → .spec.*, .status.*, .metadata.*
   .WithRequest(map)           → + .request.*      (serve target mode)
   .WithSentinels(names, vals) → + sentinel functions in FuncMap
   .WithUserNotes(reg)         → + user-defined note functions in FuncMap
-  .WithPrevious(map)          → + .previous.*     (rollback path)
 ```
 
 ---

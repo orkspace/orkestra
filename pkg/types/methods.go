@@ -783,12 +783,6 @@ func (c *CRDEntry) AutoscaleEnabled() bool {
 	return c.Box().EffectiveAutoscale() != nil
 }
 
-// HasRollbackRules reports whether this CRD has any rollback behavior configured —
-// either via an explicit rollback: block or the rollBackOnError: true shorthand.
-func (c *CRDEntry) HasRollbackRules() bool {
-	return c.Box().EffectiveRollback() != nil || c.Box().EffectiveRollBackOnError()
-}
-
 // HasCRDFile reports whether this CRDEntry declares a CRD file
 // to be auto-applied before the operator starts.
 func (c *CRDEntry) HasCRDFile() bool {

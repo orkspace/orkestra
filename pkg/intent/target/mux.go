@@ -19,9 +19,8 @@ import (
 // fallback reconciler — typically the CRD-level generic.Reconciler.
 //
 // All CRD-level infrastructure concerns (queue injection, autoscale, resync,
-// rollback notifiers, metrics) are forwarded to the fallback reconciler so
-// startCRDWorkers can inject them via the same interface checks it uses for
-// a plain generic.Reconciler.
+// metrics) are forwarded to the fallback reconciler so startCRDWorkers can
+// inject them via the same interface checks it uses for a plain generic.Reconciler.
 //
 // The target cache is the only mutable state: it stores "ns/name" → target
 // so that deletion reconcile cycles (where the object is gone and no annotation
@@ -98,8 +97,8 @@ func (m *MuxReconciler) reconcileNotFound(ctx context.Context, key string) (doma
 // ── CRD-level infrastructure forwarding ──────────────────────────────────────
 // startCRDWorkers performs type assertions on the reconciler it receives from
 // ReconcilerFactory(). MuxReconciler forwards each interface to the fallback so
-// queue injection, autoscale, resync, metrics, and rollback notifiers all work
-// as if the fallback were the direct reconciler.
+// queue injection, autoscale, resync, and metrics all work as if the fallback
+// were the direct reconciler.
 //
 // Autoscale, queue depth, and resync are CRD-level concerns — they govern the
 // worker pool, not individual targets. Per-target reconcilers do not participate
@@ -114,12 +113,6 @@ func (m *MuxReconciler) SetQueue(wq *orkqueue.Workqueue) {
 func (m *MuxReconciler) SetSpawnWorker(fn func()) {
 	if ws, ok := m.fallback.(interface{ SetSpawnWorker(func()) }); ok {
 		ws.SetSpawnWorker(fn)
-	}
-}
-
-func (m *MuxReconciler) SetRollbackNotifiers(onTrigger, onClear func()) {
-	if rns, ok := m.fallback.(interface{ SetRollbackNotifiers(func(), func()) }); ok {
-		rns.SetRollbackNotifiers(onTrigger, onClear)
 	}
 }
 

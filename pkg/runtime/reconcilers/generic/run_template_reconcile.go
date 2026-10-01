@@ -7,11 +7,13 @@
 //  3. forEach expand             → N sources from N-element list fields
 //  4. onCreate groups            → deployments, services, secrets, configmaps, ...
 //  5. onReconcile groups
+
 package generic
 
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/orkspace/orkestra/domain"
 	"github.com/orkspace/orkestra/pkg/children"
@@ -32,27 +34,9 @@ func (r *Reconciler[PTR]) runTemplateReconcile(ctx context.Context, resolver *or
 	}
 
 	// Step 1: resolver received from PreparedRequest already carries cross data.
-	// All subsequent steps (git, external, docker, resources, providers) enrich it.
 	var err error
 
-	// Step 2: Git hook
-	// Runs before external calls so URLs, tokens, and payloads can reference .git.commit,
-	// .git.changed, and .git.path. Git is a declarative precondition for pipelines.
-	if t := box.EffectiveOnReconcile(); t != nil && t.Git != nil {
-		resolver, err = runGit(ctx, r.crd.GVKString(), resolver, kube, obj, r.crd.GVR(), t.Git)
-		if err != nil {
-			return resolver, fmt.Errorf("git hook: %w", err)
-		}
-	}
-	if t := box.EffectiveOnCreate(); t != nil && t.Git != nil {
-		resolver, err = runGit(ctx, r.crd.GVKString(), resolver, kube, obj, r.crd.GVR(), t.Git)
-		if err != nil {
-			return resolver, fmt.Errorf("git hook: %w", err)
-		}
-	}
-
-	// Step 3: external HTTP calls
-	// Runs after Git so external URLs can embed commit hashes or paths.
+	// Step 2: external HTTP calls
 	if t := box.EffectiveOnReconcile(); t != nil && len(t.External) > 0 {
 		resolver, err = runExternal(ctx, r.crd.GVKString(), resolver, t.External, r.kube.Clientset())
 		if err != nil {
@@ -66,29 +50,14 @@ func (r *Reconciler[PTR]) runTemplateReconcile(ctx context.Context, resolver *or
 		}
 	}
 
-	// Step 4: Docker hook
-	// Runs after external so build/push can use tokens or metadata from external calls.
-	if t := box.EffectiveOnReconcile(); t != nil && t.Docker != nil {
-		resolver, err = runDocker(ctx, r.crd.GVKString(), resolver, t.Docker)
-		if err != nil {
-			return resolver, fmt.Errorf("docker hook: %w", err)
-		}
-	}
-	if t := box.EffectiveOnCreate(); t != nil && t.Docker != nil {
-		resolver, err = runDocker(ctx, r.crd.GVKString(), resolver, t.Docker)
-		if err != nil {
-			return resolver, fmt.Errorf("docker hook: %w", err)
-		}
-	}
-
-	// Step 5: onCreate resource groups (update=false)
+	// Step 3: onCreate resource groups (update=false)
 	if t := box.EffectiveOnCreate(); t != nil {
 		if err := r.runResourceGroup(ctx, kube, resolver, obj, t, false); err != nil {
 			return resolver, err
 		}
 	}
 
-	// Step 6: onReconcile resource groups (update=true)
+	// Step 4: onReconcile resource groups (update=true)
 	if t := box.EffectiveOnReconcile(); t != nil {
 		if err := r.runResourceGroup(ctx, kube, resolver, obj, t, true); err != nil {
 			return resolver, err
@@ -108,6 +77,10 @@ func (r *Reconciler[PTR]) runResourceGroup(
 	t *orktypes.HookTemplates,
 	update bool,
 ) error {
+	if !orktypes.EvaluateConditions(resolver.Data(), t.When, t.Or, resolver.TemplateEvaluator()) {
+		return nil
+	}
+
 	// Guard closure — captures r for access to CRD config.
 	// nil-safe: if CRD has no restrictions, guard is a no-op.
 	guard := r.namespaceGuardFunc()
@@ -229,14 +202,21 @@ func (r *Reconciler[PTR]) runTemplateOnDelete(ctx context.Context, resolver *ork
 	guard := r.namespaceGuardFunc()
 
 	if t := box.EffectiveOnDelete(); t != nil {
-		if t.Ordered {
-			if err := r.runOrderedDelete(ctx, kube, resolver, obj, t, guard); err != nil {
-				return err
-			}
-		} else {
-			if err := runners.RunJobs(ctx, kube, resolver, obj,
-				children.ExpandForEachJobs(resolver, t.Jobs), guard); err != nil {
-				return err
+		if orktypes.EvaluateConditions(resolver.Data(), t.When, t.Or, resolver.TemplateEvaluator()) {
+			if t.Ordered {
+				if err := r.runOrderedDelete(ctx, kube, resolver, obj, t, guard); err != nil {
+					return err
+				}
+			} else {
+				timeout := runners.DefaultDeleteJobTimeout
+				if t.Timeout != nil && t.Timeout.Duration > 0 {
+					timeout = t.Timeout.Duration
+				}
+				if err := runners.RunDeleteJobs(ctx, kube, resolver, obj,
+					children.ExpandForEachJobs(resolver, t.Jobs), guard,
+					time.Now().Add(timeout)); err != nil {
+					return err
+				}
 			}
 		}
 	}

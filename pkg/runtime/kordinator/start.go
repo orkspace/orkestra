@@ -32,13 +32,6 @@ func (k *DependencyKordinator) startCRDWorkers(ctx context.Context, gvk string, 
 	k.wireCRDHealthCallbacks(gvk, rt, workers, entry.CRD)
 
 	rec := entry.ReconcilerFactory()
-	if rns, ok := rec.(rollbackNotifierSetter); ok {
-		health := k.crdHealthMap[gvk]
-		rns.SetRollbackNotifiers(
-			health.RecordRollbackTriggered,
-			health.RecordRollbackCleared,
-		)
-	}
 
 	if rt.autoscaler != nil {
 		go rt.autoscaler.Run(crdCtx)

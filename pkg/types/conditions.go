@@ -23,7 +23,6 @@ package types
 // The same type is used in:
 //   - when: / or: on template sources (resource conditions)
 //   - operatorBox.autoscale.conditions.or and when: (autoscale conditions)
-//   - operatorBox.rollback.trigger (rollback conditions)
 //   - notification condition blocks
 type Condition struct {
 	// Field — dot-notation path to a field in the CR object or a runtime metric.

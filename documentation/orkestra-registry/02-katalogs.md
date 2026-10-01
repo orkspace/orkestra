@@ -19,7 +19,7 @@ postgres/
 Including a `komposer.yaml` is optional but useful: it ships alongside the Katalog in the same artifact and shows consumers exactly how to compose this pattern. Consumers who want to load it instead of `katalog.yaml` set `useKomposer: true` in their import entry — see [Komposers](./03-komposers.md).
 
 ## Writing a Katalog
-See full description in [Writing your first Katalog](../getting-started/02-writing-your-first-katalog.md).
+See full description in [Writing your first Katalog](../getting-started/03-writing-your-first-katalog.md).
 
 ## Publishing
 

@@ -26,7 +26,7 @@ The `komposer.yaml` is not a separate publish step — it travels with the Katal
 ---
 
 ## Writing a Komposer
-See full description in [Writing your first Komposer](../getting-started/03-writing-your-first-komposer.md).
+See full description in [Writing your first Komposer](../getting-started/04-writing-your-first-komposer.md).
 
 ---
 

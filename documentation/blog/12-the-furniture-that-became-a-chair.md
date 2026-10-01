@@ -69,15 +69,12 @@ Object              PreparedContext
                         ▼
                  PreparedRequest
                         │
-             ┌──────────┴──────────┐
-             ▼                     ▼
-           typed                 generic
+        ┌─────────┬─────────┐
+        ▼         ▼         ▼
+      typed    generic    remote
 ```
 
-The reconcilers never get called until the CR has passed namespace guards,
-runtime-level admission, and any pre-reconcile gate. A typed operator and a
-declarative operator receive the same fully-prepared request. Neither has to
-care about preparation.
+No reconciler gets called until the CR has passed namespace guards, runtime-level admission, and any pre-reconcile gate. A typed operator, a declarative operator, and a remote HTTP service each receive the same fully-prepared request. None of them has to care about preparation.
 
 The old system gave reconcilers wood, nails, and a hammer. The new system
 hands them a finished chair.
@@ -90,10 +87,8 @@ Once the architecture was clear, I looked at `operatorBox` and saw the history
 of every decision I hadn't made yet.
 
 `autoscale:` at the top level of `operatorBox`. The reconciler doesn't autoscale
-anything — the kordinator does. `rollback:` next to `onCreate`. Rollback is
-failure recovery managed by the runtime, not a reconciliation hook. `finalizers:`
-listed as a reconciler concern. Kordinator's `maintain/` package owns finalizers
-exclusively.
+anything — the kordinator does. `finalizers:` listed as a reconciler concern.
+Kordinator's `maintain/` package owns finalizers exclusively.
 
 On the other side, `normalize:` and `imports:` and `forceConflict:` were on the
 `CRDEntry` top level — a different address from `onReconcile:`, even though they
@@ -119,7 +114,7 @@ this?
   kordinator after dequeue. Events that fail either gate are silently dropped.
   The reconciler never sees this.
 
-- **`operatorBox.runtime:`** — policy: autoscale, rollback, finalizers, namespace
+- **`operatorBox.runtime:`** — policy: autoscale, finalizers, namespace
   guards, deletion protection. The kordinator manages these as long-lived operator
   concerns, not per-reconcile concerns. If the reconciler never sees it, it lives here.
 
